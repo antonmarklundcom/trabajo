@@ -1,0 +1,12 @@
+[
+  { "slug": "contabilidad", "name": "Contabilidad y Finanzas" },
+  { "slug": "ventas", "name": "Ventas y Comercial" },
+  { "slug": "administracion", "name": "Administración" },
+  { "slug": "atencion-al-cliente", "name": "Atención al Cliente" },
+  { "slug": "tecnologia", "name": "Tecnología e IT" },
+  { "slug": "salud", "name": "Salud y Bienestar" },
+  { "slug": "gastronomia", "name": "Gastronomía y Hotelería" },
+  { "slug": "logistica", "name": "Logística y Transporte" },
+  { "slug": "construccion", "name": "Construcción e Industria" },
+  { "slug": "marketing", "name": "Marketing y Comunicación" }
+]

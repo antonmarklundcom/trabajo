@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+@theme {
+  /* Colors */
+  --color-page-bg: #F7F8FA;
+  --color-surface: #FFFFFF;
+  --color-border: #E5E7EB;
+  --color-ink: #16181D;
+  --color-ink-secondary: #5B6472;
+  --color-brand: #2557D6;
+  --color-brand-hover: #1E47B8;
+  --color-brand-tint: #EEF3FE;
+  --color-featured-text: #92600A;
+  --color-featured-tint: #FDF4E3;
+  --color-featured-border: #F59E0B;
+  --color-success: #16794C;
+  --color-success-tint: #ECFDF5;
+  --color-error: #B91C1C;
+  --color-error-tint: #FEF2F2;
+
+  /* Radii */
+  --radius-card: 10px;
+  --radius-sm: 4px;
+  --radius-full: 9999px;
+
+  /* Font */
+  --font-inter: var(--font-inter-loaded), system-ui, sans-serif;
+}
+
+body {
+  background-color: var(--color-page-bg);
+  color: var(--color-ink);
+  font-family: var(--font-inter);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Visible focus ring on every interactive element */
+*:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Smooth transitions for interactive states */
+button, a, input, select, textarea {
+  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Remove default outline when using focus-visible */
+*:focus:not(:focus-visible) {
+  outline: none;
+}

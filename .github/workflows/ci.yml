@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'claude/**']
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SITE_URL: https://trabajo.com.py
+          NEXT_PUBLIC_WHATSAPP_LEADS: '595971000000'
+          NEXT_PUBLIC_BUSINESS_NAME: trabajo.com.py
+          USE_WP_BACKEND: 'false'
+          NEXT_PUBLIC_SHOW_PLANS: 'true'
+          NEXT_PUBLIC_FEATURED_BADGES: 'on'
