@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { City } from '@/lib/types';
+import { categoryLabel } from '@/lib/labels';
 
 type Props = { cities: City[] };
 
@@ -106,7 +107,7 @@ export default function SearchHero({ cities }: Props) {
                 href={`/trabajo/${cat}`}
                 className="underline underline-offset-2 hover:text-white transition-colors"
               >
-                {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                {categoryLabel(cat)}
               </a>
               {i < arr.length - 1 ? ' · ' : ''}
             </span>

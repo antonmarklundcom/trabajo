@@ -125,6 +125,62 @@ Para activarlos:
 
 ---
 
+## Lead routing — campos enviados, variables de entorno, cómo configurar GHL/Sheets
+
+Toda postulación (`/empleos/[slug]`) y solicitud de empleador (`/publicar`, `/contacto`)
+se envía a `POST /api/v1/leads`. La ruta valida con zod, responde `201` de inmediato y
+recién **después** (vía `after()`) hace el fan-out a los loggers. Por eso un fallo de
+logger nunca falla la postulación del usuario.
+
+### Cómo funciona
+
+- **Validación:** zod (`leadSchema`, unión discriminada por `type`).
+- **Un solo payload plano** (`buildPayload` en `lib/leads.ts`) se envía **en paralelo** a
+  `GHL_WEBHOOK_URL` y `GOOGLE_SHEETS_WEBHOOK_URL` con `Promise.allSettled` y **3 reintentos
+  con backoff exponencial** (1s, 2s, 4s) por destino.
+- **Degradación elegante:** si una variable está vacía, ese destino se omite en silencio.
+- **Un único webhook de GHL** recibe ambos tipos de lead; se distinguen por `lead_type`.
+- **Leave-page-safe:** el botón de WhatsApp dispara `navigator.sendBeacon()` en el mismo
+  handler que la navegación; la API parsea el JSON desde el body de texto crudo.
+- Nunca se loguea nada sensible en el cliente.
+
+### Campos enviados (claves planas, snake_case)
+
+| Campo | Descripción |
+|-------|-------------|
+| `lead_type` | `"employer"` o `"seeker"` |
+| `full_name` | Nombre del contacto / postulante |
+| `email` | Email (opcional) |
+| `phone` | Solo dígitos, E.164 cuando es posible (PY `09…` → `595…`) |
+| `company_name` | Empresa (leads de empleador) |
+| `job_title` | Empleador: el puesto a publicar. Postulante: el empleo al que aplicó |
+| `job_slug` | Postulante: slug del empleo (si está disponible) |
+| `city` | Nombre de ciudad con tildes (resuelto desde el slug) |
+| `category` | Nombre de categoría con tildes (resuelto desde el slug) |
+| `contract_type` | Tipo de contrato (si está disponible) |
+| `message` | Mensaje / descripción del puesto |
+| `source_page` | Path desde donde se envió el formulario |
+| `submitted_at` | Timestamp ISO |
+
+### Configurar GHL
+
+1. GHL → **Automation → Workflows** → nuevo workflow con trigger **"Inbound Webhook"**.
+2. Copiá la URL generada a `GHL_WEBHOOK_URL` en Hostinger.
+3. Mapeá los campos planos de arriba a los campos de contacto/oportunidad en GHL.
+4. Usá `lead_type` para ramificar empleadores vs. postulantes dentro del workflow.
+
+### Configurar Google Sheets
+
+1. Creá un **Google Apps Script** (Web App) que reciba `POST` con body JSON y haga
+   `appendRow` con las claves planas, o usá un "Catch Hook" de Zapier/Make.
+2. Desplegalo como Web App (acceso "cualquiera") y copiá la URL a
+   `GOOGLE_SHEETS_WEBHOOK_URL` en Hostinger.
+
+Si ambas variables quedan vacías el sitio igual acepta los leads (WhatsApp es el canal
+primario).
+
+---
+
 ## Stack técnico
 
 - **Framework:** Next.js 16 (App Router)

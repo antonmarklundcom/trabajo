@@ -13,11 +13,14 @@ const formSchema = z.object({
 type Props = {
   jobSlug: string;
   jobTitle: string;
+  citySlug?: string;
+  categorySlug?: string;
+  contractType?: string;
 };
 
 type FormState = 'idle' | 'submitting' | 'success' | 'error';
 
-export default function LeadForm({ jobSlug, jobTitle }: Props) {
+export default function LeadForm({ jobSlug, jobTitle, citySlug, categorySlug, contractType }: Props) {
   const [state, setState] = useState<FormState>('idle');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [values, setValues] = useState({ name: '', phone: '', email: '', message: '' });
@@ -49,6 +52,11 @@ export default function LeadForm({ jobSlug, jobTitle }: Props) {
           type: 'application',
           jobSlug,
           jobTitle,
+          citySlug,
+          categorySlug,
+          contractType,
+          channel: 'form',
+          sourcePage: typeof window !== 'undefined' ? window.location.pathname : undefined,
           ...parsed.data,
         }),
       });

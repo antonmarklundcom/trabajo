@@ -57,7 +57,11 @@ export default function EmployerForm({ categories, cities }: Props) {
       const res = await fetch('/api/v1/leads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'employer_post', ...parsed.data }),
+        body: JSON.stringify({
+          type: 'employer_post',
+          ...parsed.data,
+          sourcePage: typeof window !== 'undefined' ? window.location.pathname : undefined,
+        }),
       });
       if (!res.ok) throw new Error();
       setState('success');
