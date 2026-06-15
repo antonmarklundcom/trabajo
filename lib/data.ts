@@ -130,10 +130,11 @@ async function getWpModule() {
 }
 
 function useWp(): boolean {
-  return (
-    !!process.env.WP_API_URL &&
-    process.env.USE_WP_BACKEND === 'true'
-  );
+  // Single source switch: the WP backend is active only when the flag is
+  // exactly 'true'. Any other value (unset, 'false', etc.) reads the seed JSON
+  // exactly as before. WP_API_URL is optional — lib/wp.ts defaults to the live
+  // panel host when it is not provided.
+  return process.env.USE_WP_BACKEND === 'true';
 }
 
 // ---------------------------------------------------------------------------
