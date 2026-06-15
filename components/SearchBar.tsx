@@ -32,7 +32,7 @@ export default function SearchBar({ initialQ }: Props) {
       className="flex gap-2 bg-white border border-[#E5E7EB] rounded-[10px] p-2"
       role="search"
     >
-      <div className="flex-1 flex items-center gap-2 px-2">
+      <div className="flex-1 min-w-0 flex items-center gap-2 px-2">
         <svg
           className="text-[#5B6472] flex-shrink-0"
           width="18"
@@ -48,7 +48,7 @@ export default function SearchBar({ initialQ }: Props) {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Cargo, empresa o palabra clave..."
-          className="flex-1 py-2 text-base text-[#16181D] placeholder-[#9CA3AF] bg-transparent border-none outline-none"
+          className="flex-1 min-w-0 py-2 text-base text-[#16181D] placeholder-[#9CA3AF] bg-transparent border-none outline-none"
           aria-label="Buscar empleos"
         />
         {q && (
@@ -66,7 +66,7 @@ export default function SearchBar({ initialQ }: Props) {
       </div>
       <button
         type="submit"
-        className="px-5 py-2 rounded-[8px] bg-[#2557D6] hover:bg-[#1E47B8] text-white font-semibold text-sm transition-colors"
+        className="flex-shrink-0 px-5 py-2 rounded-[8px] bg-[#2557D6] hover:bg-[#1E47B8] text-white font-semibold text-sm whitespace-nowrap transition-colors"
       >
         Buscar
       </button>

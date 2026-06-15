@@ -195,6 +195,9 @@ export default async function JobDetailPage({ params }: { params: Params }) {
                     whatsapp={job.whatsapp}
                     jobTitle={job.title}
                     jobSlug={job.slug}
+                    citySlug={job.citySlug}
+                    categorySlug={job.categorySlug}
+                    contractType={job.contractType}
                   />
                   <p className="mt-2 text-xs text-[#5B6472] text-center">
                     Te conecta directamente con la empresa
@@ -213,7 +216,13 @@ export default async function JobDetailPage({ params }: { params: Params }) {
                 </div>
               )}
 
-              <LeadForm jobSlug={job.slug} jobTitle={job.title} />
+              <LeadForm
+                jobSlug={job.slug}
+                jobTitle={job.title}
+                citySlug={job.citySlug}
+                categorySlug={job.categorySlug}
+                contractType={job.contractType}
+              />
             </div>
 
             {/* Category / similar jobs link */}

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { Job } from '@/lib/types';
 import { formatSalary, formatRelativeDate, contractTypeLabel, seniorityLabel, modalityLabel } from '@/lib/formatters';
+import { cityLabel } from '@/lib/labels';
 
 type Props = { job: Job };
 
@@ -46,7 +47,7 @@ export default function JobCard({ job }: Props) {
             <div className="mt-3 flex flex-wrap gap-2 text-xs text-[#5B6472]">
               <span className="flex items-center gap-1">
                 <LocationIcon />
-                {job.citySlug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                {cityLabel(job.citySlug)}
               </span>
               <span className="flex items-center gap-1">
                 <ClockIcon />

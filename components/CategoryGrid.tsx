@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { Category } from '@/lib/types';
+import { categoryLabel } from '@/lib/labels';
 
 const categoryIcons: Record<string, React.ReactNode> = {
   contabilidad: <path d="M9 7H6a2 2 0 00-2 2v9a2 2 0 002 2h9a2 2 0 002-2v-3M9 7V5a2 2 0 012-2h2a2 2 0 012 2v2m-6 0h6" strokeWidth="1.5" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round" />,
@@ -39,7 +40,7 @@ export default function CategoryGrid({ categories }: Props) {
               </div>
               <div>
                 <p className="text-sm font-medium text-[#16181D] group-hover:text-[#2557D6] leading-tight transition-colors">
-                  {cat.name}
+                  {categoryLabel(cat.slug)}
                 </p>
                 {cat.jobCount !== undefined && (
                   <p className="text-xs text-[#5B6472] mt-0.5">

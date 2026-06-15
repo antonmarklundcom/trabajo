@@ -51,6 +51,7 @@ export default function ContactForm() {
           categorySlug: 'administracion',
           citySlug: 'asuncion',
           description: parsed.data.message,
+          sourcePage: typeof window !== 'undefined' ? window.location.pathname : undefined,
         }),
       });
       if (!res.ok) throw new Error();

@@ -4,22 +4,37 @@ type Props = {
   whatsapp: string;
   jobTitle: string;
   jobSlug: string;
+  citySlug?: string;
+  categorySlug?: string;
+  contractType?: string;
 };
 
-export default function WhatsAppButton({ whatsapp, jobTitle, jobSlug }: Props) {
+export default function WhatsAppButton({
+  whatsapp,
+  jobTitle,
+  jobSlug,
+  citySlug,
+  categorySlug,
+  contractType,
+}: Props) {
   const message = encodeURIComponent(
     `Hola, me interesa postularme para el puesto de "${jobTitle}" que vi en trabajo.com.py`,
   );
   const href = `https://wa.me/${whatsapp}?text=${message}`;
 
   function handleClick(e: React.MouseEvent<HTMLAnchorElement>) {
-    // Track the click via sendBeacon before navigating away
+    // Leave-page-safe: fire tracking via sendBeacon in the SAME handler as the
+    // navigation, so the click is recorded even as we hand off to WhatsApp.
     const siteUrl = typeof window !== 'undefined' ? window.location.origin : '';
     const payload = JSON.stringify({
       type: 'application',
       jobSlug,
       jobTitle,
+      citySlug,
+      categorySlug,
+      contractType,
       channel: 'whatsapp',
+      sourcePage: typeof window !== 'undefined' ? window.location.pathname : undefined,
     });
     if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
       navigator.sendBeacon(`${siteUrl}/api/v1/leads`, payload);
