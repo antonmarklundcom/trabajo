@@ -32,7 +32,7 @@ export default function JobCard({ job }: Props) {
           {/* Content */}
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-2 flex-wrap">
-              <h2 className="text-base font-semibold text-[#16181D] leading-snug line-clamp-2">
+              <h2 className="text-base font-semibold text-[#16181D] leading-snug line-clamp-2 break-keep break-words">
                 {job.title}
               </h2>
               {featured && (

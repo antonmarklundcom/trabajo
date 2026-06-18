@@ -33,15 +33,15 @@ export default function SortControl({ currentOrden, total }: Props) {
         <span className="font-semibold text-[#16181D]">{total}</span>{' '}
         {total === 1 ? 'empleo encontrado' : 'empleos encontrados'}
       </p>
-      <div className="flex items-center gap-2">
-        <label className="text-sm text-[#5B6472]" htmlFor="sort-select">
+      <div className="flex items-center gap-2 min-w-0">
+        <label className="text-sm text-[#5B6472] flex-shrink-0" htmlFor="sort-select">
           Ordenar:
         </label>
         <select
           id="sort-select"
           value={currentOrden}
           onChange={handleChange}
-          className="px-3 py-1.5 rounded-[10px] border border-[#E5E7EB] text-sm text-[#16181D] bg-white focus:outline-none focus:border-[#2557D6]"
+          className="min-w-0 px-3 py-1.5 rounded-[10px] border border-[#E5E7EB] text-sm text-[#16181D] bg-white focus:outline-none focus:border-[#2557D6]"
         >
           {SORT_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
