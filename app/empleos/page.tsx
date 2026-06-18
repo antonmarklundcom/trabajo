@@ -75,7 +75,7 @@ export default async function EmpleosPage({
         <SearchBar initialQ={filters.q ?? ''} />
       </div>
 
-      <div className="flex gap-8 items-start">
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-8 items-stretch lg:items-start">
         {/* Sidebar filters */}
         <FilterPanel
           categories={categories}
