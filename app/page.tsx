@@ -3,6 +3,7 @@ import SearchHero from '@/components/SearchHero';
 import CategoryGrid from '@/components/CategoryGrid';
 import JobCard from '@/components/JobCard';
 import Link from 'next/link';
+import { NandutiMotif } from '@/components/Logo';
 
 export const revalidate = 60;
 
@@ -20,16 +21,18 @@ export default async function HomePage() {
 
       {/* Featured jobs */}
       {featured.length > 0 && (
-        <section className="py-12 px-4 bg-[#FDF4E3]">
+        <section className="py-12 px-4 bg-[#FBF3E0]">
           <div className="max-w-7xl mx-auto">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-2xl font-bold text-[#16181D]">Empleos destacados</h2>
-                <p className="text-sm text-[#5B6472] mt-1">Posiciones con mayor visibilidad</p>
+                <h2 className="flex items-center gap-2 text-2xl font-bold text-[#1E1B17]">
+                  <span className="text-[#B0812C]">★</span> Empleos destacados
+                </h2>
+                <p className="text-sm text-[#57514A] mt-1">Posiciones con mayor visibilidad</p>
               </div>
               <Link
                 href="/empleos?orden=destacados"
-                className="text-sm font-medium text-[#2557D6] hover:underline"
+                className="text-sm font-medium text-[#C0362A] hover:underline"
               >
                 Ver todos →
               </Link>
@@ -50,10 +53,10 @@ export default async function HomePage() {
       <section className="py-8 px-4 pb-16">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-[#16181D]">Últimos empleos publicados</h2>
+            <h2 className="text-2xl font-bold text-[#1E1B17]">Últimos empleos publicados</h2>
             <Link
               href="/empleos"
-              className="text-sm font-medium text-[#2557D6] hover:underline"
+              className="text-sm font-medium text-[#C0362A] hover:underline"
             >
               Ver todos →
             </Link>
@@ -66,7 +69,7 @@ export default async function HomePage() {
           <div className="mt-8 text-center">
             <Link
               href="/empleos"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-[10px] border-2 border-[#2557D6] text-[#2557D6] font-semibold hover:bg-[#EEF3FE] transition-colors"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-[10px] border-2 border-[#C0362A] text-[#C0362A] font-semibold hover:bg-[#FBECE9] transition-colors"
             >
               Ver todos los empleos
             </Link>
@@ -75,19 +78,20 @@ export default async function HomePage() {
       </section>
 
       {/* CTA for employers */}
-      <section className="bg-[#16181D] py-14 px-4">
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-2xl sm:text-3xl font-bold text-white">
+      <section className="relative overflow-hidden bg-[#1E1B17] py-16 px-4">
+        <NandutiMotif className="pointer-events-none absolute -right-20 -bottom-24 w-[24rem] h-[24rem] text-[#E6B25A] opacity-[0.12]" />
+        <div className="relative max-w-3xl mx-auto text-center">
+          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-[-0.02em] text-white">
             ¿Necesitás contratar?
           </h2>
-          <p className="mt-3 text-[#9CA3AF] text-base">
-            Publicá tu empleo gratis y encontrá al candidato ideal. Nuestro equipo te ayuda.
+          <p className="mt-3 text-white/70 text-base">
+            Publicá tu empleo y recibí postulantes por WhatsApp en minutos.
           </p>
           <Link
             href="/publicar"
-            className="mt-6 inline-flex items-center gap-2 px-8 py-3.5 rounded-[10px] bg-[#2557D6] hover:bg-[#1E47B8] text-white font-semibold text-base transition-colors"
+            className="mt-7 inline-flex items-center gap-2 px-8 py-3.5 rounded-[12px] bg-[#E6B25A] hover:bg-[#d8a548] text-[#1E1B17] font-bold text-base transition-colors"
           >
-            Publicá tu empleo gratis
+            Publicá tu empleo
           </Link>
         </div>
       </section>

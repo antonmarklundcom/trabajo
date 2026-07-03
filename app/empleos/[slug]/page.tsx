@@ -6,6 +6,7 @@ import { formatSalary, formatRelativeDate, contractTypeLabel, seniorityLabel, mo
 import WhatsAppButton from '@/components/WhatsAppButton';
 import LeadForm from '@/components/LeadForm';
 import MarkdownContent from '@/components/MarkdownContent';
+import CompanyAvatar from '@/components/CompanyAvatar';
 
 export const revalidate = 60;
 
@@ -101,52 +102,44 @@ export default async function JobDetailPage({ params }: { params: Params }) {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumb */}
-        <nav className="flex items-center gap-2 text-sm text-[#5B6472] mb-6 flex-wrap" aria-label="Ruta">
-          <Link href="/" className="hover:text-[#2557D6] transition-colors">Inicio</Link>
+        <nav className="flex items-center gap-2 text-sm text-[#57514A] mb-6 flex-wrap" aria-label="Ruta">
+          <Link href="/" className="hover:text-[#C0362A] transition-colors">Inicio</Link>
           <span aria-hidden="true">›</span>
-          <Link href="/empleos" className="hover:text-[#2557D6] transition-colors">Empleos</Link>
+          <Link href="/empleos" className="hover:text-[#C0362A] transition-colors">Empleos</Link>
           {category && (
             <>
               <span aria-hidden="true">›</span>
-              <Link href={`/trabajo/${category.slug}`} className="hover:text-[#2557D6] transition-colors">
+              <Link href={`/trabajo/${category.slug}`} className="hover:text-[#C0362A] transition-colors">
                 {category.name}
               </Link>
             </>
           )}
           <span aria-hidden="true">›</span>
-          <span className="text-[#16181D] font-medium truncate max-w-xs">{job.title}</span>
+          <span className="text-[#1E1B17] font-medium truncate max-w-xs">{job.title}</span>
         </nav>
 
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Main content */}
           <div className="flex-1 min-w-0">
-            <article className="bg-white rounded-[10px] border border-[#E5E7EB] p-6 sm:p-8">
+            <article className="bg-white rounded-[10px] border border-[#E7E1D6] p-6 sm:p-8">
+              {job.featuredUntil && new Date(job.featuredUntil) > new Date() && (
+                <span className="inline-flex items-center gap-1.5 mb-4 text-xs font-bold uppercase tracking-wide px-3 py-1.5 rounded-full bg-[#B0812C] text-white">
+                  ★ Empleo destacado
+                </span>
+              )}
               {/* Header */}
               <div className="flex items-start gap-4 mb-6">
-                <div className="flex-shrink-0 w-16 h-16 rounded-[10px] overflow-hidden border border-[#E5E7EB] bg-[#F7F8FA]">
-                  <img
-                    src={job.companyLogo ?? '/logos/default.svg'}
-                    alt={`Logo de ${job.company}`}
-                    width={64}
-                    height={64}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
+                <CompanyAvatar company={job.company} logo={job.companyLogo} size={64} />
                 <div className="flex-1 min-w-0">
-                  <h1 className="text-2xl sm:text-3xl font-bold text-[#16181D] leading-tight">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-[#1E1B17] leading-tight">
                     {job.title}
                   </h1>
-                  <p className="mt-1 text-lg text-[#5B6472]">{job.company}</p>
+                  <p className="mt-1 text-lg text-[#57514A]">{job.company}</p>
                 </div>
-                {job.featuredUntil && new Date(job.featuredUntil) > new Date() && (
-                  <span className="flex-shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-[#FDF4E3] text-[#92600A]">
-                    Destacado
-                  </span>
-                )}
               </div>
 
               {/* Key details */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-5 border-t border-b border-[#E5E7EB] mb-6">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-5 border-t border-b border-[#E7E1D6] mb-6">
                 <Detail label="Ciudad" value={city?.name ?? job.citySlug} icon={<LocationIcon />} />
                 <Detail
                   label="Salario"
@@ -162,7 +155,7 @@ export default async function JobDetailPage({ params }: { params: Params }) {
                 {chips.map((chip) => (
                   <span
                     key={chip}
-                    className="px-3 py-1 rounded-full text-xs font-medium bg-[#F7F8FA] text-[#5B6472] border border-[#E5E7EB]"
+                    className="px-3 py-1 rounded-full text-xs font-medium bg-[#F5F1EA] text-[#57514A] border border-[#E7E1D6]"
                   >
                     {chip}
                   </span>
@@ -175,7 +168,7 @@ export default async function JobDetailPage({ params }: { params: Params }) {
               </div>
 
               {/* Meta */}
-              <div className="mt-8 pt-6 border-t border-[#E5E7EB] flex flex-col sm:flex-row gap-4 text-sm text-[#5B6472]">
+              <div className="mt-8 pt-6 border-t border-[#E7E1D6] flex flex-col sm:flex-row gap-4 text-sm text-[#57514A]">
                 <span>Publicado: {formatRelativeDate(job.postedAt)}</span>
                 {job.updatedAt !== job.postedAt && (
                   <span>Actualizado: {formatRelativeDate(job.updatedAt)}</span>
@@ -186,8 +179,8 @@ export default async function JobDetailPage({ params }: { params: Params }) {
 
           {/* Sidebar: Apply */}
           <aside className="w-full lg:w-80 flex-shrink-0">
-            <div className="bg-white rounded-[10px] border border-[#E5E7EB] p-6 sticky top-24">
-              <h2 className="text-lg font-bold text-[#16181D] mb-4">Postulate ahora</h2>
+            <div className="bg-white rounded-[10px] border border-[#E7E1D6] p-6 sticky top-24">
+              <h2 className="text-lg font-bold text-[#1E1B17] mb-4">Postulate ahora</h2>
 
               {job.whatsapp && (
                 <div className="mb-6">
@@ -199,7 +192,7 @@ export default async function JobDetailPage({ params }: { params: Params }) {
                     categorySlug={job.categorySlug}
                     contractType={job.contractType}
                   />
-                  <p className="mt-2 text-xs text-[#5B6472] text-center">
+                  <p className="mt-2 text-xs text-[#57514A] text-center">
                     Te conecta directamente con la empresa
                   </p>
                 </div>
@@ -208,10 +201,10 @@ export default async function JobDetailPage({ params }: { params: Params }) {
               {job.whatsapp && (
                 <div className="relative mb-6">
                   <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-[#E5E7EB]" />
+                    <div className="w-full border-t border-[#E7E1D6]" />
                   </div>
                   <div className="relative flex justify-center text-xs">
-                    <span className="bg-white px-3 text-[#5B6472]">o también</span>
+                    <span className="bg-white px-3 text-[#57514A]">o también</span>
                   </div>
                 </div>
               )}
@@ -227,10 +220,10 @@ export default async function JobDetailPage({ params }: { params: Params }) {
 
             {/* Category / similar jobs link */}
             {category && (
-              <div className="mt-4 bg-white rounded-[10px] border border-[#E5E7EB] p-4">
-                <p className="text-sm text-[#5B6472]">
+              <div className="mt-4 bg-white rounded-[10px] border border-[#E7E1D6] p-4">
+                <p className="text-sm text-[#57514A]">
                   Más empleos en{' '}
-                  <Link href={`/trabajo/${category.slug}`} className="text-[#2557D6] font-medium hover:underline">
+                  <Link href={`/trabajo/${category.slug}`} className="text-[#C0362A] font-medium hover:underline">
                     {category.name}
                   </Link>
                 </p>
@@ -242,12 +235,12 @@ export default async function JobDetailPage({ params }: { params: Params }) {
 
       {/* Prose styles for job descriptions */}
       <style>{`
-        .prose-job p { margin-bottom: 0.75rem; color: #374151; line-height: 1.7; }
-        .prose-job h2 { font-size: 1.1rem; font-weight: 700; color: #16181D; margin: 1.25rem 0 0.5rem; }
-        .prose-job h3 { font-size: 1rem; font-weight: 600; color: #16181D; margin: 1rem 0 0.375rem; }
+        .prose-job p { margin-bottom: 0.75rem; color: #44403A; line-height: 1.7; }
+        .prose-job h2 { font-size: 1.1rem; font-weight: 700; color: #1E1B17; margin: 1.25rem 0 0.5rem; }
+        .prose-job h3 { font-size: 1rem; font-weight: 600; color: #1E1B17; margin: 1rem 0 0.375rem; }
         .prose-job ul { list-style: disc; padding-left: 1.25rem; margin-bottom: 0.75rem; }
-        .prose-job li { margin-bottom: 0.25rem; color: #374151; line-height: 1.6; }
-        .prose-job strong { color: #16181D; font-weight: 600; }
+        .prose-job li { margin-bottom: 0.25rem; color: #44403A; line-height: 1.6; }
+        .prose-job strong { color: #1E1B17; font-weight: 600; }
       `}</style>
     </>
   );
@@ -256,11 +249,11 @@ export default async function JobDetailPage({ params }: { params: Params }) {
 function Detail({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="flex items-center gap-1.5 text-xs text-[#5B6472] uppercase tracking-wide font-medium">
-        <span className="text-[#5B6472]">{icon}</span>
+      <span className="flex items-center gap-1.5 text-xs text-[#57514A] uppercase tracking-wide font-medium">
+        <span className="text-[#57514A]">{icon}</span>
         {label}
       </span>
-      <span className="text-sm font-semibold text-[#16181D]">{value}</span>
+      <span className="text-sm font-semibold text-[#1E1B17]">{value}</span>
     </div>
   );
 }

@@ -49,10 +49,10 @@ export default function WhatsAppButton({
       target="_blank"
       rel="noopener noreferrer"
       onClick={handleClick}
-      className="flex items-center justify-center gap-2 w-full py-3.5 px-6 rounded-[10px] bg-[#25D366] hover:bg-[#1DA851] text-white font-semibold text-base transition-colors"
+      className="flex items-center justify-center gap-2 w-full py-3.5 px-6 rounded-[12px] bg-[#12A150] hover:bg-[#0E7C3D] text-white font-semibold text-base transition-colors"
     >
       <WhatsAppIcon />
-      Postularme por WhatsApp
+      Postulate por WhatsApp
     </a>
   );
 }

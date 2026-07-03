@@ -21,35 +21,50 @@ export default function CategoryGrid({ categories }: Props) {
   return (
     <section className="py-12 px-4">
       <div className="max-w-7xl mx-auto">
-        <h2 className="text-2xl font-bold text-[#16181D] mb-6">
+        <h2 className="text-2xl font-bold text-[#1E1B17] mb-6">
           Explorá por categoría
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          {categories.map((cat) => (
-            <Link
-              key={cat.slug}
-              href={`/trabajo/${cat.slug}`}
-              className="group flex flex-col items-center gap-3 p-4 bg-white rounded-[10px] border border-[#E5E7EB] hover:border-[#2557D6] hover:bg-[#EEF3FE] transition-all text-center"
-            >
-              <div className="w-10 h-10 flex items-center justify-center text-[#5B6472] group-hover:text-[#2557D6] transition-colors">
-                <svg viewBox="0 0 24 24" width="24" height="24">
-                  {categoryIcons[cat.slug] ?? (
-                    <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.5" fill="none" />
-                  )}
-                </svg>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-[#16181D] group-hover:text-[#2557D6] leading-tight transition-colors">
-                  {categoryLabel(cat.slug)}
-                </p>
-                {cat.jobCount !== undefined && (
-                  <p className="text-xs text-[#5B6472] mt-0.5">
-                    {cat.jobCount} {cat.jobCount === 1 ? 'empleo' : 'empleos'}
+          {categories.map((cat) => {
+            const empty = cat.jobCount === 0;
+            return (
+              <Link
+                key={cat.slug}
+                href={`/trabajo/${cat.slug}`}
+                className={`group flex flex-col gap-3 p-4 rounded-[14px] border transition-all ${
+                  empty
+                    ? 'border-dashed border-[#D8D0C2] bg-transparent hover:border-[#B0812C]'
+                    : 'border-[#E7E1D6] bg-white hover:border-[#C0362A] hover:shadow-[0_4px_12px_-2px_rgba(30,27,23,.1)]'
+                }`}
+              >
+                <div
+                  className={`w-11 h-11 flex items-center justify-center rounded-[12px] transition-colors ${
+                    empty
+                      ? 'bg-[#F5F1EA] text-[#8A8378]'
+                      : 'bg-[#FBECE9] text-[#C0362A]'
+                  }`}
+                >
+                  <svg viewBox="0 0 24 24" width="22" height="22">
+                    {categoryIcons[cat.slug] ?? (
+                      <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                    )}
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-[#1E1B17] leading-tight">
+                    {categoryLabel(cat.slug)}
                   </p>
-                )}
-              </div>
-            </Link>
-          ))}
+                  {cat.jobCount !== undefined && (
+                    <p className={`text-xs mt-0.5 ${empty ? 'font-semibold text-[#8F6620]' : 'text-[#8A8378]'}`}>
+                      {empty
+                        ? 'Sé el primero →'
+                        : `${cat.jobCount} ${cat.jobCount === 1 ? 'empleo' : 'empleos'}`}
+                    </p>
+                  )}
+                </div>
+              </Link>
+            );
+          })}
         </div>
       </div>
     </section>
