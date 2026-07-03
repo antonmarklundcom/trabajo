@@ -1,30 +1,48 @@
 @import "tailwindcss";
 
 @theme {
-  /* Colors */
-  --color-page-bg: #F7F8FA;
+  /* Surface & background */
+  --color-page-bg: #FBF9F6;
   --color-surface: #FFFFFF;
-  --color-border: #E5E7EB;
-  --color-ink: #16181D;
-  --color-ink-secondary: #5B6472;
-  --color-brand: #2557D6;
-  --color-brand-hover: #1E47B8;
-  --color-brand-tint: #EEF3FE;
-  --color-featured-text: #92600A;
-  --color-featured-tint: #FDF4E3;
-  --color-featured-border: #F59E0B;
-  --color-success: #16794C;
-  --color-success-tint: #ECFDF5;
-  --color-error: #B91C1C;
-  --color-error-tint: #FEF2F2;
+  --color-surface-2: #F5F1EA;
+  --color-surface-3: #EFE9DF;
+  --color-border: #E7E1D6;
+  --color-border-strong: #D8D0C2;
+
+  /* Ink */
+  --color-ink: #1E1B17;
+  --color-ink-secondary: #57514A;
+  --color-ink-3: #8A8378;
+
+  /* Brand (rojo) */
+  --color-brand: #C0362A;
+  --color-brand-hover: #9E2A20;
+  --color-brand-tint: #FBECE9;
+
+  /* Destacado (oro) */
+  --color-gold: #B0812C;
+  --color-gold-strong: #8F6620;
+  --color-gold-tint: #FAF1DC;
+
+  /* WhatsApp & estados */
+  --color-wa: #12A150;
+  --color-wa-strong: #0E7C3D;
+  --color-success: #2E7D50;
+  --color-success-tint: #E8F3EC;
+  --color-error: #B42318;
+  --color-error-tint: #FCEBEA;
 
   /* Radii */
-  --radius-card: 10px;
-  --radius-sm: 4px;
+  --radius-card: 14px;
+  --radius-sm: 6px;
   --radius-full: 9999px;
 
   /* Font */
   --font-inter: var(--font-inter-loaded), system-ui, sans-serif;
+
+  /* Shadows */
+  --shadow-card: 0 1px 2px rgba(30,27,23,.06), 0 2px 8px rgba(30,27,23,.06);
+  --shadow-gold: 0 12px 30px -10px rgba(176,129,44,.45);
 }
 
 body {

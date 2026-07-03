@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Wordmark } from './Logo';
 
 const categoryLinks = [
   { href: '/trabajo/tecnologia', label: 'Tecnología' },
@@ -18,22 +19,22 @@ const cityLinks = [
 
 export default function Footer() {
   return (
-    <footer className="bg-white border-t border-[#E5E7EB] mt-16">
+    <footer className="bg-white border-t border-[#E7E1D6] mt-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Brand */}
           <div className="col-span-1">
-            <Link href="/" className="text-[#2557D6] font-bold text-lg">
-              trabajo.com.py
+            <Link href="/" className="inline-block" aria-label="trabajo.com.py — Inicio">
+              <Wordmark size={26} />
             </Link>
-            <p className="mt-3 text-sm text-[#5B6472] leading-relaxed">
+            <p className="mt-3 text-sm text-[#57514A] leading-relaxed">
               El portal de empleos de Paraguay. Gratis para candidatos, siempre.
             </p>
-            <p className="mt-4 text-sm text-[#5B6472]">
+            <p className="mt-4 text-sm text-[#57514A]">
               <span className="font-medium">¿Tenés dudas?</span>{' '}
               <Link
                 href="/contacto"
-                className="text-[#2557D6] hover:underline"
+                className="text-[#C0362A] hover:underline"
               >
                 Contactanos
               </Link>
@@ -42,7 +43,7 @@ export default function Footer() {
 
           {/* Categorías */}
           <div>
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#5B6472] mb-4">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#57514A] mb-4">
               Categorías
             </h3>
             <ul className="space-y-2">
@@ -50,7 +51,7 @@ export default function Footer() {
                 <li key={l.href}>
                   <Link
                     href={l.href}
-                    className="text-sm text-[#5B6472] hover:text-[#2557D6] transition-colors"
+                    className="text-sm text-[#57514A] hover:text-[#C0362A] transition-colors"
                   >
                     {l.label}
                   </Link>
@@ -61,7 +62,7 @@ export default function Footer() {
 
           {/* Ciudades */}
           <div>
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#5B6472] mb-4">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#57514A] mb-4">
               Ciudades
             </h3>
             <ul className="space-y-2">
@@ -69,7 +70,7 @@ export default function Footer() {
                 <li key={l.href}>
                   <Link
                     href={l.href}
-                    className="text-sm text-[#5B6472] hover:text-[#2557D6] transition-colors"
+                    className="text-sm text-[#57514A] hover:text-[#C0362A] transition-colors"
                   >
                     {l.label}
                   </Link>
@@ -80,22 +81,22 @@ export default function Footer() {
 
           {/* Empresa */}
           <div>
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#5B6472] mb-4">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#57514A] mb-4">
               Empresa
             </h3>
             <ul className="space-y-2">
               <li>
-                <Link href="/publicar" className="text-sm text-[#5B6472] hover:text-[#2557D6] transition-colors">
+                <Link href="/publicar" className="text-sm text-[#57514A] hover:text-[#C0362A] transition-colors">
                   Publicá tu empleo
                 </Link>
               </li>
               <li>
-                <Link href="/planes" className="text-sm text-[#5B6472] hover:text-[#2557D6] transition-colors">
+                <Link href="/planes" className="text-sm text-[#57514A] hover:text-[#C0362A] transition-colors">
                   Planes y precios
                 </Link>
               </li>
               <li>
-                <Link href="/contacto" className="text-sm text-[#5B6472] hover:text-[#2557D6] transition-colors">
+                <Link href="/contacto" className="text-sm text-[#57514A] hover:text-[#C0362A] transition-colors">
                   Contacto
                 </Link>
               </li>
@@ -103,11 +104,11 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-10 pt-6 border-t border-[#E5E7EB] flex flex-col sm:flex-row justify-between items-center gap-3">
-          <p className="text-xs text-[#5B6472]">
+        <div className="mt-10 pt-6 border-t border-[#E7E1D6] flex flex-col sm:flex-row justify-between items-center gap-3">
+          <p className="text-xs text-[#57514A]">
             © {new Date().getFullYear()} trabajo.com.py — Todos los derechos reservados.
           </p>
-          <p className="text-xs text-[#5B6472]">
+          <p className="text-xs text-[#57514A]">
             Hecho con ♥ en Paraguay
           </p>
         </div>

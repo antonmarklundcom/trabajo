@@ -89,14 +89,14 @@ export default async function EmpleosPage({
 
           <div className="mt-4 space-y-3">
             {jobs.length === 0 ? (
-              <div className="text-center py-16 bg-white rounded-[10px] border border-[#E5E7EB]">
+              <div className="text-center py-16 bg-white rounded-[10px] border border-[#E7E1D6]">
                 <div className="text-5xl mb-4">🔍</div>
-                <h3 className="text-lg font-semibold text-[#16181D] mb-2">
+                <h3 className="text-lg font-semibold text-[#1E1B17] mb-2">
                   No encontramos empleos con esos filtros
                 </h3>
-                <p className="text-sm text-[#5B6472]">
+                <p className="text-sm text-[#57514A]">
                   Intentá con otros criterios o{' '}
-                  <a href="/empleos" className="text-[#2557D6] hover:underline">
+                  <a href="/empleos" className="text-[#C0362A] hover:underline">
                     ver todos los empleos
                   </a>
                   .
@@ -149,18 +149,18 @@ function Pagination({
       {currentPage > 1 && (
         <a
           href={pageUrl(currentPage - 1)}
-          className="px-4 py-2 rounded-[10px] border border-[#E5E7EB] text-sm font-medium text-[#16181D] hover:border-[#2557D6] hover:text-[#2557D6] transition-colors"
+          className="px-4 py-2 rounded-[10px] border border-[#E7E1D6] text-sm font-medium text-[#1E1B17] hover:border-[#C0362A] hover:text-[#C0362A] transition-colors"
         >
           ← Anterior
         </a>
       )}
-      <span className="text-sm text-[#5B6472]">
+      <span className="text-sm text-[#57514A]">
         Página {currentPage} de {totalPages}
       </span>
       {currentPage < totalPages && (
         <a
           href={pageUrl(currentPage + 1)}
-          className="px-4 py-2 rounded-[10px] border border-[#E5E7EB] text-sm font-medium text-[#16181D] hover:border-[#2557D6] hover:text-[#2557D6] transition-colors"
+          className="px-4 py-2 rounded-[10px] border border-[#E7E1D6] text-sm font-medium text-[#1E1B17] hover:border-[#C0362A] hover:text-[#C0362A] transition-colors"
         >
           Siguiente →
         </a>

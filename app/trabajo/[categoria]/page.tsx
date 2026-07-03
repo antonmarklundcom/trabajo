@@ -69,20 +69,20 @@ export default async function CategoriaPage({ params }: { params: Params }) {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumb */}
-        <nav className="flex items-center gap-2 text-sm text-[#5B6472] mb-6" aria-label="Ruta">
-          <Link href="/" className="hover:text-[#2557D6]">Inicio</Link>
+        <nav className="flex items-center gap-2 text-sm text-[#57514A] mb-6" aria-label="Ruta">
+          <Link href="/" className="hover:text-[#C0362A]">Inicio</Link>
           <span>›</span>
-          <Link href="/empleos" className="hover:text-[#2557D6]">Empleos</Link>
+          <Link href="/empleos" className="hover:text-[#C0362A]">Empleos</Link>
           <span>›</span>
-          <span className="text-[#16181D] font-medium">{category.name}</span>
+          <span className="text-[#1E1B17] font-medium">{category.name}</span>
         </nav>
 
         {/* Hero */}
         <div className="mb-8">
-          <h1 className="text-3xl sm:text-4xl font-bold text-[#16181D]">
+          <h1 className="text-3xl sm:text-4xl font-bold text-[#1E1B17]">
             Trabajo de {category.name.toLowerCase()} en Paraguay
           </h1>
-          <p className="mt-3 text-base text-[#5B6472] max-w-2xl">
+          <p className="mt-3 text-base text-[#57514A] max-w-2xl">
             Explorá las {jobs.length > 0 ? jobs.length : 'últimas'} oportunidades laborales en{' '}
             {category.name.toLowerCase()} disponibles en todo el Paraguay.
             Postulate gratis y encontrá el empleo ideal para vos.
@@ -91,8 +91,8 @@ export default async function CategoriaPage({ params }: { params: Params }) {
 
         {/* City links for SEO */}
         {citiesWithJobs.length > 0 && (
-          <div className="mb-8 p-5 bg-white rounded-[10px] border border-[#E5E7EB]">
-            <h2 className="text-sm font-semibold text-[#5B6472] uppercase tracking-wide mb-3">
+          <div className="mb-8 p-5 bg-white rounded-[10px] border border-[#E7E1D6]">
+            <h2 className="text-sm font-semibold text-[#57514A] uppercase tracking-wide mb-3">
               Por ciudad
             </h2>
             <div className="flex flex-wrap gap-2">
@@ -100,7 +100,7 @@ export default async function CategoriaPage({ params }: { params: Params }) {
                 <Link
                   key={city.slug}
                   href={`/trabajo/${categoria}/${city.slug}`}
-                  className="px-3 py-1.5 rounded-full text-sm border border-[#E5E7EB] text-[#5B6472] hover:border-[#2557D6] hover:text-[#2557D6] transition-colors"
+                  className="px-3 py-1.5 rounded-full text-sm border border-[#E7E1D6] text-[#57514A] hover:border-[#C0362A] hover:text-[#C0362A] transition-colors"
                 >
                   {city.name}
                 </Link>
@@ -111,10 +111,10 @@ export default async function CategoriaPage({ params }: { params: Params }) {
 
         {/* Jobs */}
         {jobs.length === 0 ? (
-          <div className="text-center py-16 bg-white rounded-[10px] border border-[#E5E7EB]">
-            <p className="text-[#5B6472]">
+          <div className="text-center py-16 bg-white rounded-[10px] border border-[#E7E1D6]">
+            <p className="text-[#57514A]">
               Todavía no hay empleos publicados en esta categoría.{' '}
-              <Link href="/empleos" className="text-[#2557D6] hover:underline">
+              <Link href="/empleos" className="text-[#C0362A] hover:underline">
                 Ver todos los empleos
               </Link>
             </p>
@@ -129,7 +129,7 @@ export default async function CategoriaPage({ params }: { params: Params }) {
             <div className="mt-8 text-center">
               <Link
                 href={`/empleos?categoria=${categoria}`}
-                className="text-sm font-medium text-[#2557D6] hover:underline"
+                className="text-sm font-medium text-[#C0362A] hover:underline"
               >
                 Ver todos los empleos de {category.name.toLowerCase()} →
               </Link>
