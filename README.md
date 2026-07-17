@@ -111,6 +111,16 @@ NEXT_PUBLIC_BUSINESS_NAME=trabajo.com.py
 USE_WP_BACKEND=false
 ```
 
+### Analítica (opcional)
+
+```env
+NEXT_PUBLIC_GA_ID=G-XXXXXXXXXX
+```
+
+Con `NEXT_PUBLIC_GA_ID` seteado se carga Google Analytics 4 (page views
+automáticos + eventos `lead_submit` y `whatsapp_click`). Sin la variable no se
+carga ningún script de analítica.
+
 ### Loggers (opcionales — el sitio funciona sin ellos)
 
 Los leads (postulantes + empleadores) se envían en paralelo a:

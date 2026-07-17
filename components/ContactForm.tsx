@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { z } from 'zod';
+import { track } from '@/lib/analytics';
 
 const schema = z.object({
   name: z.string().min(2, 'Ingresá tu nombre'),
@@ -55,6 +56,7 @@ export default function ContactForm() {
         }),
       });
       if (!res.ok) throw new Error();
+      track('lead_submit', { lead_type: 'contact', channel: 'form' });
       setState('success');
     } catch {
       setState('error');

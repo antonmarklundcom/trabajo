@@ -55,6 +55,12 @@ Seed-first/WP-ready architecture, data seam, Job schema, lead-routing spec. All 
 All pages, components, API routes, WP integration, lead fan-out, redesign, CI. (PRs #1–#5.)
 
 ### Phase 2 — Launch readiness (1 Sonnet session + owner ops)
+> Status 2026-07-17: code items 1–3 DONE (GA4 gated on `NEXT_PUBLIC_GA_ID`,
+> `/privacidad` + `/terminos` linked from footer, icon/apple-icon/OG images
+> incl. dynamic job OG, default Next assets removed, lint clean). Item 4
+> (live-WP verification) pending — the remote session's network policy blocks
+> `panel.trabajo.com.py`; run it locally or allowlist the domain.
+
 Code:
 1. Analytics: lightweight, privacy-friendly (Plausible or GA4 — Sonnet may default to GA4 via a small script component gated on an env var). Track page views + lead-submit + WhatsApp-click events.
 2. Legal pages: `/privacidad` and `/terminos` (Spanish, Paraguay-appropriate boilerplate), linked from Footer.

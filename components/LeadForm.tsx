@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { z } from 'zod';
+import { track } from '@/lib/analytics';
 
 const formSchema = z.object({
   name: z.string().min(2, 'Ingresá tu nombre completo'),
@@ -61,6 +62,7 @@ export default function LeadForm({ jobSlug, jobTitle, citySlug, categorySlug, co
         }),
       });
       if (!res.ok) throw new Error('Error del servidor');
+      track('lead_submit', { lead_type: 'application', channel: 'form', job_slug: jobSlug });
       setState('success');
     } catch {
       setState('error');

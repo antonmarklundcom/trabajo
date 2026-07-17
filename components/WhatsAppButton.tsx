@@ -1,5 +1,7 @@
 'use client';
 
+import { track } from '@/lib/analytics';
+
 type Props = {
   whatsapp: string;
   jobTitle: string;
@@ -39,6 +41,7 @@ export default function WhatsAppButton({
     if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
       navigator.sendBeacon(`${siteUrl}/api/v1/leads`, payload);
     }
+    track('whatsapp_click', { job_slug: jobSlug, category: categorySlug, city: citySlug });
     // Allow the link to navigate to WhatsApp
     void e;
   }

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { z } from 'zod';
+import { track } from '@/lib/analytics';
 import type { Category, City } from '@/lib/types';
 
 const schema = z.object({
@@ -64,6 +65,7 @@ export default function EmployerForm({ categories, cities }: Props) {
         }),
       });
       if (!res.ok) throw new Error();
+      track('lead_submit', { lead_type: 'employer_post', channel: 'form' });
       setState('success');
     } catch {
       setState('error');
