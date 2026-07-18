@@ -129,7 +129,7 @@ async function getWpModule() {
   return wpModule;
 }
 
-function useWp(): boolean {
+function isWpEnabled(): boolean {
   // Single source switch: the WP backend is active only when the flag is
   // exactly 'true'. Any other value (unset, 'false', etc.) reads the seed JSON
   // exactly as before. WP_API_URL is optional — lib/wp.ts defaults to the live
@@ -144,7 +144,7 @@ function useWp(): boolean {
 export async function getJobs(
   filters: JobFilters,
 ): Promise<{ jobs: Job[]; total: number }> {
-  if (useWp()) {
+  if (isWpEnabled()) {
     const wp = await getWpModule();
     return wp.getJobs(filters);
   }
@@ -152,7 +152,7 @@ export async function getJobs(
 }
 
 export async function getJob(slug: string): Promise<Job | null> {
-  if (useWp()) {
+  if (isWpEnabled()) {
     const wp = await getWpModule();
     return wp.getJob(slug);
   }
@@ -160,7 +160,7 @@ export async function getJob(slug: string): Promise<Job | null> {
 }
 
 export async function getFeaturedJobs(limit = 6): Promise<Job[]> {
-  if (useWp()) {
+  if (isWpEnabled()) {
     const wp = await getWpModule();
     return wp.getFeaturedJobs(limit);
   }
@@ -168,7 +168,7 @@ export async function getFeaturedJobs(limit = 6): Promise<Job[]> {
 }
 
 export async function getRecentJobs(limit = 8): Promise<Job[]> {
-  if (useWp()) {
+  if (isWpEnabled()) {
     const wp = await getWpModule();
     return wp.getRecentJobs(limit);
   }
@@ -176,7 +176,7 @@ export async function getRecentJobs(limit = 8): Promise<Job[]> {
 }
 
 export async function getCategories(): Promise<Category[]> {
-  if (useWp()) {
+  if (isWpEnabled()) {
     const wp = await getWpModule();
     return wp.getCategories();
   }
@@ -184,7 +184,7 @@ export async function getCategories(): Promise<Category[]> {
 }
 
 export async function getCities(): Promise<City[]> {
-  if (useWp()) {
+  if (isWpEnabled()) {
     const wp = await getWpModule();
     return wp.getCities();
   }
@@ -192,7 +192,7 @@ export async function getCities(): Promise<City[]> {
 }
 
 export async function getCategory(slug: string): Promise<Category | null> {
-  if (useWp()) {
+  if (isWpEnabled()) {
     const wp = await getWpModule();
     return wp.getCategory(slug);
   }
@@ -200,7 +200,7 @@ export async function getCategory(slug: string): Promise<Category | null> {
 }
 
 export async function getCity(slug: string): Promise<City | null> {
-  if (useWp()) {
+  if (isWpEnabled()) {
     const wp = await getWpModule();
     return wp.getCity(slug);
   }

@@ -108,9 +108,17 @@ export default function Footer() {
           <p className="text-xs text-[#57514A]">
             © {new Date().getFullYear()} trabajo.com.py — Todos los derechos reservados.
           </p>
-          <p className="text-xs text-[#57514A]">
-            Hecho con ♥ en Paraguay
-          </p>
+          <div className="flex items-center gap-4">
+            <Link href="/privacidad" className="text-xs text-[#57514A] hover:text-[#C0362A] transition-colors">
+              Privacidad
+            </Link>
+            <Link href="/terminos" className="text-xs text-[#57514A] hover:text-[#C0362A] transition-colors">
+              Términos
+            </Link>
+            <p className="text-xs text-[#57514A]">
+              Hecho con ♥ en Paraguay
+            </p>
+          </div>
         </div>
       </div>
     </footer>

@@ -87,7 +87,7 @@ export default function FilterPanel({ categories, cities, currentFilters }: Prop
     currentFilters.modalidad ||
     currentFilters.salario_min;
 
-  const FilterContent = () => (
+  const filterContent = (
     <div className="space-y-6">
       {hasActiveFilters && (
         <button
@@ -212,7 +212,7 @@ export default function FilterPanel({ categories, cities, currentFilters }: Prop
       <aside className="hidden lg:block w-64 flex-shrink-0">
         <div className="bg-white rounded-[10px] border border-[#E7E1D6] p-5 sticky top-24">
           <h2 className="text-sm font-semibold text-[#1E1B17] mb-4">Filtros</h2>
-          <FilterContent />
+          {filterContent}
         </div>
       </aside>
 
@@ -237,7 +237,7 @@ export default function FilterPanel({ categories, cities, currentFilters }: Prop
                 </svg>
               </button>
             </div>
-            <FilterContent />
+            {filterContent}
             <button
               onClick={() => setDrawerOpen(false)}
               className="mt-6 w-full py-3 rounded-[10px] bg-[#C0362A] text-white font-semibold hover:bg-[#9E2A20] transition-colors"

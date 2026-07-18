@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { getJobs, getCategories, getCities } from '@/lib/data';
 import type { JobFilters } from '@/lib/types';
 import JobCard from '@/components/JobCard';
@@ -96,9 +97,9 @@ export default async function EmpleosPage({
                 </h3>
                 <p className="text-sm text-[#57514A]">
                   Intentá con otros criterios o{' '}
-                  <a href="/empleos" className="text-[#C0362A] hover:underline">
+                  <Link href="/empleos" className="text-[#C0362A] hover:underline">
                     ver todos los empleos
-                  </a>
+                  </Link>
                   .
                 </p>
               </div>
