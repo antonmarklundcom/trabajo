@@ -2,6 +2,15 @@
 
 Portal de empleos para Paraguay. Next.js 16 (App Router) + TypeScript + Tailwind CSS v4.
 
+> **⚠️ El backend de WordPress + JetEngine está siendo reemplazado por un
+> backend propio (MySQL + Drizzle) dentro de este mismo repo.**
+> Este README describe el sitio **actual**, que sirve datos desde
+> `lib/seed/*.json` (`USE_WP_BACKEND=false` en producción).
+> El diseño destino está en **`ARCHITECTURE.md`**, el plan por fases en
+> **`PLAN.md`**, la migración en **`MIGRATION.md`** y el deploy en
+> **`DEPLOY.md`**. Las secciones de WordPress de abajo se eliminan en el
+> cutover (Phase F).
+
 ---
 
 ## Arquitectura: Seed-first, WordPress-ready
