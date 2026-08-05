@@ -1,6 +1,7 @@
 // Diffs the seed and db read paths across a fixed filter/sort/page matrix.
 // Run with DATABASE_URL set and DATA_SOURCE=db already populated via
 // scripts/seed-import.ts. Any difference is a bug in the DB path.
+import './require-db-url';
 import type { Job, Category, City, JobFilters } from '../lib/types';
 
 let failures = 0;

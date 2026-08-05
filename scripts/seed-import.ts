@@ -1,3 +1,4 @@
+import './require-db-url';
 import { count } from 'drizzle-orm';
 import { db } from '../lib/db';
 import { categories, cities, companies, jobs } from '../lib/db/schema';

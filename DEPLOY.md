@@ -57,10 +57,30 @@ fell back to `localhost`. Set it for the shell session first:
 
 ```powershell
 $env:DATABASE_URL = "mysql://user:pass@srv####.hstgr.io:3306/dbname"
-npx tsx scripts/seed-import.ts
+npm run db:seed
 ```
 
-It stays set for the rest of that PowerShell window.
+It stays set for the rest of that PowerShell window. The scripts also load a
+repo-root `.env` themselves if the variable is absent, and abort with an
+explanatory message instead of an opaque `ECONNREFUSED` when neither is set.
+
+### The database commands, in order
+
+```
+npm run db:generate   # drizzle-kit generate — only after editing lib/db/schema.ts
+npm run db:migrate    # apply drizzle/*.sql (auto-loads .env)
+npm run db:seed       # import lib/seed/*.json — idempotent, safe to re-run
+npm run db:verify     # row counts per table + the 28/10/7 seed gate
+npm run db:parity     # diff the seed and db read paths across the full matrix
+```
+
+**Verified 2026-08-05** against MariaDB 10.11 (a disposable local instance, not
+Hostinger): migrate → seed → seed again → verify → parity all pass, `db:seed`
+run twice leaves 28 jobs / 10 categories / 7 cities, and the
+`visiblePredicate()` correctly hides `pending`, `draft` and expired jobs from
+all eight seam functions including the taxonomy `jobCount`s. Re-run
+`db:verify` and `db:parity` against Hostinger MySQL 8 during the step 10
+cutover before flipping `DATA_SOURCE=db` — the engines differ.
 
 ### Windows specifics
 
