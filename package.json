@@ -11,7 +11,9 @@
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx scripts/seed-import.ts",
     "db:verify": "tsx scripts/verify-db.ts",
-    "db:parity": "tsx scripts/parity-check.ts"
+    "db:parity": "tsx scripts/parity-check.ts",
+    "user:create": "tsx scripts/create-user.ts",
+    "user:password": "tsx scripts/set-password.ts"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
