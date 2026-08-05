@@ -1,14 +1,15 @@
 # PLAN.md — trabajo.com.py
 
-> **Rewritten 2026-08-01 by Opus 5.** Supersedes the 2026-07-16 Fable 5 plan,
-> which assumed WordPress + JetEngine as the backend. That assumption is
-> dropped — see §2. Phases 0–2 of the old plan are done and are folded into
-> "what exists" below.
+> **Rewritten 2026-08-05 by Opus 5.** Supersedes the 2026-08-01 plan. That plan
+> was written before Phases A and B existed; both are now merged into `main`
+> (PR #9), so the phase list has been replaced by a **numbered list of 12
+> discrete PR-sized steps** with model tiers, dependencies and PR batching.
+> The backend decision itself (§2) is unchanged and still correct.
 >
 > Read `AGENTS.md` first: this repo runs **Next.js 16**. APIs, conventions and
 > file structure differ from training data — consult
-> `node_modules/next/dist/docs/` before writing any code. Every phase below
-> starts with `npm install` for that reason.
+> `node_modules/next/dist/docs/` before writing any code. Every session starts
+> with `npm install` for that reason.
 >
 > Companion docs: `ARCHITECTURE.md` (target design + schema),
 > `MIGRATION.md` (cutover), `DEPLOY.md` (Hostinger + MySQL).
@@ -23,219 +24,305 @@
   `/planes` shows "Consultar".
 - Job supply: the owner's team curates and posts listings. Employer
   self-submission with team approval comes later. No scraping/aggregation.
-- Hosting: Hostinger Node.js app, auto-deploy from `main`.
+- Hosting: Hostinger Node.js app, **auto-deploys from `main`. There is no
+  staging environment** — a merge to `main` is a production deploy.
 
 Explicitly out of scope (owner-confirmed): online payments, seeker
 accounts/logins, CV database, job aggregation.
 
 ---
 
-## 2. The backend decision
+## 2. The backend decision (unchanged)
 
 **Replace WordPress + JetEngine with a first-party MySQL backend in this repo.**
 
-The rationale, verified against the code rather than assumed:
-
-- WP was never load-bearing. `.env.example` ships `USE_WP_BACKEND=false`, so
-  production has always served the 28 jobs in `lib/seed/jobs.json`. The jobs in
-  the panel are placeholders.
-- **Migration cost is therefore zero today** and rises with every real listing
-  entered into WP. This is the cheapest moment this decision will ever have.
-- `lib/wp.ts` (413 lines) was never verified end-to-end against the live panel —
-  the old Phase 2 item 4 is still open because the remote session's network
-  policy blocked `panel.trabajo.com.py`. That verification work disappears
-  entirely instead of being paid for.
+- WP was never load-bearing. `USE_WP_BACKEND=false` has always been the
+  production setting, so the live site serves the 28 jobs in
+  `lib/seed/jobs.json`. The listings in the WP panel are placeholders.
+- **Migration cost is therefore zero**, and rises with every real listing
+  entered into WP. This remains the cheapest moment for this decision.
+- `lib/wp.ts` (413 lines) was never verified end-to-end against the live panel;
+  that verification work disappears instead of being paid for.
 - The revenue-critical features — employer accounts, moderation/approval,
-  `featuredUntil` fulfilment after a manual sale, an audit trail — are exactly
-  where JetEngine turns into a pile of plugins, and exactly what already works
-  cleanly in the propia stack.
-- One deploy surface, one login for the team, no second CMS to patch.
+  `featured_until` fulfilment after a manual sale, an audit trail — are exactly
+  where JetEngine becomes a pile of plugins, and exactly what the propia stack
+  (Next.js + Drizzle + MySQL on Hostinger) already does cleanly.
 
 The honest cost: WordPress gave the curation team a free editor UI. Going
-custom means building `/admin` (Phases C–E below). That is the work.
-
-Structurally the swap is small because `lib/data.ts` is a real seam — eight
-functions, and no page, component or API route reads a data source directly.
+custom means building `/admin` — steps 2–5 and 7–9 below. That is the work.
 
 ---
 
-## 3. What already exists (verified against code)
+## 3. Where the project actually stands (verified against code, 2026-08-05)
+
+**Done and merged to `main`:**
 
 - Full public frontend: home, `/empleos` (URL-driven filters, pagination,
   sort), `/empleos/[slug]` (+ JSON-LD JobPosting), `/trabajo/[categoria]` and
   `/trabajo/[categoria]/[ciudad]` SEO landings, `/publicar`, `/planes`,
   `/contacto`, `not-found`, `sitemap.xml`, `robots.txt`.
 - Public v1 REST API: jobs, job-by-slug, categories, cities, leads.
-- **The data seam** (`lib/data.ts`) — the reason this migration is cheap.
 - **Lead routing, complete**: zod-validated `POST /api/v1/leads`, `201`-then-
   `after()` fan-out to `GHL_WEBHOOK_URL` + `GOOGLE_SHEETS_WEBHOOK_URL` with
   retries/backoff, `sendBeacon` on WhatsApp clicks, graceful degradation when
-  webhooks are unset.
-- Analytics (GA4, gated on `NEXT_PUBLIC_GA_ID`), `/privacidad` + `/terminos`,
-  branding assets incl. dynamic job OG images.
-- Seed data: 28 jobs, 10 categories, 7 cities. Warm PY red/gold redesign.
-- CI: GitHub Actions build on push/PR.
+  webhooks are unset. **Do not rewrite this** — the new backend hooks into it
+  additively (`ARCHITECTURE.md` §7).
+- **Phase A (foundation)**: `drizzle-orm` + `mysql2` + `bcrypt` +
+  `iron-session` installed, `drizzle.config.ts`, `lib/db/index.ts` (pooled,
+  `connectionLimit: 8`, `timezone: "Z"`), `lib/db/schema.ts` with all seven
+  tables, migration `drizzle/0000_smooth_shadowcat.sql`,
+  `scripts/seed-import.ts` (idempotent upserts by slug).
+- **Phase B (read path)**: `lib/db/queries.ts` implementing all eight seam
+  functions, the single exported `visiblePredicate()`, the three-valued
+  `DATA_SOURCE` switch in `lib/data.ts` with `USE_WP_BACKEND` fallback, and
+  `scripts/parity-check.ts` diffing seed vs. db across a filter/sort/page
+  matrix.
+- Analytics (GA4), `/privacidad` + `/terminos`, dynamic job OG images, 28 seed
+  jobs / 10 categories / 7 cities, CI build on push/PR.
+
+**Written but never executed — this is the real open risk:**
+
+Phases A and B are *code-complete and unverified*. No MySQL database has been
+provisioned, so `drizzle-kit migrate`, `scripts/seed-import.ts` and
+`scripts/parity-check.ts` have never actually run against a database. Their
+gates ("run the importer twice, get 28 jobs not 56"; "db output matches seed
+byte-for-byte") are unproven. **Step 1 exists solely to close that gap, and
+nothing downstream should be trusted until it passes.**
+
+Also open: the app has no `db:*` npm scripts, and cache invalidation on write
+(step 6) has not been designed — pages currently rely on route-segment
+`export const revalidate` (30–3600s), which is fine for reads but means an
+editor who publishes a job will not see it immediately.
 
 ---
 
 ## 4. Model tiering
 
-| Use | Model |
+**Default is Sonnet 5.** Opus is reserved for work where getting it subtly
+wrong leaks data, loses data, or silently serves stale/unapproved content.
+
+Exactly two of the twelve steps are Opus:
+
+| Step | Why Opus |
 |---|---|
-| Schema design, security-sensitive code (sessions, password handling, authorization helpers), caching correctness on Next 16, the data cutover itself, phase-gate review | **Opus 5** |
-| Everything else: CRUD screens, forms, admin pages, seed/import scripts, copy, wiring, tests | **Sonnet 5** |
+| **2 — auth core** | Session/cookie handling, bcrypt, and the `requireRole` helper every mutation depends on. A subtle mistake here exposes `/admin` to the public internet on a repo that auto-deploys to production. Compounded by Next 16's cookie/request APIs differing from training data — this must be written from `node_modules/next/dist/docs/`, not memory. |
+| **6 — cache invalidation** | Next 16's caching primitives are the single most changed area versus training data. Getting it wrong either serves stale/unapproved listings after an admin write, or drops caching entirely and hits the 8-connection MySQL pool with a per-request query storm. |
 
-Rule of thumb: if getting it subtly wrong leaks data, loses data, or silently
-serves stale/unapproved content, it's Opus. If it's mechanical work against a
-spec that already exists in `ARCHITECTURE.md`, it's Sonnet.
-
-Phases below are marked accordingly. Most of the build is Sonnet.
+Everything else — schema tweaks, CRUD screens, forms, admin UI, migration and
+seed scripts, copy, wiring, SEO — is Sonnet. It is mechanical work against a
+spec that already exists in `ARCHITECTURE.md`.
 
 ---
 
 ## 5. Open questions (defaults assumed — flip any without a rewrite)
 
-The docs are written against these defaults. None of them block starting
-Phase A.
-
 1. **Who posts jobs in v1?** *Assumed: team/admin only.* Employers keep
-   submitting via `/publicar` as today; the team creates the post. Employer
-   self-serve accounts are Phase G, and the schema already carries the
-   `employer` role and `company_id` so adding it is not a migration.
+   submitting via `/publicar`; the team creates the post. Employer self-serve
+   is post-launch; the schema already carries the `employer` role and
+   `company_id`, so adding it is not a migration.
 2. **Where do leads land?** *Assumed: DB as system of record + the existing
    GHL/Sheets fan-out kept exactly as-is.* VenderCRM is specced as an optional
-   third sink gated on `VENDERCRM_API_KEY` (`ARCHITECTURE.md` §7). Say the word
-   and it becomes primary instead.
-3. **Store job applications as rows?** *Assumed: yes* (Phase E) — one row per
-   application so admin can see applicants per job. Still no seeker logins and
-   no CV database. Drop Phase E if you'd rather stay WhatsApp-only.
+   third sink gated on `VENDERCRM_API_KEY` (`ARCHITECTURE.md` §7).
+3. **Store job applications as rows?** *Assumed: yes* (step 8) — one row per
+   application so admin can see applicants per job. Still no seeker logins, no
+   CV database. Drop step 8 if you'd rather stay WhatsApp-only.
 4. **Database?** *Assumed: Hostinger MySQL + Drizzle*, matching propia. The
-   alternative in your deploy skill is Neon + Prisma, which carries the known
-   Hostinger IPv6-routing problem for one-off scripts.
+   alternative (Neon + Prisma) carries the known Hostinger IPv6-routing problem
+   for one-off scripts.
 5. **Hostinger slot** — trabajo presumably already occupies one; the custom
    backend needs no additional slot, only a MySQL database on the same account.
-   Worth confirming before Phase F.
+   Confirm before step 10.
+6. **Where does step 1's verification run?** Gates A/B need a real MySQL. A
+   remote Claude session's egress IP is ephemeral and cannot be reliably
+   allowlisted in Hostinger's Remote MySQL panel, so the honest options are
+   (a) a MySQL instance inside the session container, or (b) the owner runs the
+   scripts locally against Hostinger and pastes the output back. Step 1 is
+   written to work either way.
 
 ---
 
-## 6. Phases
+## 6. The twelve steps
 
-### Phase A — Foundation *(Sonnet)*
-1. `npm install`; read the Next 16 docs for anything touched below.
-2. Add `drizzle-orm`, `mysql2`, `bcrypt`, `iron-session`; dev: `drizzle-kit`,
-   `tsx`.
-3. `drizzle.config.ts`, `lib/db/index.ts` (single pool, `connectionLimit: 8`,
-   `timezone: "Z"`), `lib/db/schema.ts` exactly per `ARCHITECTURE.md` §4.
-4. Generate + run the first migration against a local/dev MySQL.
-5. `scripts/seed-import.ts` — idempotent upsert (`onDuplicateKeyUpdate` by
-   slug) importing `lib/seed/*.json`: categories, cities, one company row per
-   distinct company name, then jobs with `status='published'` and
-   `published_at = postedAt`. Re-running it must not duplicate anything.
-6. `.env.example`: add `DATABASE_URL`, `DATA_SOURCE`, `SESSION_SECRET`.
+Each step is one PR. Every step ends with `npm install && npm run build`
+passing locally — Hostinger deploys `main` on merge, with no staging.
 
-**Gate:** `npx tsx scripts/seed-import.ts` twice in a row leaves 28 jobs, 10
-categories, 7 cities — not 56.
+### Step 1 — Close the Phase A/B verification gap *(Sonnet)*
+**Does:** adds `db:generate`, `db:migrate`, `db:seed`, `db:parity` npm scripts;
+makes `scripts/seed-import.ts` and `scripts/parity-check.ts` fail loudly with a
+readable message when `DATABASE_URL` is unset (the `tsx`-doesn't-load-`.env`
+trap from `DEPLOY.md`); adds `scripts/verify-db.ts` printing row counts per
+table; then **actually runs** migrate → seed → seed again → parity and records
+the output in the PR body. Fixes any bug the run exposes.
+**Touches:** `package.json` (scripts block only), `scripts/*`, `DEPLOY.md`.
+**Depends on:** nothing. **Blocks:** everything.
+**Not allowed to touch:** `drizzle.config.ts`, `lib/db/index.ts`,
+`DATABASE_URL` handling.
 
-### Phase B — Read path + parity *(Sonnet, with one Opus checkpoint)*
-1. `lib/db/queries.ts` implementing the eight seam functions with identical
-   signatures and semantics (`ARCHITECTURE.md` §3 — page size 20, featured
-   float, `salarioMin` excluding hidden salaries, published-only `jobCount`).
-2. Single exported visibility predicate; every public query uses it.
-3. `DATA_SOURCE` switch in `lib/data.ts` with the `USE_WP_BACKEND` fallback.
-4. **Parity check**: a script or test that runs a fixed matrix of filter/sort/
-   page combinations against both `seed` and `db` and diffs the results. Any
-   difference is a bug in the DB path, not an acceptable variation.
-5. **Opus checkpoint — caching.** Decide and implement the caching +
-   invalidation strategy for this Next version (`ARCHITECTURE.md` §8). Do not
-   port `unstable_cache`/`revalidateTag` patterns from memory.
+### Step 2 — Auth core *(**Opus**)*
+**Does:** `lib/auth.ts` — iron-session cookie holding **only `userId`**, role
+read from the DB per request (`ARCHITECTURE.md` §5); bcrypt cost 12;
+`requireSession()` / `requireRole()`; login attempt rate-limiting;
+`scripts/create-user.ts` and `scripts/set-password.ts`. Session/cookie code
+written from `node_modules/next/dist/docs/`, not from an App Router snippet in
+memory. No UI in this PR.
+**Touches:** `lib/auth.ts`, `scripts/`, `.env.example` (`SESSION_SECRET` doc).
+**Depends on:** 1.
 
-**Gate:** with `DATA_SOURCE=db` the whole public site renders identically to
-seed — listings, filters, detail pages, taxonomy counts, sitemap. No page files
-changed in this phase.
+### Step 3 — Admin shell + login *(Sonnet)*
+**Does:** `/admin/login` (Spanish UI), admin layout + nav, `/admin` dashboard
+(pending count, recent activity), `noindex` on every admin route, exclusion
+from `sitemap.ts` and `robots.ts`. Logged-out access to any `/admin` route
+redirects to login — verified, not assumed.
+**Touches:** `app/admin/*`, `app/robots.ts`, `app/sitemap.ts`.
+**Depends on:** 2.
 
-### Phase C — Auth + admin shell *(Opus for auth core, Sonnet for screens)*
-1. **Opus**: `lib/auth.ts` — iron-session (userId only, role read from DB per
-   request), bcrypt cost 12, `requireSession()` / `requireRole()`,
-   login rate-limiting. `scripts/create-user.ts` and
-   `scripts/set-password.ts`.
-2. **Sonnet**: `/admin/login`, admin layout + nav, `/admin` dashboard,
-   `noindex` on all admin routes and exclusion from `sitemap.ts`/`robots.ts`.
-3. **Sonnet**: `/admin/empleos` list (filter by status, search) and the
-   create/edit form (one component, optional `id` prop), `/admin/empresas`,
-   `/admin/usuarios` (admin role only).
-4. Every mutation route re-checks the role server-side. Hidden buttons are UX,
-   not security.
+### Step 4 — Jobs CRUD *(Sonnet)*
+**Does:** `/admin/empleos` list (status filter, search), `/admin/empleos/nuevo`
+and `/admin/empleos/[id]` sharing one form component (optional `id` prop), and
+the mutation handlers under `/api/admin/`. Slug generation with collision
+suffix. **Editing the slug of a published job must warn and require a 301** —
+slugs are live SEO URLs (`AGENTS.md`). Every handler re-checks the role
+server-side.
+**Touches:** `app/admin/empleos/*`, `app/api/admin/empleos/*`,
+`lib/db/queries.ts` (admin-side reads, kept separate from the public
+visibility predicate).
+**Depends on:** 3.
 
-**Gate:** a real editor account can log in and create, edit and publish a job
-that appears on the live public site. A logged-out request to any `/admin` or
-`/api/admin` route is rejected — verified, not assumed.
+### Step 5 — Companies + users CRUD *(Sonnet)*
+**Does:** `/admin/empresas` (company CRUD, logo URL, WhatsApp) and
+`/admin/usuarios` (admin role only; create/disable users, never hard-delete —
+`is_active` exists to preserve the audit trail).
+**Touches:** `app/admin/empresas/*`, `app/admin/usuarios/*`,
+`app/api/admin/*`.
+**Depends on:** 4 (reuses its list/form pattern).
 
-### Phase D — Approval workflow *(Sonnet)*
-1. `/publicar` creates a `pending` job **and** fires the existing lead fan-out
-   unchanged.
-2. Admin queue: approve → `published` (sets `published_at`), reject → with
-   `rejection_reason`, archive.
-3. `featured_until` set from the job edit screen after a manual sale; the
-   existing badge logic needs no change.
-4. `activity_log` written on every approve/reject/publish/feature/delete.
-5. Honeypot + rate limit on `/api/v1/leads`.
+### Step 6 — Caching + invalidation on write *(**Opus**)*
+**Does:** decides and implements the caching strategy for this Next version
+(`ARCHITECTURE.md` §8) — read `node_modules/next/dist/docs/` first, do not
+assume `unstable_cache` / `revalidatePath` / `revalidateTag` still exist under
+those names or behave as before. An editor who publishes a job must see it live
+immediately; the 8-connection pool must not be hit per request.
+**Touches:** `lib/db/queries.ts`, `app/api/admin/*` (invalidation calls),
+route-segment `revalidate` exports.
+**Depends on:** 4 (needs real writes to invalidate from).
 
-**Gate:** employer submits at `/publicar` → lead reaches WhatsApp/GHL
-immediately → admin approves → the job is live. End to end, ≤24 h turnaround.
+### Step 7 — Approval workflow *(Sonnet)*
+**Does:** `/publicar` creates a `pending` job **and** fires the existing lead
+fan-out unchanged; admin queue approve → `published` (sets `published_at`),
+reject → with `rejection_reason`, archive; `featured_until` set from the job
+edit screen after a manual WhatsApp sale; `activity_log` row written on every
+approve/reject/publish/feature/delete.
+**Touches:** `app/publicar/*`, `app/admin/empleos/*`, `app/api/admin/*`,
+`lib/db/queries.ts`.
+**Depends on:** 6.
 
-### Phase E — Applications inbox *(Sonnet — see open question 3)*
-1. `applications` table + insert from the application form, before the fan-out.
-2. `/admin/postulaciones` — filter by job, mark reviewed/contacted/discarded.
-3. Applicant count surfaced per job in `/admin/empleos`.
+### Step 8 — Applications inbox *(Sonnet — see open question 3)*
+**Does:** insert an `applications` row from the application form **before** the
+webhook fan-out (a DB failure must never fail the user's submission);
+`/admin/postulaciones` filtered by job with reviewed/contacted/discarded;
+applicant count per job in `/admin/empleos`.
+**Touches:** `app/api/v1/leads/route.ts` (insert only — the fan-out itself is
+untouched), `app/admin/postulaciones/*`.
+**Depends on:** 7.
 
-**Gate:** an application submitted on the public site appears in the admin
-inbox and still reaches WhatsApp/GHL.
+### Step 9 — Abuse hardening on public writes *(Sonnet)*
+**Does:** honeypot field + IP rate limit on `POST /api/v1/leads` and on the
+`/publicar` submission path. Rejections are silent 2xx to the bot, logged
+server-side.
+**Touches:** `app/api/v1/leads/route.ts`, `lib/leads.ts` (guard only),
+`app/publicar/*`.
+**Depends on:** 8.
 
-### Phase F — Cutover *(Sonnet + owner ops — follow `MIGRATION.md`)*
-1. Provision MySQL on Hostinger; run migrations and the seed import from a
-   local machine (`DEPLOY.md` — remote MySQL IP allowlisting, `tsx` not loading
-   `.env`, the stale-password trap).
-2. Team enters real listings via `/admin`.
-3. Set `DATA_SOURCE=db` in hPanel, redeploy, verify.
-4. Delete `lib/wp.ts`, `WP_API_URL`, `USE_WP_BACKEND`; retire `lib/seed/*.json`
-   from the read path (keep the files as import fixtures).
-5. Decommission `panel.trabajo.com.py`.
+### Step 10 — Production DB provisioning + cutover *(Sonnet + owner ops — ⛔ NO AUTO-MERGE)*
+**Does:** follows `MIGRATION.md` — provision MySQL on Hostinger, set
+`DATABASE_URL` / `DATA_SOURCE=db` / `SESSION_SECRET` in hPanel, run migrations
+and the seed import **from a local machine, not Hostinger SSH**, redeploy,
+verify. Code side is `.env.example` and doc updates only.
+**Touches:** `.env.example`, `DEPLOY.md`, `MIGRATION.md` + live hPanel config.
+**Depends on:** 9, and on the team having entered real listings via `/admin`.
+**Why it stops for the owner:** it is the flip that makes production read from
+MySQL, and it sits on top of the credential traps in `nextjs-deploy-hostinger`
+§6a — above all, **changing the MySQL password to enable remote access breaks
+the live app silently** unless hPanel's `DATABASE_URL` is updated *and* the app
+redeployed. Check hPanel's existing value *before* changing any password.
 
-**Gate:** production serves real jobs from MySQL; no WP references remain in
-the codebase or env.
+### Step 11 — Retire WordPress *(Sonnet — ⛔ NO AUTO-MERGE)*
+**Does:** deletes `lib/wp.ts`, `WP_API_URL`, `USE_WP_BACKEND`, and collapses
+`lib/data.ts` to `seed | db`; retires `lib/seed/*.json` from the read path
+(keeps the files as import fixtures); decommissions `panel.trabajo.com.py`.
+**Touches:** `lib/data.ts`, `lib/wp.ts` (deleted), `.env.example`, docs.
+**Depends on:** 10 verified green in production for at least a few days.
+**Why it stops for the owner:** it removes the rollback path. Until this
+merges, reverting a bad cutover is a one-line env change in hPanel.
 
-### Phase G — Launch & beyond
-- Owner ops: real `NEXT_PUBLIC_WHATSAPP_LEADS`, GHL webhook + Sheets sink
-  configured, Search Console verified and sitemap submitted.
-- Final smoke test (mobile + desktop), Lighthouse, Rich Results test on a live
-  job.
-- SEO scale-out: `noindex` on empty category/city combos to avoid thin pages,
-  breadcrumbs + BreadcrumbList JSON-LD, internal linking.
-- **Then, only if real inbound employer demand shows up in the CRM**: employer
-  self-serve accounts (open question 1). The schema already supports it.
+### Step 12 — Launch SEO hardening *(Sonnet)*
+**Does:** `noindex` on empty category/city combinations (avoids thin pages),
+breadcrumbs + `BreadcrumbList` JSON-LD, internal linking pass, Rich Results
+check on a live job, sitemap resubmission.
+**Touches:** `app/trabajo/*`, `app/empleos/*`, `app/sitemap.ts`.
+**Depends on:** 11.
 
 ---
 
-## 7. Estimate
+## 7. PR batching for autonomous sessions
 
-Phases A–B: one Sonnet session plus a short Opus checkpoint. Phase C: one
-session (auth core is the Opus part, screens are Sonnet). Phases D–E: one
-session. Phase F: half a session plus owner ops on Hostinger.
+Each batch is one Claude Code session that opens **and merges** its PRs
+**sequentially** — create PR → CI green → merge → pull `main` → next PR. Never
+open all of a batch's PRs at once and merge them together: each merge is a
+production deploy, and a batch's later steps build on the merged state of the
+earlier ones.
 
-**≈3–4 build sessions**, most of it Sonnet, plus the content operations of
-entering real listings — which is now the actual critical path to launch, not
-code.
+| Batch | Steps | Model | Auto-merge |
+|---|---|---|---|
+| **1** | 1 → 2 | Opus | ✅ yes |
+| **2** | 3 → 4 → 5 | Sonnet | ✅ yes |
+| **3** | 6 | Opus | ✅ yes |
+| **4** | 7 → 8 → 9 | Sonnet | ✅ yes |
+| **5** | 10 → 11 | Sonnet | ⛔ **NO — owner review required on both** |
+| **6** | 12 | Sonnet | ✅ yes |
+
+Batch 1 runs on Opus because step 2 is the security core; step 1 rides along
+because it is small and must precede it. Batch 3 is a single-step Opus batch by
+design — the caching decision wants a fresh session that has just read the
+Next 16 docs.
+
+**Batch 5 is the hard stop.** It touches live infrastructure: production env
+vars, the real database, and the removal of the rollback path. The session
+prepares the PRs, posts the verification output, and waits for the owner.
+
+Standing guardrails for every batch:
+
+- Run `npm install && npm run build` locally before **every** push. Merging to
+  `main` deploys to production; there is no staging.
+- **Never modify `drizzle.config.ts`, `lib/db/index.ts`, or any
+  `DATABASE_URL` handling** unless the step explicitly says so (only step 10
+  does, and it stops for review). If a task seems to require it, stop and ask.
+- Never commit a real `.env`. `.env.example` documents vars; hPanel holds
+  values.
+- Public reads go through `visiblePredicate()`. Authorization is re-checked
+  server-side in every mutating handler. UI copy is Spanish (Paraguay).
 
 ---
 
-## 8. Reusable across the portfolio
+## 8. Estimate
+
+Batch 1 (Opus) ≈ one session. Batch 2 is the biggest chunk of UI work — one
+full Sonnet session. Batch 3 is short. Batch 4 one session. Batch 5 is mostly
+owner ops. Batch 6 short.
+
+**≈5 build sessions**, two of them Opus, plus the content operation of entering
+real listings — which is the actual critical path to launch, not code.
+
+---
+
+## 9. Reusable across the portfolio
 
 Three patterns here are worth lifting into skills rather than re-deriving:
 
 - The **data seam** (`lib/data.ts`) — a swappable backend behind one module is
-  what makes this migration a config change instead of a rewrite.
+  what turned this migration into a config change instead of a rewrite.
 - The **lead-routing spec** (`lib/leads.ts` + `app/api/v1/leads/route.ts`):
   zod-validated orchestrator, flat snake_case payload, parallel fan-out with
   backoff, `sendBeacon` leave-page safety, graceful degradation.
-- The **status + approval + activity_log** pattern from `ARCHITECTURE.md` §4/§6,
-  which is the same shape any listings or directory site needs.
+- The **status + approval + activity_log** pattern from `ARCHITECTURE.md` §4/§6
+  — the same shape any listings or directory site needs.
