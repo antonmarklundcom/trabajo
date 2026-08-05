@@ -146,7 +146,7 @@ spec that already exists in `ARCHITECTURE.md`.
 Each step is one PR. Every step ends with `npm install && npm run build`
 passing locally — Hostinger deploys `main` on merge, with no staging.
 
-### Step 1 — Close the Phase A/B verification gap *(Sonnet)*
+### Step 1 — Close the Phase A/B verification gap *(Sonnet)* ✅ DONE (PR #10)
 **Does:** adds `db:generate`, `db:migrate`, `db:seed`, `db:parity` npm scripts;
 makes `scripts/seed-import.ts` and `scripts/parity-check.ts` fail loudly with a
 readable message when `DATABASE_URL` is unset (the `tsx`-doesn't-load-`.env`
@@ -158,7 +158,7 @@ the output in the PR body. Fixes any bug the run exposes.
 **Not allowed to touch:** `drizzle.config.ts`, `lib/db/index.ts`,
 `DATABASE_URL` handling.
 
-### Step 2 — Auth core *(**Opus**)*
+### Step 2 — Auth core *(**Opus**)* ✅ DONE (PR #10)
 **Does:** `lib/auth.ts` — iron-session cookie holding **only `userId`**, role
 read from the DB per request (`ARCHITECTURE.md` §5); bcrypt cost 12;
 `requireSession()` / `requireRole()`; login attempt rate-limiting;
@@ -274,7 +274,7 @@ earlier ones.
 
 | Batch | Steps | Model | Auto-merge |
 |---|---|---|---|
-| **1** | 1 → 2 | Opus | ✅ yes |
+| **1** | 1 → 2 | Opus | ✅ yes — **done, both in PR #10** |
 | **2** | 3 → 4 → 5 | Sonnet | ✅ yes |
 | **3** | 6 | Opus | ✅ yes |
 | **4** | 7 → 8 → 9 | Sonnet | ✅ yes |
