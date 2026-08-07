@@ -1,6 +1,8 @@
+// Imports lib/seed/*.json into MySQL. Idempotent: every write is an upsert
+// keyed on the natural unique column (slug), so running it twice leaves the
+// same 28 jobs rather than 56.
 import { count } from 'drizzle-orm';
-import { db } from '../lib/db';
-import { categories, cities, companies, jobs } from '../lib/db/schema';
+import { requireDatabaseUrl, describeTarget } from './require-db-url';
 import type { Job, Category, City } from '../lib/types';
 
 import rawJobs from '../lib/seed/jobs.json';
@@ -10,6 +12,12 @@ import rawCities from '../lib/seed/cities.json';
 const seedJobs = rawJobs as Job[];
 const seedCategories = rawCategories as Category[];
 const seedCities = rawCities as City[];
+
+// Bound in main() after the DATABASE_URL guard — lib/db builds its connection
+// pool at module-evaluation time, so importing it at the top would throw a bare
+// "DATABASE_URL is not set" before the readable guard could run.
+let db: typeof import('../lib/db').db;
+let schema: typeof import('../lib/db/schema');
 
 function slugify(input: string): string {
   return input
@@ -23,14 +31,14 @@ function slugify(input: string): string {
 async function importTaxonomies() {
   for (const [i, cat] of seedCategories.entries()) {
     await db
-      .insert(categories)
+      .insert(schema.categories)
       .values({ slug: cat.slug, name: cat.name, sortOrder: i, createdAt: new Date() })
       .onDuplicateKeyUpdate({ set: { name: cat.name, sortOrder: i } });
   }
 
   for (const [i, city] of seedCities.entries()) {
     await db
-      .insert(cities)
+      .insert(schema.cities)
       .values({ slug: city.slug, name: city.name, sortOrder: i, createdAt: new Date() })
       .onDuplicateKeyUpdate({ set: { name: city.name, sortOrder: i } });
   }
@@ -60,7 +68,7 @@ async function importCompanies(): Promise<Map<string, number>> {
   for (const { name, logoUrl } of distinctNames.values()) {
     const slug = nameToSlug.get(name)!;
     await db
-      .insert(companies)
+      .insert(schema.companies)
       .values({
         name,
         slug,
@@ -68,10 +76,12 @@ async function importCompanies(): Promise<Map<string, number>> {
         createdAt: new Date(),
         updatedAt: new Date(),
       })
-      .onDuplicateKeyUpdate({ set: { name, logoUrl } });
+      .onDuplicateKeyUpdate({ set: { name, logoUrl, updatedAt: new Date() } });
   }
 
-  const rows = await db.select({ id: companies.id, slug: companies.slug }).from(companies);
+  const rows = await db
+    .select({ id: schema.companies.id, slug: schema.companies.slug })
+    .from(schema.companies);
   const slugToId = new Map(rows.map((r) => [r.slug, r.id]));
 
   const nameToId = new Map<string, number>();
@@ -83,8 +93,12 @@ async function importCompanies(): Promise<Map<string, number>> {
 }
 
 async function importJobs(nameToCompanyId: Map<string, number>) {
-  const categoryRows = await db.select({ id: categories.id, slug: categories.slug }).from(categories);
-  const cityRows = await db.select({ id: cities.id, slug: cities.slug }).from(cities);
+  const categoryRows = await db
+    .select({ id: schema.categories.id, slug: schema.categories.slug })
+    .from(schema.categories);
+  const cityRows = await db
+    .select({ id: schema.cities.id, slug: schema.cities.slug })
+    .from(schema.cities);
   const categorySlugToId = new Map(categoryRows.map((r) => [r.slug, r.id]));
   const citySlugToId = new Map(cityRows.map((r) => [r.slug, r.id]));
 
@@ -118,7 +132,7 @@ async function importJobs(nameToCompanyId: Map<string, number>) {
     };
 
     await db
-      .insert(jobs)
+      .insert(schema.jobs)
       .values(values)
       .onDuplicateKeyUpdate({
         set: {
@@ -144,15 +158,43 @@ async function importJobs(nameToCompanyId: Map<string, number>) {
 }
 
 async function main() {
+  const url = requireDatabaseUrl();
+  console.log(`Importing seed data into ${describeTarget(url)} ...`);
+
+  ({ db } = await import('../lib/db'));
+  schema = await import('../lib/db/schema');
+
   await importTaxonomies();
   const nameToCompanyId = await importCompanies();
   await importJobs(nameToCompanyId);
 
-  const [{ jobCount }] = await db.select({ jobCount: count() }).from(jobs);
-  const [{ catCount }] = await db.select({ catCount: count() }).from(categories);
-  const [{ cityCount }] = await db.select({ cityCount: count() }).from(cities);
+  const [{ jobCount }] = await db.select({ jobCount: count() }).from(schema.jobs);
+  const [{ catCount }] = await db.select({ catCount: count() }).from(schema.categories);
+  const [{ cityCount }] = await db.select({ cityCount: count() }).from(schema.cities);
+  const [{ companyCount }] = await db.select({ companyCount: count() }).from(schema.companies);
 
-  console.log(`jobs: ${jobCount}, categories: ${catCount}, cities: ${cityCount}`);
+  console.log(
+    `jobs: ${jobCount}, companies: ${companyCount}, categories: ${catCount}, cities: ${cityCount}`,
+  );
+  console.log(
+    `expected from seed — jobs: ${seedJobs.length}, categories: ${seedCategories.length}, cities: ${seedCities.length}`,
+  );
+
+  // The idempotency gate, enforced rather than eyeballed: a second run must not
+  // duplicate rows. Anything above the seed count means an upsert key is wrong.
+  if (jobCount !== seedJobs.length) {
+    console.error(
+      `\nFAIL: expected ${seedJobs.length} jobs, found ${jobCount}. ` +
+        'The importer is not idempotent — check the unique key behind onDuplicateKeyUpdate.',
+    );
+    process.exit(1);
+  }
+  if (catCount !== seedCategories.length || cityCount !== seedCities.length) {
+    console.error('\nFAIL: taxonomy counts do not match the seed files.');
+    process.exit(1);
+  }
+
+  console.log('OK: row counts match the seed files.');
   process.exit(0);
 }
 
