@@ -1,6 +1,7 @@
 // Diffs the seed and db read paths across a fixed filter/sort/page matrix.
 // Run with DATABASE_URL set and DATA_SOURCE=db already populated via
 // scripts/seed-import.ts. Any difference is a bug in the DB path.
+import { requireDatabaseUrl, describeTarget } from './require-db-url';
 import type { Job, Category, City, JobFilters } from '../lib/types';
 
 let failures = 0;
@@ -47,6 +48,9 @@ async function compareGetJobs(data: typeof import('../lib/data'), filters: JobFi
 }
 
 async function main() {
+  const url = requireDatabaseUrl();
+  console.log(`Comparing seed vs. ${describeTarget(url)} ...`);
+
   // Fresh import so getSource() re-evaluates DATA_SOURCE on every call.
   const data = await import('../lib/data');
   const seedCategories = (await withSource('seed', () => data.getCategories())) as Category[];

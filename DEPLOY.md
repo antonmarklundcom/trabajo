@@ -48,16 +48,45 @@ your machine only.
    (verify via phpMyAdmin, which bypasses remote-host checks), use the raw IP
    instead — DNS/IPv6 flakiness on Hostinger is a recurring theme.
 
+## The `db:*` scripts
+
+Four npm scripts own every database operation. Run them in this order against a
+fresh database; each one prints the host/database it is about to touch, so you
+can catch "oops, that was production" before it writes.
+
+```bash
+npm run db:migrate   # applies drizzle/*.sql
+npm run db:seed      # imports lib/seed/*.json — idempotent, safe to re-run
+npm run db:verify    # read-only row counts per table + jobs-by-status
+npm run db:parity    # diffs the seed and db read paths, exits 1 on any mismatch
+```
+
+`npm run db:generate` (drizzle-kit) writes a new migration after a schema
+change; it does not connect to a database.
+
+`db:seed` enforces its own gate: it exits non-zero if the row counts do not
+match the seed files, so a broken upsert key shows up as a failure rather than
+as silently duplicated jobs.
+
 ### `drizzle-kit` connecting does NOT mean your scripts will
 
 `drizzle-kit` auto-loads `.env`. Plain `tsx` scripts do **not**. An
 `ECONNREFUSED` from a seed/import script right after a successful migration
 almost always means `process.env.DATABASE_URL` is undefined and mysql2 silently
-fell back to `localhost`. Set it for the shell session first:
+fell back to `localhost`.
+
+The `db:*` scripts defuse this in two ways: they pass
+`--env-file-if-exists=.env` to tsx, and they refuse to start at all when
+`DATABASE_URL` is missing or malformed, printing the likely cause instead of a
+mysql2 stack trace. `db:migrate` runs the drizzle-orm migrator under tsx rather
+than shelling out to `drizzle-kit migrate`, precisely so that migrate, seed,
+verify and parity all resolve `DATABASE_URL` the same way.
+
+For a one-off run against a host that is not in `.env`, set it inline:
 
 ```powershell
 $env:DATABASE_URL = "mysql://user:pass@srv####.hstgr.io:3306/dbname"
-npx tsx scripts/seed-import.ts
+npm run db:verify
 ```
 
 It stays set for the rest of that PowerShell window.
