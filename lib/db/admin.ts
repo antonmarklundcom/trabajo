@@ -15,6 +15,7 @@ import 'server-only';
 
 import { and, asc, count, desc, eq, like, ne, or } from 'drizzle-orm';
 import { activityLog, categories, cities, companies, jobs, jobStatusEnum, users } from './schema';
+import type { Role } from '../auth';
 
 async function getDb() {
   return (await import('./index')).db;
@@ -240,4 +241,134 @@ export async function deleteJob(id: number, actorUserId: number) {
   const db = await getDb();
   await db.delete(jobs).where(eq(jobs.id, id));
   await logActivity(actorUserId, 'job', id, 'delete');
+}
+
+// ---------------------------------------------------------------------------
+// Companies
+// ---------------------------------------------------------------------------
+
+export async function getAdminCompanies(q?: string) {
+  const db = await getDb();
+  const where = q ? like(companies.name, `%${q}%`) : undefined;
+  return db.select().from(companies).where(where).orderBy(asc(companies.name));
+}
+
+export async function getAdminCompany(id: number) {
+  const db = await getDb();
+  const rows = await db.select().from(companies).where(eq(companies.id, id)).limit(1);
+  return rows[0] ?? null;
+}
+
+export async function companySlugExists(slug: string, excludeId?: number) {
+  const db = await getDb();
+  const conditions = [eq(companies.slug, slug)];
+  if (excludeId != null) conditions.push(ne(companies.id, excludeId));
+  const rows = await db
+    .select({ id: companies.id })
+    .from(companies)
+    .where(and(...conditions))
+    .limit(1);
+  return rows.length > 0;
+}
+
+export type CompanyInput = {
+  name: string;
+  slug: string;
+  logoUrl: string | null;
+  whatsapp: string | null;
+  website: string | null;
+  description: string | null;
+};
+
+export async function createCompany(input: CompanyInput, actorUserId: number) {
+  const db = await getDb();
+  const now = new Date();
+  const [result] = await db.insert(companies).values({ ...input, createdAt: now, updatedAt: now });
+  await logActivity(actorUserId, 'company', result.insertId, 'create');
+  return result.insertId;
+}
+
+export async function updateCompany(id: number, input: CompanyInput, actorUserId: number) {
+  const db = await getDb();
+  await db
+    .update(companies)
+    .set({ ...input, updatedAt: new Date() })
+    .where(eq(companies.id, id));
+  await logActivity(actorUserId, 'company', id, 'update');
+}
+
+// ---------------------------------------------------------------------------
+// Users — admin role only (enforced by the route handler, not here)
+// ---------------------------------------------------------------------------
+
+export async function getAdminUsers() {
+  const db = await getDb();
+  return db
+    .select({
+      id: users.id,
+      email: users.email,
+      name: users.name,
+      role: users.role,
+      companyId: users.companyId,
+      companyName: companies.name,
+      isActive: users.isActive,
+      lastLoginAt: users.lastLoginAt,
+      createdAt: users.createdAt,
+    })
+    .from(users)
+    .leftJoin(companies, eq(users.companyId, companies.id))
+    .orderBy(asc(users.name));
+}
+
+export async function getAdminUser(id: number) {
+  const db = await getDb();
+  const rows = await db.select().from(users).where(eq(users.id, id)).limit(1);
+  return rows[0] ?? null;
+}
+
+export async function emailExists(email: string, excludeId?: number) {
+  const db = await getDb();
+  const conditions = [eq(users.email, email)];
+  if (excludeId != null) conditions.push(ne(users.id, excludeId));
+  const rows = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(and(...conditions))
+    .limit(1);
+  return rows.length > 0;
+}
+
+export async function createUser(
+  input: {
+    email: string;
+    name: string;
+    role: Role;
+    companyId: number | null;
+    passwordHash: string;
+  },
+  actorUserId: number,
+) {
+  const db = await getDb();
+  const now = new Date();
+  const [result] = await db.insert(users).values({
+    ...input,
+    isActive: true,
+    createdAt: now,
+    updatedAt: now,
+  });
+  await logActivity(actorUserId, 'user', result.insertId, 'create');
+  return result.insertId;
+}
+
+export async function updateUser(
+  id: number,
+  input: { name: string; role: Role; companyId: number | null; isActive: boolean },
+  actorUserId: number,
+) {
+  const db = await getDb();
+  await db
+    .update(users)
+    .set({ ...input, updatedAt: new Date() })
+    .where(eq(users.id, id));
+  await logActivity(actorUserId, 'user', id, 'update');
 }
