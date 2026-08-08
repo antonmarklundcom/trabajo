@@ -277,6 +277,35 @@ than copied:
 - The MySQL pool uses a small `connectionLimit` (8) — Hostinger caps concurrent
   connections per user, and an uncached per-request query storm will hit it.
 
+### Decision (step 6, implemented)
+
+Verified against `node_modules/next/dist/docs/` for Next 16.2.9:
+
+- Next 16 ships **two** caching models. `use cache` / `cacheTag` / `cacheLife`
+  exist only under `cacheComponents: true`. This app does not enable it —
+  that flag is a whole-app migration (PPR, `<Suspense>` around every
+  runtime-API read) and `next.config.ts` is outside step 6's scope. So the
+  "previous model" applies: `unstable_cache` + `revalidateTag` +
+  `revalidatePath`. `unstable_cache` is documented as replaced by `use cache`,
+  but is still exported and functional.
+- `revalidateTag` now takes a **mandatory second argument**. `'max'` means
+  stale-while-revalidate, which is wrong here — an editor must not see the old
+  listing, and a deleted job must not keep being served. Route Handlers use
+  `revalidateTag(tag, { expire: 0 })`, the documented immediate-expiry form.
+  `updateTag` would be idiomatic but is Server-Actions-only, and every admin
+  mutation here is a Route Handler.
+- Two coarse tags (`public-jobs`, `public-taxonomies`) plus the public route
+  paths, fired together by `invalidatePublicContent()` in `lib/cache.ts` from
+  every mutating handler under `app/api/admin/*`. Over-invalidating costs a
+  query; under-invalidating serves an unapproved listing.
+- The eight seam functions in `lib/db/queries.ts` are wrapped in
+  `unstable_cache`; the raw SQL is private, so an uncached public read path
+  cannot be added by accident.
+- Route-segment `revalidate` went from 30–60s to **300s** (sitemap stays 1h).
+  It is no longer the freshness mechanism — only the bound on the two
+  transitions with no write to hook onto: `expires_at` passing and
+  `featured_until` lapsing (§6).
+
 ---
 
 ## 9. Routes added

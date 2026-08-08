@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { authErrorResponse, requireApiSession, requireRole } from '@/lib/auth';
 import { createJob, jobSlugExists } from '@/lib/db/admin';
+import { invalidatePublicContent } from '@/lib/cache';
 import { slugify, uniqueSlug } from '@/lib/slug';
 import { jobStatusEnum, contractTypeEnum, seniorityEnum, modalityEnum } from '@/lib/db/schema';
 
@@ -57,6 +58,11 @@ export async function POST(request: Request) {
       },
       user.id,
     );
+
+    // A job created straight as `published` must be on the public site now,
+    // not after the route timer lapses. Unconditional because `status` is
+    // caller-supplied and a draft costs nothing to invalidate.
+    invalidatePublicContent();
 
     return Response.json({ ok: true, id, slug }, { status: 201 });
   } catch (err) {

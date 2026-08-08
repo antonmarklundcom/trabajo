@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { authErrorResponse, requireApiSession, requireRole } from '@/lib/auth';
 import { companySlugExists, createCompany } from '@/lib/db/admin';
+import { invalidatePublicContent } from '@/lib/cache';
 import { slugify, uniqueSlug } from '@/lib/slug';
 
 const companySchema = z.object({
@@ -38,6 +39,11 @@ export async function POST(request: Request) {
       },
       user.id,
     );
+
+    // A brand-new company has no jobs yet, so nothing public changes. Invalidate
+    // anyway: it is one cheap call, and it keeps every mutating handler in this
+    // tree following the same rule instead of relying on that staying true.
+    invalidatePublicContent();
 
     return Response.json({ ok: true, id, slug }, { status: 201 });
   } catch (err) {
