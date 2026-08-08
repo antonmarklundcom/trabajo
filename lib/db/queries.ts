@@ -1,6 +1,8 @@
 import { and, asc, desc, eq, gt, isNull, like, or, sql, count } from 'drizzle-orm';
+import { unstable_cache } from 'next/cache';
 import { db } from './index';
 import { categories, cities, companies, jobs } from './schema';
+import { CACHE_TAGS, PUBLIC_CACHE_TTL_SECONDS } from '../cache';
 import type { Job, Category, City, JobFilters } from '../types';
 
 const PAGE_SIZE = 20;
@@ -99,11 +101,15 @@ function baseQuery() {
 }
 
 // ---------------------------------------------------------------------------
-// getJobs — filters, sort, pagination. Semantics must match lib/data.ts
+// query* — the raw SQL. These are private on purpose: everything leaves this
+// module through the cached wrappers at the bottom of the file, so there is no
+// way to accidentally add an uncached public read path.
+//
+// queryJobs — filters, sort, pagination. Semantics must match lib/data.ts
 // exactly (ARCHITECTURE.md §3).
 // ---------------------------------------------------------------------------
 
-export async function getJobs(filters: JobFilters): Promise<{ jobs: Job[]; total: number }> {
+async function queryJobs(filters: JobFilters): Promise<{ jobs: Job[]; total: number }> {
   const page = filters.page ?? 1;
 
   const conditions = [visiblePredicate()];
@@ -148,13 +154,13 @@ export async function getJobs(filters: JobFilters): Promise<{ jobs: Job[]; total
   return { jobs: (rows as JobRow[]).map(toJob), total };
 }
 
-export async function getJob(slug: string): Promise<Job | null> {
+async function queryJob(slug: string): Promise<Job | null> {
   const rows = await baseQuery().where(and(visiblePredicate(), eq(jobs.slug, slug))).limit(1);
   const row = (rows as JobRow[])[0];
   return row ? toJob(row) : null;
 }
 
-export async function getFeaturedJobs(limit = 6): Promise<Job[]> {
+async function queryFeaturedJobs(limit = 6): Promise<Job[]> {
   const rows = await baseQuery()
     .where(
       and(
@@ -167,7 +173,7 @@ export async function getFeaturedJobs(limit = 6): Promise<Job[]> {
   return (rows as JobRow[]).map(toJob);
 }
 
-export async function getRecentJobs(limit = 8): Promise<Job[]> {
+async function queryRecentJobs(limit = 8): Promise<Job[]> {
   const rows = await baseQuery()
     .where(visiblePredicate())
     .orderBy(desc(jobs.publishedAt), asc(jobs.id))
@@ -180,7 +186,7 @@ export async function getRecentJobs(limit = 8): Promise<Job[]> {
 // jobs only, never a count of all rows.
 // ---------------------------------------------------------------------------
 
-export async function getCategories(): Promise<Category[]> {
+async function queryCategories(): Promise<Category[]> {
   const rows = await db
     .select({
       slug: categories.slug,
@@ -194,7 +200,7 @@ export async function getCategories(): Promise<Category[]> {
   return rows;
 }
 
-export async function getCities(): Promise<City[]> {
+async function queryCities(): Promise<City[]> {
   const rows = await db
     .select({
       slug: cities.slug,
@@ -208,7 +214,7 @@ export async function getCities(): Promise<City[]> {
   return rows;
 }
 
-export async function getCategory(slug: string): Promise<Category | null> {
+async function queryCategory(slug: string): Promise<Category | null> {
   const rows = await db
     .select({
       slug: categories.slug,
@@ -223,7 +229,7 @@ export async function getCategory(slug: string): Promise<Category | null> {
   return rows[0] ?? null;
 }
 
-export async function getCity(slug: string): Promise<City | null> {
+async function queryCity(slug: string): Promise<City | null> {
   const rows = await db
     .select({
       slug: cities.slug,
@@ -236,4 +242,125 @@ export async function getCity(slug: string): Promise<City | null> {
     .groupBy(cities.id)
     .limit(1);
   return rows[0] ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// The cached read path (ARCHITECTURE.md §8)
+//
+// Why a cache at all: a DB query has no `fetch` to hang `next: { revalidate }`
+// on, so without this every render of every public page issues its own SQL.
+// The pool is capped at `connectionLimit: 8` because Hostinger caps concurrent
+// connections per user (DEPLOY.md), and /empleos is a dynamic route — it reads
+// searchParams, so it re-renders per request and would issue 3 queries each
+// time. That is the query storm this layer exists to stop.
+//
+// Why `unstable_cache` and not `use cache`: `use cache` requires
+// `cacheComponents: true` in next.config.ts, which this app does not enable.
+// See the long note in lib/cache.ts.
+//
+// Freshness after an admin write does NOT come from the `revalidate` timers
+// below — it comes from `invalidatePublicContent()` in lib/cache.ts, called by
+// every mutating handler under app/api/admin/*. The timers only bound the two
+// transitions that have no write to hook onto (expiry and featured lapsing).
+// ---------------------------------------------------------------------------
+
+const cacheOptions = (tags: string[]) => ({
+  revalidate: PUBLIC_CACHE_TTL_SECONDS,
+  tags,
+});
+
+/**
+ * `unstable_cache` derives its key from the stringified arguments, so an
+ * object argument would produce a different entry for every key ORDER a caller
+ * happens to use, and a separate entry for `{ page: 1 }` vs
+ * `{ page: 1, q: undefined }`. Both are the same query. Canonicalise first:
+ * drop empty values, sort the keys, and pass one string.
+ */
+function filtersKey(filters: JobFilters): string {
+  const entries = Object.entries(filters)
+    .filter(([, value]) => value !== undefined && value !== null && value !== '')
+    .sort(([a], [b]) => a.localeCompare(b));
+  return JSON.stringify(entries);
+}
+
+const cachedJobs = unstable_cache(
+  (key: string) => queryJobs(Object.fromEntries(JSON.parse(key)) as JobFilters),
+  ['db', 'jobs', 'list'],
+  cacheOptions([CACHE_TAGS.jobs]),
+);
+
+const cachedJob = unstable_cache((slug: string) => queryJob(slug), ['db', 'jobs', 'detail'], cacheOptions([CACHE_TAGS.jobs]));
+
+const cachedFeaturedJobs = unstable_cache(
+  (limit: number) => queryFeaturedJobs(limit),
+  ['db', 'jobs', 'featured'],
+  cacheOptions([CACHE_TAGS.jobs]),
+);
+
+const cachedRecentJobs = unstable_cache(
+  (limit: number) => queryRecentJobs(limit),
+  ['db', 'jobs', 'recent'],
+  cacheOptions([CACHE_TAGS.jobs]),
+);
+
+// Taxonomy reads carry a published-job count, so they are invalidated by job
+// writes as well as by taxonomy edits. `invalidatePublicContent()` fires both
+// tags together for exactly this reason.
+const cachedCategories = unstable_cache(
+  () => queryCategories(),
+  ['db', 'categories', 'list'],
+  cacheOptions([CACHE_TAGS.taxonomies, CACHE_TAGS.jobs]),
+);
+
+const cachedCities = unstable_cache(
+  () => queryCities(),
+  ['db', 'cities', 'list'],
+  cacheOptions([CACHE_TAGS.taxonomies, CACHE_TAGS.jobs]),
+);
+
+const cachedCategory = unstable_cache(
+  (slug: string) => queryCategory(slug),
+  ['db', 'categories', 'detail'],
+  cacheOptions([CACHE_TAGS.taxonomies, CACHE_TAGS.jobs]),
+);
+
+const cachedCity = unstable_cache(
+  (slug: string) => queryCity(slug),
+  ['db', 'cities', 'detail'],
+  cacheOptions([CACHE_TAGS.taxonomies, CACHE_TAGS.jobs]),
+);
+
+// The eight seam functions (ARCHITECTURE.md §3). Signatures and semantics are
+// unchanged — only the caching is new — so lib/data.ts needs no edit.
+
+export async function getJobs(filters: JobFilters): Promise<{ jobs: Job[]; total: number }> {
+  return cachedJobs(filtersKey(filters));
+}
+
+export async function getJob(slug: string): Promise<Job | null> {
+  return cachedJob(slug);
+}
+
+export async function getFeaturedJobs(limit = 6): Promise<Job[]> {
+  return cachedFeaturedJobs(limit);
+}
+
+export async function getRecentJobs(limit = 8): Promise<Job[]> {
+  return cachedRecentJobs(limit);
+}
+
+export async function getCategories(): Promise<Category[]> {
+  return cachedCategories();
+}
+
+export async function getCities(): Promise<City[]> {
+  return cachedCities();
+}
+
+export async function getCategory(slug: string): Promise<Category | null> {
+  return cachedCategory(slug);
+}
+
+export async function getCity(slug: string): Promise<City | null> {
+  return cachedCity(slug);
 }

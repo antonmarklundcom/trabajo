@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { authErrorResponse, requireApiSession, requireRole } from '@/lib/auth';
 import { deleteJob, getAdminJob, jobSlugExists, updateJob } from '@/lib/db/admin';
+import { invalidatePublicContent } from '@/lib/cache';
 import { slugify, uniqueSlug } from '@/lib/slug';
 import { jobStatusEnum, contractTypeEnum, seniorityEnum, modalityEnum } from '@/lib/db/schema';
 
@@ -88,6 +89,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       user.id,
     );
 
+    // Covers publish, unpublish, reject, archive, feature and plain edits —
+    // any of which changes what the public site shows. A slug change is
+    // covered too: the '/empleos/[slug]' pattern invalidates every job page,
+    // so the old URL stops being served from cache as well.
+    invalidatePublicContent();
+
     return Response.json({ ok: true, slug });
   } catch (err) {
     return authErrorResponse(err) ?? Response.json({ error: 'Error interno.' }, { status: 500 });
@@ -106,6 +113,11 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     if (!existing) return Response.json({ error: 'Empleo no encontrado.' }, { status: 404 });
 
     await deleteJob(id, user.id);
+
+    // A deleted job must stop being served immediately — this is the case
+    // where stale-while-revalidate would be actively wrong.
+    invalidatePublicContent();
+
     return Response.json({ ok: true });
   } catch (err) {
     return authErrorResponse(err) ?? Response.json({ error: 'Error interno.' }, { status: 500 });

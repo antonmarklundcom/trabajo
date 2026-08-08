@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { authErrorResponse, requireApiSession, requireRole } from '@/lib/auth';
 import { companySlugExists, getAdminCompany, updateCompany } from '@/lib/db/admin';
+import { invalidatePublicContent } from '@/lib/cache';
 import { slugify, uniqueSlug } from '@/lib/slug';
 
 const companySchema = z.object({
@@ -51,6 +52,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       },
       user.id,
     );
+
+    // Company name and logo are joined onto every job card and job page in
+    // lib/db/queries.ts, so a company edit changes public output even though
+    // no job row was touched.
+    invalidatePublicContent();
 
     return Response.json({ ok: true, slug });
   } catch (err) {

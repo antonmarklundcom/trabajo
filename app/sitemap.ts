@@ -1,6 +1,9 @@
 import type { MetadataRoute } from 'next';
 import { getJobs, getCategories, getCities } from '@/lib/data';
 
+// Left at an hour on purpose: a new listing reaches the sitemap immediately
+// because every admin mutation revalidates '/sitemap.xml' (lib/cache.ts), so
+// the timer only has to cover job expiry.
 export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {

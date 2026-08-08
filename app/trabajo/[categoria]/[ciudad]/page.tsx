@@ -4,7 +4,10 @@ import Link from 'next/link';
 import { getJobs, getCategory, getCity } from '@/lib/data';
 import JobCard from '@/components/JobCard';
 
-export const revalidate = 60;
+// Cached reads are invalidated on demand by every admin mutation
+// (lib/cache.ts), so this timer is only the safety net for job expiry and
+// featured_until lapsing — both query predicates with no write to hook onto.
+export const revalidate = 300;
 
 type Params = Promise<{ categoria: string; ciudad: string }>;
 

@@ -8,7 +8,10 @@ import LeadForm from '@/components/LeadForm';
 import MarkdownContent from '@/components/MarkdownContent';
 import CompanyAvatar from '@/components/CompanyAvatar';
 
-export const revalidate = 60;
+// Cached reads are invalidated on demand by every admin mutation
+// (lib/cache.ts), so this timer is only the safety net for job expiry and
+// featured_until lapsing — both query predicates with no write to hook onto.
+export const revalidate = 300;
 
 type Params = Promise<{ slug: string }>;
 
