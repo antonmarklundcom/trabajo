@@ -36,9 +36,17 @@ export default async function EmpresaEmpleosPage({
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-[#1E1B17]">Empleos</h1>
-        <p className="text-sm text-[#57514A] mt-1">{total} empleo(s) publicados por tu empresa.</p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-[#1E1B17]">Empleos</h1>
+          <p className="text-sm text-[#57514A] mt-1">{total} empleo(s) publicados por tu empresa.</p>
+        </div>
+        <Link
+          href="/empresa/empleos/nuevo"
+          className="px-4 py-2.5 rounded-[10px] bg-[#C0362A] hover:bg-[#9E2A20] text-white text-sm font-semibold transition-colors whitespace-nowrap"
+        >
+          + Nuevo empleo
+        </Link>
       </div>
 
       <div className="bg-white rounded-[10px] border border-[#E7E1D6] overflow-x-auto">
@@ -63,7 +71,12 @@ export default async function EmpresaEmpleosPage({
               jobs.map((job) => (
                 <tr key={job.id} className="hover:bg-[#F5F1EA]">
                   <td className="px-4 py-3">
-                    <div className="font-medium text-[#1E1B17]">{job.title}</div>
+                    <Link
+                      href={`/empresa/empleos/${job.id}`}
+                      className="font-medium text-[#1E1B17] hover:text-[#C0362A]"
+                    >
+                      {job.title}
+                    </Link>
                     {job.status === 'rejected' && job.rejectionReason && (
                       <div className="text-xs text-[#B42318] mt-0.5 max-w-xs">
                         {job.rejectionReason}

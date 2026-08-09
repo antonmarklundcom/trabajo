@@ -237,14 +237,56 @@ export async function createEmployerJob(
 }
 
 /**
+ * Fields that were part of what the curation team approved. Changing any of
+ * these on a published job returns it to `pending` (PLAN-PHASE2.md §6.1):
+ *
+ *   - title/description are the content that was reviewed.
+ *   - salaryMin/salaryMax/salaryHidden — changing the advertised salary after
+ *     approval is the classic bait-and-switch, and it is exactly what a
+ *     moderation queue exists to catch.
+ *   - categoryId/cityId/contractType/seniority/modality decide which SEO
+ *     landings the listing appears on, so a silent change is a silent
+ *     re-targeting.
+ *
+ * `whatsapp` and the company-profile fields are deliberately NOT here: they
+ * apply live without knocking a published listing offline (owner decision,
+ * 2026-08-09 — see PLAN-PHASE2.md §6.1 for why the original "any edit
+ * re-approves" rule was too strict).
+ */
+const STRICT_REVIEW_FIELDS = [
+  'title',
+  'description',
+  'salaryMin',
+  'salaryMax',
+  'salaryHidden',
+  'categoryId',
+  'cityId',
+  'contractType',
+  'seniority',
+  'modality',
+] as const satisfies readonly (keyof EmployerJobInput)[];
+
+function isMaterialChange(
+  existing: Pick<typeof jobs.$inferSelect, (typeof STRICT_REVIEW_FIELDS)[number]>,
+  input: EmployerJobInput,
+): boolean {
+  return STRICT_REVIEW_FIELDS.some((field) => existing[field] !== input[field]);
+}
+
+/**
  * Returns true if a row was actually updated. False means the job does not
  * exist OR belongs to another company — the caller must not distinguish the
  * two, because telling an employer "that job exists but is not yours" leaks
  * that it exists.
  *
- * A published job that is edited returns to `pending`: the approved text is
- * what was approved, and letting an employer swap the body of a live listing
- * without re-review is the obvious hole in any approval workflow.
+ * The material-change rule (PLAN-PHASE2.md §6.1): a `draft`/`pending`/
+ * `rejected`/`archived` job stays pending whatever changed, same as before.
+ * A `published` job only returns to `pending` when a STRICT_REVIEW_FIELDS
+ * value actually changed — a WhatsApp number fix must not take a live listing
+ * offline. The read used for the comparison is not a substitute for the
+ * ownership check: that still lives in the UPDATE's WHERE clause below, so a
+ * stale read only risks computing the wrong status, never an unauthorized
+ * write.
  */
 export async function updateEmployerJob(
   companyId: number,
@@ -255,17 +297,22 @@ export async function updateEmployerJob(
   const db = await getDb();
   const now = new Date();
 
+  const existing = await getEmployerJob(companyId, jobId);
+  if (!existing) return false;
+
+  const needsReapproval = existing.status !== 'published' || isMaterialChange(existing, input);
+
   const [result] = await db
     .update(jobs)
     .set({
       ...input,
-      status: 'pending',
-      publishedAt: null,
-      rejectionReason: null,
+      status: needsReapproval ? 'pending' : 'published',
+      publishedAt: needsReapproval ? null : existing.publishedAt,
+      rejectionReason: needsReapproval ? null : existing.rejectionReason,
       updatedBy: actorUserId,
       updatedAt: now,
     })
-    // Ownership lives here, not in a preceding SELECT.
+    // Ownership lives here, not in the preceding SELECT.
     .where(and(eq(jobs.id, jobId), ownedByCompany(companyId)));
 
   const changed = result.affectedRows > 0;

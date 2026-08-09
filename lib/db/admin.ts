@@ -36,24 +36,11 @@ async function getDb() {
 // ---------------------------------------------------------------------------
 // Lookups — for admin <select> options. Unlike lib/db/queries.ts's
 // getCategories()/getCities(), these expose the numeric id the jobs table's
-// FKs need.
+// FKs need. Re-exported from lib/db/taxonomy.ts, which also serves the
+// employer job form — see that file for why it isn't defined here.
 // ---------------------------------------------------------------------------
 
-export async function listCategoryOptions() {
-  const db = await getDb();
-  return db
-    .select({ id: categories.id, slug: categories.slug, name: categories.name })
-    .from(categories)
-    .orderBy(asc(categories.sortOrder));
-}
-
-export async function listCityOptions() {
-  const db = await getDb();
-  return db
-    .select({ id: cities.id, slug: cities.slug, name: cities.name })
-    .from(cities)
-    .orderBy(asc(cities.sortOrder));
-}
+export { listCategoryOptions, listCityOptions } from './taxonomy';
 
 export async function listCompanyOptions() {
   const db = await getDb();
