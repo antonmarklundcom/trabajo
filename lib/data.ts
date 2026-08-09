@@ -1,6 +1,6 @@
 import type { Job, Category, City, JobFilters } from './types';
 
-// Seed imports — used when USE_WP_BACKEND !== 'true'
+// Seed imports — used when DATA_SOURCE !== 'db'
 import rawJobs from './seed/jobs.json';
 import rawCategories from './seed/categories.json';
 import rawCities from './seed/cities.json';
@@ -117,20 +117,7 @@ async function seedGetCity(slug: string): Promise<City | null> {
 }
 
 // ---------------------------------------------------------------------------
-// WP backend (Phase 2)
-// ---------------------------------------------------------------------------
-
-let wpModule: typeof import('./wp') | null = null;
-
-async function getWpModule() {
-  if (!wpModule) {
-    wpModule = await import('./wp');
-  }
-  return wpModule;
-}
-
-// ---------------------------------------------------------------------------
-// DB backend (Phase B)
+// DB backend
 // ---------------------------------------------------------------------------
 
 let dbModule: typeof import('./db/queries') | null = null;
@@ -142,77 +129,58 @@ async function getDbModule() {
   return dbModule;
 }
 
-type Source = 'seed' | 'db' | 'wp';
+type Source = 'seed' | 'db';
 
 function getSource(): Source {
-  // DATA_SOURCE is the three-valued switch (ARCHITECTURE.md §3). If unset,
-  // fall back to the legacy USE_WP_BACKEND boolean so a half-finished deploy
-  // can never accidentally serve an empty database.
-  const explicit = process.env.DATA_SOURCE;
-  if (explicit === 'db') return 'db';
-  if (explicit === 'seed') return 'seed';
-  return process.env.USE_WP_BACKEND === 'true' ? 'wp' : 'seed';
+  // DATA_SOURCE is the two-valued switch (ARCHITECTURE.md §3, post-cutover).
+  // Any value other than "db" (including unset) falls back to seed, so a
+  // half-configured deploy can never accidentally serve an empty database.
+  return process.env.DATA_SOURCE === 'db' ? 'db' : 'seed';
 }
 
 // ---------------------------------------------------------------------------
-// Public API — THE SEAM. Only ever import from here, never from seed/*,
-// wp.ts or db/queries.ts directly.
+// Public API — THE SEAM. Only ever import from here, never from seed/*
+// or db/queries.ts directly.
 // ---------------------------------------------------------------------------
 
 export async function getJobs(
   filters: JobFilters,
 ): Promise<{ jobs: Job[]; total: number }> {
-  const source = getSource();
-  if (source === 'db') return (await getDbModule()).getJobs(filters);
-  if (source === 'wp') return (await getWpModule()).getJobs(filters);
+  if (getSource() === 'db') return (await getDbModule()).getJobs(filters);
   return seedGetJobs(filters);
 }
 
 export async function getJob(slug: string): Promise<Job | null> {
-  const source = getSource();
-  if (source === 'db') return (await getDbModule()).getJob(slug);
-  if (source === 'wp') return (await getWpModule()).getJob(slug);
+  if (getSource() === 'db') return (await getDbModule()).getJob(slug);
   return seedGetJob(slug);
 }
 
 export async function getFeaturedJobs(limit = 6): Promise<Job[]> {
-  const source = getSource();
-  if (source === 'db') return (await getDbModule()).getFeaturedJobs(limit);
-  if (source === 'wp') return (await getWpModule()).getFeaturedJobs(limit);
+  if (getSource() === 'db') return (await getDbModule()).getFeaturedJobs(limit);
   return seedGetFeaturedJobs(limit);
 }
 
 export async function getRecentJobs(limit = 8): Promise<Job[]> {
-  const source = getSource();
-  if (source === 'db') return (await getDbModule()).getRecentJobs(limit);
-  if (source === 'wp') return (await getWpModule()).getRecentJobs(limit);
+  if (getSource() === 'db') return (await getDbModule()).getRecentJobs(limit);
   return seedGetRecentJobs(limit);
 }
 
 export async function getCategories(): Promise<Category[]> {
-  const source = getSource();
-  if (source === 'db') return (await getDbModule()).getCategories();
-  if (source === 'wp') return (await getWpModule()).getCategories();
+  if (getSource() === 'db') return (await getDbModule()).getCategories();
   return seedGetCategories();
 }
 
 export async function getCities(): Promise<City[]> {
-  const source = getSource();
-  if (source === 'db') return (await getDbModule()).getCities();
-  if (source === 'wp') return (await getWpModule()).getCities();
+  if (getSource() === 'db') return (await getDbModule()).getCities();
   return seedGetCities();
 }
 
 export async function getCategory(slug: string): Promise<Category | null> {
-  const source = getSource();
-  if (source === 'db') return (await getDbModule()).getCategory(slug);
-  if (source === 'wp') return (await getWpModule()).getCategory(slug);
+  if (getSource() === 'db') return (await getDbModule()).getCategory(slug);
   return seedGetCategory(slug);
 }
 
 export async function getCity(slug: string): Promise<City | null> {
-  const source = getSource();
-  if (source === 'db') return (await getDbModule()).getCity(slug);
-  if (source === 'wp') return (await getWpModule()).getCity(slug);
+  if (getSource() === 'db') return (await getDbModule()).getCity(slug);
   return seedGetCity(slug);
 }

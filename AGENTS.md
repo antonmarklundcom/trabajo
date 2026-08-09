@@ -19,7 +19,7 @@ Read before writing code:
 Non-negotiables:
 
 - **`lib/data.ts` is the only data entry point.** No page, component or API
-  route may read `lib/seed/*.json`, `lib/wp.ts` or the database directly.
+  route may read `lib/seed/*.json` or the database directly.
 - **Public reads go through the single visibility predicate** in
   `lib/db/queries.ts`. Forgetting it leaks unapproved jobs.
 - **Authorization is checked server-side in every mutating handler.** Hiding a
