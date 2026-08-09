@@ -12,6 +12,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/admin/empleos', label: 'Empleos', roles: ['admin', 'editor'] },
   { href: '/admin/postulaciones', label: 'Postulaciones', roles: ['admin', 'editor'] },
   { href: '/admin/empresas', label: 'Empresas', roles: ['admin', 'editor'] },
+  { href: '/admin/estadisticas', label: 'Estadísticas', roles: ['admin', 'editor'] },
   { href: '/admin/usuarios', label: 'Usuarios', roles: ['admin'] },
 ];
 
