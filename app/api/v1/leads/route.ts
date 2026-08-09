@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { after } from 'next/server';
 import { leadSchema, processLead } from '@/lib/leads';
+import { createApplication } from '@/lib/db/admin';
 
 export async function POST(req: NextRequest) {
   let body: unknown;
@@ -28,6 +29,27 @@ export async function POST(req: NextRequest) {
   const lead = parsed.data.sourcePage
     ? parsed.data
     : { ...parsed.data, sourcePage: referer };
+
+  // Insert the applications row BEFORE the webhook fan-out (ARCHITECTURE.md
+  // §7/§8, PLAN.md step 8) — but a DB failure must never fail the seeker's
+  // submission, so it's swallowed here rather than left to bubble. Only real
+  // application-form submissions (name + phone both present) get a row; the
+  // leave-page WhatsApp beacon carries neither and is a click, not an
+  // application.
+  if (lead.type === 'application' && lead.name && lead.phone) {
+    try {
+      await createApplication({
+        jobSlug: lead.jobSlug,
+        name: lead.name,
+        phone: lead.phone,
+        email: lead.email || null,
+        message: lead.message || null,
+        sourcePage: lead.sourcePage ?? null,
+      });
+    } catch (err) {
+      console.error('[leads] application insert failed —', err);
+    }
+  }
 
   // Accept the lead immediately and fan out to the loggers AFTER the response is
   // sent. Logger failures can never block or fail the user's request.
