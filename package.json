@@ -12,11 +12,13 @@
     "db:seed": "tsx --env-file-if-exists=.env scripts/seed-import.ts",
     "db:verify": "tsx --env-file-if-exists=.env scripts/verify-db.ts",
     "db:parity": "DATA_SOURCE=db tsx --env-file-if-exists=.env scripts/parity-check.ts",
+    "db:purge": "tsx --conditions=react-server --env-file-if-exists=.env scripts/db-purge.ts",
     "user:create": "tsx --env-file-if-exists=.env scripts/create-user.ts",
     "user:password": "tsx --env-file-if-exists=.env scripts/set-password.ts",
     "candidate:create": "tsx --env-file-if-exists=.env scripts/create-candidate.ts",
     "db:verify-scoping": "tsx --conditions=react-server --env-file-if-exists=.env scripts/verify-scoping.ts",
-    "storage:verify": "tsx --conditions=react-server --env-file-if-exists=.env scripts/verify-storage.ts"
+    "storage:verify": "tsx --conditions=react-server --env-file-if-exists=.env scripts/verify-storage.ts",
+    "retention:verify": "tsx scripts/verify-retention.ts"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

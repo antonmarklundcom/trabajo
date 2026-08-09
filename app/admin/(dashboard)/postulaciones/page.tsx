@@ -68,14 +68,28 @@ export default async function AdminPostulacionesPage({
               applications.map((app) => (
                 <tr key={app.id} className="hover:bg-[#F5F1EA]">
                   <td className="px-4 py-3">
-                    <div className="font-medium text-[#1E1B17]">{app.name}</div>
-                    {app.message && (
-                      <div className="text-xs text-[#8A8378] mt-0.5 max-w-xs truncate">{app.message}</div>
+                    {app.redactedAt ? (
+                      <div className="text-[#8A8378] italic">Datos eliminados</div>
+                    ) : (
+                      <>
+                        <div className="font-medium text-[#1E1B17]">{app.name}</div>
+                        {app.message && (
+                          <div className="text-xs text-[#8A8378] mt-0.5 max-w-xs truncate">{app.message}</div>
+                        )}
+                      </>
                     )}
                   </td>
                   <td className="px-4 py-3 text-[#57514A]">
-                    <div>{app.phone}</div>
-                    {app.email && <div className="text-xs text-[#8A8378]">{app.email}</div>}
+                    {app.redactedAt ? (
+                      <div className="text-xs text-[#8A8378]">
+                        {new Date(app.redactedAt).toLocaleDateString('es-PY')}
+                      </div>
+                    ) : (
+                      <>
+                        <div>{app.phone}</div>
+                        {app.email && <div className="text-xs text-[#8A8378]">{app.email}</div>}
+                      </>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <Link

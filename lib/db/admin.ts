@@ -533,6 +533,11 @@ export async function getAdminApplications(filters: AdminApplicationFilters) {
     email: applications.email,
     message: applications.message,
     status: applications.status,
+    // Set means every personal column above is already NULL: the candidate
+    // withdrew consent (§4.2), deleted their account (§4.4) or the row aged out
+    // (§4.3). Selected so the admin table can say so, rather than rendering
+    // three empty cells that look like a bug.
+    redactedAt: applications.redactedAt,
     createdAt: applications.createdAt,
   };
 

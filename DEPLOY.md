@@ -50,7 +50,8 @@ your machine only.
 
 ## The `db:*` scripts
 
-Four npm scripts own every database operation. Run them in this order against a
+These four npm scripts own every routine database operation (the fifth,
+`db:purge`, is documented below). Run them in this order against a
 fresh database; each one prints the host/database it is about to touch, so you
 can catch "oops, that was production" before it writes.
 
@@ -79,9 +80,57 @@ key that is not `cv/{candidateId}/{uuid}.{ext}`, and checks the hand-rolled
 SigV4 presigner against the signature AWS publishes for its documented example
 request. Run it after touching `lib/storage.ts` or `lib/cv.ts`.
 
+`npm run retention:verify` needs nothing at all — no database, no env — and
+asserts the month arithmetic behind `db:purge` (see below). Both it and
+`storage:verify` run in CI on every push.
+
 `db:seed` enforces its own gate: it exits non-zero if the row counts do not
 match the seed files, so a broken upsert key shows up as a failure rather than
 as silently duplicated jobs.
+
+### `npm run db:purge` — the retention sweep
+
+Hostinger gives us no cron, so data retention (`PLAN-PHASE2.md` §4.3) is a
+script someone runs monthly, or a scheduled Claude Routine runs for them.
+
+```bash
+npm run db:purge              # DRY RUN — prints exactly what it would touch
+npm run db:purge -- --apply   # executes it
+npm run db:purge -- --verbose # list every affected id, not the first 25
+```
+
+**Dry run is the default and `--apply` is required to change anything.** Read
+the dry run before you pass `--apply`: both runs use the same queries and the
+same cutoffs, so the list you read is the list that gets acted on. It prints ids
+and dates only — never names, emails or filenames — so the output is safe to
+paste into an issue.
+
+What it does, in this order:
+
+| Section | Retention | Action |
+|---|---|---|
+| Candidate profiles + CVs | 24 months after last login | Full `PLAN-PHASE2.md` §4.4 deletion — CV objects first, then the rows |
+| (warning window) | 23 months | **Reports only.** No email provider exists yet (§8 Q5) |
+| Application personal data | 12 months after the job closed | Redaction: the row survives, the personal columns are NULLed |
+| `consents` | 5 years after the data they authorised was purged | Deleted. Never for a candidate who still exists |
+| `data_access_logs` | 24 months | Deleted |
+
+`deletion_requests` is retained indefinitely and is never swept: it holds no
+personal data and it is the evidence that the rest of the sweep was authorised.
+
+Two operational notes:
+
+- **`--apply` needs `CV_STORAGE_DRIVER` configured** whenever a candidate is due,
+  because their CV objects are deleted from storage before any row that records
+  where those objects are. The script checks the driver up front so it fails
+  before the first candidate rather than between the third and the fourth.
+- A candidate whose storage delete fails is **left completely in place** and the
+  script exits non-zero, having recorded the failure in that candidate's
+  `deletion_requests` row (`executed_at` stays NULL). Rerun once storage is
+  reachable. A run that exits 0 deleted everything it listed.
+
+The periods above live in `lib/retention.ts`, in one place, because the same
+numbers are quoted in `/privacidad` — see open question §8 Q1, still unanswered.
 
 ### `drizzle-kit` connecting does NOT mean your scripts will
 
