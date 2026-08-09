@@ -2,41 +2,43 @@
 
 Portal de empleos para Paraguay. Next.js 16 (App Router) + TypeScript + Tailwind CSS v4.
 
-> **⚠️ El backend de WordPress + JetEngine está siendo reemplazado por un
-> backend propio (MySQL + Drizzle) dentro de este mismo repo.**
-> Este README describe el sitio **actual**, que sirve datos desde
-> `lib/seed/*.json` (`USE_WP_BACKEND=false` en producción).
-> El diseño destino está en **`ARCHITECTURE.md`**, el plan por fases en
-> **`PLAN.md`**, la migración en **`MIGRATION.md`** y el deploy en
-> **`DEPLOY.md`**. Las secciones de WordPress de abajo se eliminan en el
-> cutover (Phase F).
+> Backend propio (MySQL + Drizzle) dentro de este mismo repo, con panel de
+> administración en `/admin`. El diseño está en **`ARCHITECTURE.md`**, el plan
+> por fases en **`PLAN.md`**, la migración WordPress → MySQL (histórica) en
+> **`MIGRATION.md`** y el deploy en **`DEPLOY.md`**.
 
 ---
 
-## Arquitectura: Seed-first, WordPress-ready
+## Arquitectura: la seam
 
-### La seam (el principio más importante)
+### El principio más importante
 
-Todo el flujo de datos pasa por un único módulo: `lib/data.ts`. Ninguna página, componente ni ruta API lee directamente de los archivos JSON ni llama a WordPress. Todas llaman funciones de `lib/data.ts`.
+Todo el flujo de datos pasa por un único módulo: `lib/data.ts`. Ninguna página, componente ni ruta API lee directamente de los archivos JSON ni de la base de datos. Todas llaman funciones de `lib/data.ts`.
 
 ```
 páginas / componentes / rutas API
          ↓
       lib/data.ts   ← EL ÚNICO PUNTO DE ENTRADA
          ↓
-  [Phase 1]  lib/seed/*.json
-  [Phase 2]  lib/wp.ts → WordPress + JetEngine
+  lib/seed/*.json          (DATA_SOURCE=seed, default)
+  lib/db/queries.ts → MySQL (DATA_SOURCE=db)
 ```
 
-El switch entre fases es una variable de entorno:
-- `USE_WP_BACKEND=false` → lee seed JSON (Phase 1, default)
-- `USE_WP_BACKEND=true` → llama a `lib/wp.ts` → WordPress (Phase 2)
+El switch es la variable de entorno `DATA_SOURCE`. Cambiarla **no requiere
+tocar ninguna página, componente ni ruta API**.
 
-Cambiar de fase **no requiere tocar ninguna página, componente ni ruta API**.
+El panel `/admin` (jobs, empresas, usuarios, postulaciones) siempre escribe a
+la base de datos MySQL directamente, sin pasar por este switch — ver
+`ARCHITECTURE.md` §3/§9.
 
 ---
 
-## Cómo agregar o editar un empleo (Phase 1)
+## Cómo agregar o editar un empleo
+
+**Vía `/admin`** (recomendado, requiere `DATA_SOURCE=db`): iniciá sesión en
+`/admin/login` y usá `/admin/empleos`.
+
+**Vía seed JSON** (`DATA_SOURCE=seed`, desarrollo/demo):
 
 1. Abrí `lib/seed/jobs.json`
 2. Agregá o editá el objeto del empleo (ver campos abajo)
@@ -90,35 +92,24 @@ Cambiar de fase **no requiere tocar ninguna página, componente ni ruta API**.
 
 ---
 
-## El switch Phase 2 — paso a paso
-
-Cuando WordPress + JetEngine estén listos en `panel.trabajo.com.py`:
-
-1. Confirmá los endpoints (CPT `/wp-json/wp/v2/empleos` o CCT `/wp-json/jet-cct/v1/empleos`)
-2. Confirmá los nombres de cada campo meta en el editor de JetEngine
-3. Completá `mapWpJobToJob` en `lib/wp.ts` con los nombres reales (marcados con `// TODO`)
-4. Completá `getCategories()` y `getCities()` en `lib/wp.ts`
-5. En Hostinger, configurá:
-   - `WP_API_URL=https://panel.trabajo.com.py`
-   - `USE_WP_BACKEND=true`
-6. Redesplegá (o hacé push a `main`)
-
-**No se toca ninguna página, componente ni ruta API.** Solo `lib/wp.ts` + las dos variables de entorno.
-
----
-
 ## Variables de entorno
 
 Copiá `.env.example` a `.env.local` para desarrollo local.
 
-### Mínimo para que el sitio funcione (Phase 1)
+### Mínimo para que el sitio funcione (seed)
 
 ```env
 NEXT_PUBLIC_SITE_URL=https://trabajo.com.py
 NEXT_PUBLIC_WHATSAPP_LEADS=595XXXXXXXXX
 NEXT_PUBLIC_BUSINESS_NAME=trabajo.com.py
-USE_WP_BACKEND=false
+DATA_SOURCE=seed
 ```
+
+### Backend MySQL + panel `/admin`
+
+Ver `DEPLOY.md` y `MIGRATION.md` para provisionar la base y correr el
+cutover. Variables relevantes: `DATA_SOURCE=db`, `DATABASE_URL`,
+`SESSION_SECRET` (ver `.env.example`).
 
 ### Analítica (opcional)
 
@@ -207,8 +198,7 @@ primario).
 - **Estilos:** Tailwind CSS v4 (tokens en `app/globals.css` via `@theme`)
 - **Fuente:** Inter (self-hosted via `next/font/google`)
 - **Validación:** zod
-- **Datos (Phase 1):** archivos JSON locales en `lib/seed/`
-- **Datos (Phase 2):** WordPress + JetEngine REST API via `lib/wp.ts`
+- **Datos:** `lib/seed/*.json` (default) o MySQL + Drizzle via `lib/db/queries.ts` (`DATA_SOURCE=db`) — ver `ARCHITECTURE.md`
 
 ## Rutas
 
@@ -228,6 +218,15 @@ primario).
 /api/v1/categories            REST API
 /api/v1/cities                REST API
 /api/v1/leads                 Orchestrator (application + employer_post)
+/api/publicar                 Crea empleo pending desde /publicar (additive, no reemplaza /api/v1/leads)
+
+/admin/login                  Login (requiere DATA_SOURCE=db)
+/admin                        Panel: pendientes, actividad reciente
+/admin/empleos                CRUD de empleos + flujo de aprobación
+/admin/empresas                CRUD de empresas
+/admin/usuarios                CRUD de usuarios (solo admin)
+/admin/postulaciones          Bandeja de postulaciones por empleo
+/api/admin/*                  Mutaciones — todas verifican rol server-side
 ```
 
 ## Desarrollo local
