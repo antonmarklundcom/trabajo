@@ -330,37 +330,58 @@ const cachedCity = unstable_cache(
   cacheOptions([CACHE_TAGS.taxonomies, CACHE_TAGS.jobs]),
 );
 
+/**
+ * `unstable_cache` requires Next's incrementalCache, which only exists inside
+ * a Next server request/build — it throws `Invariant: incrementalCache
+ * missing` when called from a plain script (tsx, no Next runtime), such as
+ * scripts/parity-check.ts run via `npm run db:parity`. Falling back to the
+ * uncached query in that one case is safe: the cache wrapper only memoizes
+ * and revalidates `queryX`'s result, it never changes it, so parity's
+ * seed-vs-db diff is comparing the same values either way. Any other error
+ * (a real DB failure) still propagates.
+ */
+async function cachedOrRaw<T>(cached: () => Promise<T>, raw: () => Promise<T>): Promise<T> {
+  try {
+    return await cached();
+  } catch (err) {
+    if (err instanceof Error && err.message.includes('incrementalCache missing')) {
+      return raw();
+    }
+    throw err;
+  }
+}
+
 // The eight seam functions (ARCHITECTURE.md §3). Signatures and semantics are
 // unchanged — only the caching is new — so lib/data.ts needs no edit.
 
 export async function getJobs(filters: JobFilters): Promise<{ jobs: Job[]; total: number }> {
-  return cachedJobs(filtersKey(filters));
+  return cachedOrRaw(() => cachedJobs(filtersKey(filters)), () => queryJobs(filters));
 }
 
 export async function getJob(slug: string): Promise<Job | null> {
-  return cachedJob(slug);
+  return cachedOrRaw(() => cachedJob(slug), () => queryJob(slug));
 }
 
 export async function getFeaturedJobs(limit = 6): Promise<Job[]> {
-  return cachedFeaturedJobs(limit);
+  return cachedOrRaw(() => cachedFeaturedJobs(limit), () => queryFeaturedJobs(limit));
 }
 
 export async function getRecentJobs(limit = 8): Promise<Job[]> {
-  return cachedRecentJobs(limit);
+  return cachedOrRaw(() => cachedRecentJobs(limit), () => queryRecentJobs(limit));
 }
 
 export async function getCategories(): Promise<Category[]> {
-  return cachedCategories();
+  return cachedOrRaw(() => cachedCategories(), () => queryCategories());
 }
 
 export async function getCities(): Promise<City[]> {
-  return cachedCities();
+  return cachedOrRaw(() => cachedCities(), () => queryCities());
 }
 
 export async function getCategory(slug: string): Promise<Category | null> {
-  return cachedCategory(slug);
+  return cachedOrRaw(() => cachedCategory(slug), () => queryCategory(slug));
 }
 
 export async function getCity(slug: string): Promise<City | null> {
-  return cachedCity(slug);
+  return cachedOrRaw(() => cachedCity(slug), () => queryCity(slug));
 }
