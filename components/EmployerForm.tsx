@@ -67,6 +67,22 @@ export default function EmployerForm({ categories, cities }: Props) {
       if (!res.ok) throw new Error();
       track('lead_submit', { lead_type: 'employer_post', channel: 'form' });
       setState('success');
+
+      // Additive: creates the pending job admin approves later. The WhatsApp
+      // sales conversation above is the primary channel, so this never blocks
+      // or fails the employer's submission.
+      fetch('/api/publicar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyName: parsed.data.companyName,
+          contactWhatsapp: parsed.data.contactWhatsapp,
+          jobTitle: parsed.data.jobTitle,
+          categorySlug: parsed.data.categorySlug,
+          citySlug: parsed.data.citySlug,
+          description: parsed.data.description,
+        }),
+      }).catch(() => {});
     } catch {
       setState('error');
     }

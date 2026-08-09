@@ -8,8 +8,10 @@ const ACTION_LABELS: Record<string, string> = {
   create: 'creó',
   update: 'actualizó',
   delete: 'eliminó',
+  approve: 'aprobó',
   publish: 'publicó',
   reject: 'rechazó',
+  archive: 'archivó',
   feature: 'destacó',
 };
 

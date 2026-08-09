@@ -16,6 +16,8 @@ import 'server-only';
 import { and, asc, count, desc, eq, like, ne, or } from 'drizzle-orm';
 import { activityLog, categories, cities, companies, jobs, jobStatusEnum, users } from './schema';
 import type { Role } from '../auth';
+import { normalizePhone } from '../leads';
+import { slugify, uniqueSlug } from '../slug';
 
 async function getDb() {
   return (await import('./index')).db;
@@ -198,6 +200,7 @@ export type JobInput = {
   whatsapp: string | null;
   status: (typeof jobStatusEnum)[number];
   featuredUntil: Date | null;
+  rejectionReason: string | null;
 };
 
 export async function createJob(input: JobInput, actorUserId: number) {
@@ -234,13 +237,110 @@ export async function updateJob(id: number, input: JobInput, actorUserId: number
       updatedAt: now,
     })
     .where(eq(jobs.id, id));
-  await logActivity(actorUserId, 'job', id, 'update');
+
+  // The activity_log must record what actually happened, not just "update" —
+  // the curation team's audit trail is the whole reason this table exists
+  // (ARCHITECTURE.md §4). A single save can carry two independent facts: a
+  // status transition, and a feature grant — log each separately.
+  if (existing) {
+    if (!wasPublished && willPublish) {
+      await logActivity(actorUserId, 'job', id, existing.status === 'pending' ? 'approve' : 'publish');
+    } else if (input.status === 'rejected' && existing.status !== 'rejected') {
+      await logActivity(actorUserId, 'job', id, 'reject', { rejectionReason: input.rejectionReason });
+    } else if (input.status === 'archived' && existing.status !== 'archived') {
+      await logActivity(actorUserId, 'job', id, 'archive');
+    } else {
+      await logActivity(actorUserId, 'job', id, 'update');
+    }
+
+    const existingFeaturedMs = existing.featuredUntil?.getTime() ?? null;
+    const nextFeaturedMs = input.featuredUntil?.getTime() ?? null;
+    if (nextFeaturedMs != null && nextFeaturedMs !== existingFeaturedMs) {
+      await logActivity(actorUserId, 'job', id, 'feature', { featuredUntil: input.featuredUntil!.toISOString() });
+    }
+  }
 }
 
 export async function deleteJob(id: number, actorUserId: number) {
   const db = await getDb();
   await db.delete(jobs).where(eq(jobs.id, id));
   await logActivity(actorUserId, 'job', id, 'delete');
+}
+
+// ---------------------------------------------------------------------------
+// Public job submissions — from /publicar. Unauthenticated by design: every
+// row lands as `status = 'pending'`, which the visibility predicate in
+// lib/db/queries.ts already excludes from every public read. No caller-
+// supplied field can make this create anything visible.
+// ---------------------------------------------------------------------------
+
+export type PublicJobSubmissionInput = {
+  companyName: string;
+  contactWhatsapp: string;
+  jobTitle: string;
+  categorySlug: string;
+  citySlug: string;
+  description: string;
+};
+
+async function findOrCreateCompanyByName(name: string): Promise<number> {
+  const db = await getDb();
+  const trimmed = name.trim();
+  const [existing] = await db
+    .select({ id: companies.id })
+    .from(companies)
+    .where(eq(companies.name, trimmed))
+    .limit(1);
+  if (existing) return existing.id;
+
+  const now = new Date();
+  const slug = await uniqueSlug(slugify(trimmed), (candidate) => companySlugExists(candidate));
+  const [result] = await db
+    .insert(companies)
+    .values({ name: trimmed, slug, createdAt: now, updatedAt: now });
+  return result.insertId;
+}
+
+/**
+ * Creates a `pending` job from an employer's /publicar submission. Returns
+ * `null` (instead of throwing) when the category or city slug the client sent
+ * doesn't exist server-side — the caller treats that as a soft failure so a
+ * bad submission never blocks the WhatsApp/webhook fan-out that already ran.
+ */
+export async function createPublicJobSubmission(
+  input: PublicJobSubmissionInput,
+): Promise<number | null> {
+  const db = await getDb();
+
+  const [[category], [city]] = await Promise.all([
+    db.select({ id: categories.id }).from(categories).where(eq(categories.slug, input.categorySlug)).limit(1),
+    db.select({ id: cities.id }).from(cities).where(eq(cities.slug, input.citySlug)).limit(1),
+  ]);
+  if (!category || !city) return null;
+
+  const companyId = await findOrCreateCompanyByName(input.companyName);
+  const slug = await uniqueSlug(slugify(input.jobTitle), (candidate) => jobSlugExists(candidate));
+  const now = new Date();
+
+  const [result] = await db.insert(jobs).values({
+    slug,
+    title: input.jobTitle,
+    companyId,
+    categoryId: category.id,
+    cityId: city.id,
+    // Fields the /publicar form doesn't collect — the curation team fills
+    // these in from the admin edit screen before approving.
+    contractType: 'tiempo_completo',
+    seniority: 'sin_experiencia',
+    modality: 'presencial',
+    salaryHidden: true,
+    description: input.description,
+    whatsapp: normalizePhone(input.contactWhatsapp),
+    status: 'pending',
+    createdAt: now,
+    updatedAt: now,
+  });
+  return result.insertId;
 }
 
 // ---------------------------------------------------------------------------

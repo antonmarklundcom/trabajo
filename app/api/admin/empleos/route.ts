@@ -21,6 +21,10 @@ const jobSchema = z.object({
   whatsapp: z.string().max(20).nullable(),
   status: z.enum(jobStatusEnum),
   featuredUntil: z.string().datetime().nullable().optional(),
+  rejectionReason: z.string().max(2000).nullable().optional(),
+}).refine((data) => data.status !== 'rejected' || !!data.rejectionReason?.trim(), {
+  message: 'El motivo de rechazo es obligatorio.',
+  path: ['rejectionReason'],
 });
 
 export async function POST(request: Request) {
@@ -55,6 +59,7 @@ export async function POST(request: Request) {
         whatsapp: data.whatsapp,
         status: data.status,
         featuredUntil: data.featuredUntil ? new Date(data.featuredUntil) : null,
+        rejectionReason: data.rejectionReason ?? null,
       },
       user.id,
     );

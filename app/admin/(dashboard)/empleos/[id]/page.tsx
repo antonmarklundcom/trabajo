@@ -51,6 +51,7 @@ export default async function EditarEmpleoPage({
     whatsapp: job.whatsapp ?? '',
     status: job.status,
     featuredUntil: toDatetimeLocal(job.featuredUntil),
+    rejectionReason: job.rejectionReason ?? '',
     originalSlug: job.slug,
     originalStatus: job.status,
   };
