@@ -1,4 +1,11 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
+import {
+  CANDIDATE_INACTIVITY_MONTHS,
+  APPLICATION_REDACTION_MONTHS,
+  CONSENT_RETENTION_MONTHS,
+  ACCESS_LOG_RETENTION_MONTHS,
+} from '@/lib/retention';
 
 export const metadata: Metadata = {
   title: 'Política de privacidad',
@@ -50,25 +57,37 @@ const sections = [
     ],
   },
   {
-    title: '7. Conservación y seguridad',
+    title: '7. Tu perfil de postulante (cuenta): privacidad y conservación',
     body: [
-      'Conservamos los datos de postulaciones y consultas durante el tiempo necesario para la gestión de postulaciones y para cumplir obligaciones legales. Aplicamos medidas razonables de seguridad técnica y organizativa para proteger tu información.',
+      'Si creás una cuenta de postulante, tu perfil (nombre, teléfono, ciudad, titular, experiencia laboral) y tu CV se guardan de forma privada. Tu perfil no es público ni buscable: nadie puede navegarlo ni buscarlo, ni empresas ni terceros. Una empresa solo ve tus datos cuando vos elegís postularte a una de sus vacantes, y solo para esa postulación puntual.',
+      `Guardamos tu perfil y tu CV mientras tu cuenta esté activa. Si no volvés a iniciar sesión durante ${CANDIDATE_INACTIVITY_MONTHS} meses, eliminamos tu perfil y tu cuenta.`,
+      `Los datos personales de una postulación (nombre, teléfono, email, mensaje y el CV vinculado a esa postulación) se eliminan ${APPLICATION_REDACTION_MONTHS} meses después de que esa vacante se cierre o archive. El registro de que existió la postulación permanece, sin ningún dato personal.`,
+      `El registro de tu consentimiento (qué aceptaste, cuándo y para qué) se conserva ${CONSENT_RETENTION_MONTHS / 12} años después de que los datos que autorizaba se eliminen, porque es la prueba de que el tratamiento fue autorizado. No contiene tu CV ni tu mensaje.`,
+      `Cuando nuestro equipo accede a los datos de un postulante para moderación, soporte o una denuncia de abuso, ese acceso queda registrado durante ${ACCESS_LOG_RETENTION_MONTHS} meses.`,
     ],
   },
   {
-    title: '8. Tus derechos',
+    title: '8. Conservación y seguridad (postulaciones anónimas)',
     body: [
-      'De acuerdo con la Ley N° 7593/2025 de Protección de Datos Personales de Paraguay, tenés derecho a acceder, rectificar y solicitar la eliminación de tus datos personales en cualquier momento (derechos ARCO). Para ejercerlos, contactanos desde la página de contacto indicando tu pedido; te responderemos a la brevedad.',
+      'Para quienes se postulan sin crear una cuenta, conservamos los datos de esa postulación durante el tiempo necesario para la gestión de postulaciones y para cumplir obligaciones legales. Aplicamos medidas razonables de seguridad técnica y organizativa para proteger tu información.',
     ],
   },
   {
-    title: '9. Cookies y analítica',
+    title: '9. Tus derechos (ARCO)',
+    body: [
+      'De acuerdo con la Ley N° 7593/2025 de Protección de Datos Personales de Paraguay, tenés derecho a acceder, rectificar, cancelar (eliminar) y oponerte al tratamiento de tus datos personales en cualquier momento.',
+      'Si tenés una cuenta de postulante, ejercé estos derechos vos mismo, sin esperar respuesta, desde tu panel: descargá una copia de todo lo que guardamos sobre vos, corregí tu perfil, retirá tu consentimiento para una postulación puntual, o eliminá tu cuenta por completo. La eliminación de cuenta es definitiva e inmediata: no queda una copia oculta ni una forma de deshacerla.',
+      'Si no tenés cuenta, o preferís hacerlo por otro medio, escribinos desde la página de contacto indicando tu pedido; te responderemos a la brevedad.',
+    ],
+  },
+  {
+    title: '10. Cookies y analítica',
     body: [
       'El sitio puede usar cookies y tecnologías similares con fines de analítica (por ejemplo, Google Analytics) para entender cómo se usa el portal. Podés bloquear las cookies desde la configuración de tu navegador sin que eso impida usar el sitio.',
     ],
   },
   {
-    title: '10. Cambios a esta política',
+    title: '11. Cambios a esta política',
     body: [
       'Podemos actualizar esta política para reflejar cambios en el sitio o en la normativa. La versión vigente estará siempre publicada en esta página.',
     ],
@@ -92,6 +111,19 @@ export default function PrivacidadPage() {
                 {p}
               </p>
             ))}
+            {s.title.startsWith('9.') && (
+              <p className="mt-2 text-[15px] leading-relaxed text-[#57514A]">
+                Accedé a tu panel de derechos en{' '}
+                <Link href="/postulante/mis-datos" className="text-[#C0362A] hover:underline">
+                  /postulante/mis-datos
+                </Link>
+                , o escribinos desde{' '}
+                <Link href="/contacto" className="text-[#C0362A] hover:underline">
+                  Contacto
+                </Link>
+                .
+              </p>
+            )}
           </section>
         ))}
       </div>
