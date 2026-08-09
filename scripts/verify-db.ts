@@ -23,6 +23,16 @@ async function main() {
     ['jobs', schema.jobs],
     ['applications', schema.applications],
     ['activity_log', schema.activityLog],
+    // Phase 2 (PLAN-PHASE2.md §1.2). A migration that ran is a migration whose
+    // tables are countable — a missing table here throws rather than reporting
+    // zero, which is the point of listing them.
+    ['candidates', schema.candidates],
+    ['candidate_cvs', schema.candidateCvs],
+    ['candidate_experiences', schema.candidateExperiences],
+    ['consents', schema.consents],
+    ['data_access_logs', schema.dataAccessLogs],
+    ['deletion_requests', schema.deletionRequests],
+    ['employer_invitations', schema.employerInvitations],
   ] as const;
 
   const width = Math.max(...tables.map(([name]) => name.length));
