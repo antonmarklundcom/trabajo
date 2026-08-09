@@ -5,8 +5,7 @@
 // row records the version that was in effect when it was granted, so "what
 // did this person agree to, and when" stays answerable after later edits.
 //
-// The employer terms/privacy copy itself lands in PR 6 alongside the
-// EMPLOYER_DASHBOARD_ENABLED flip, so this initial value is a placeholder
-// that PR 6 bumps once real copy exists — the column is NOT NULL and the
-// activation flow has to write something before then.
-export const POLICY_VERSION = '2026-08-09-pre-copy';
+// PR 6 lands the real employer terms/privacy copy (/terminos §4-5,
+// /privacidad §5-6) and bumps this from the pre-copy placeholder. Bump again
+// whenever that copy changes materially — see the file-level note above.
+export const POLICY_VERSION = '2026-08-09-employer-copy-v1';

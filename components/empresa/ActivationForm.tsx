@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { POLICY_VERSION } from '@/lib/policy';
 
 type Props = { token: string; email: string; companyName: string };
 
@@ -110,10 +111,14 @@ export default function ActivationForm({ token, email, companyName }: Props) {
           <Link href="/privacidad" target="_blank" className="text-[#C0362A] hover:underline">
             política de privacidad
           </Link>{' '}
-          de trabajo.com.py, incluyendo que la plataforma no selecciona, evalúa ni garantiza
-          candidatos.
+          de trabajo.com.py como empresa anunciante, incluyendo que trabajo.com.py no selecciona,
+          evalúa ni recomienda candidatos, y que mi empresa es responsable del tratamiento de los
+          datos de los postulantes que reciba.
         </span>
       </label>
+      <p className="text-xs text-[#8A8378]">
+        Versión de la política: {POLICY_VERSION}
+      </p>
 
       {error && (
         <p className="text-sm text-[#B42318] bg-[#FCEBEA] rounded-[10px] px-4 py-3">{error}</p>

@@ -37,25 +37,38 @@ const sections = [
     ],
   },
   {
-    title: '5. Conservación y seguridad',
+    title: '5. Para empresas anunciantes: qué reciben',
     body: [
-      'Conservamos los datos de postulaciones y consultas durante el tiempo necesario para gestionar los procesos de selección y cumplir obligaciones legales. Aplicamos medidas razonables de seguridad técnica y organizativa para proteger tu información.',
+      'Cuando te postulás a una vacante publicada por una empresa, esa empresa recibe tu nombre, teléfono, email, el mensaje o perfil que hayas compartido y, si corresponde, tu CV — únicamente para la vacante a la que te postulaste.',
+      'La empresa no tiene acceso a tus postulaciones a otras vacantes ni a las de otros postulantes, y no puede buscar ni examinar perfiles fuera de sus propias publicaciones. trabajo.com.py no opera una base de datos de candidatos consultable por las empresas.',
     ],
   },
   {
-    title: '6. Tus derechos',
+    title: '6. Acceso del equipo de trabajo.com.py',
     body: [
-      'De acuerdo con la normativa paraguaya de protección de datos personales, podés solicitar el acceso, la rectificación o la eliminación de tus datos personales en cualquier momento. Para ejercer estos derechos, contactanos desde la página de contacto indicando tu pedido; te responderemos a la brevedad.',
+      'El equipo que opera trabajo.com.py puede acceder a los datos de postulantes para operar el portal, moderar contenido, dar soporte y atender reportes de abuso. Ese acceso queda registrado internamente (quién accedió, cuándo y con qué motivo) y es independiente del acceso que tienen las empresas anunciantes: el equipo del portal no participa en la selección de candidatos de ninguna empresa.',
     ],
   },
   {
-    title: '7. Cookies y analítica',
+    title: '7. Conservación y seguridad',
+    body: [
+      'Conservamos los datos de postulaciones y consultas durante el tiempo necesario para la gestión de postulaciones y para cumplir obligaciones legales. Aplicamos medidas razonables de seguridad técnica y organizativa para proteger tu información.',
+    ],
+  },
+  {
+    title: '8. Tus derechos',
+    body: [
+      'De acuerdo con la Ley N° 7593/2025 de Protección de Datos Personales de Paraguay, tenés derecho a acceder, rectificar y solicitar la eliminación de tus datos personales en cualquier momento (derechos ARCO). Para ejercerlos, contactanos desde la página de contacto indicando tu pedido; te responderemos a la brevedad.',
+    ],
+  },
+  {
+    title: '9. Cookies y analítica',
     body: [
       'El sitio puede usar cookies y tecnologías similares con fines de analítica (por ejemplo, Google Analytics) para entender cómo se usa el portal. Podés bloquear las cookies desde la configuración de tu navegador sin que eso impida usar el sitio.',
     ],
   },
   {
-    title: '8. Cambios a esta política',
+    title: '10. Cambios a esta política',
     body: [
       'Podemos actualizar esta política para reflejar cambios en el sitio o en la normativa. La versión vigente estará siempre publicada en esta página.',
     ],
