@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { getSessionUser } from '@/lib/auth';
+import { getSessionUser, homePathForRole } from '@/lib/auth';
 import LoginForm from '@/components/admin/LoginForm';
 
 export const metadata: Metadata = {
@@ -10,7 +10,8 @@ export const metadata: Metadata = {
 
 export default async function AdminLoginPage() {
   const user = await getSessionUser();
-  if (user) redirect('/admin');
+  // An already-logged-in employer goes to /empresa, not into the admin panel.
+  if (user) redirect(homePathForRole(user.role));
 
   return (
     <div className="min-h-screen bg-[#FBF9F6] flex items-center justify-center px-4">

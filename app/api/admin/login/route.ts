@@ -4,6 +4,7 @@ import {
   checkLoginRateLimit,
   clearLoginAttempts,
   createSession,
+  homePathForRole,
   recordFailedLogin,
 } from '@/lib/auth';
 
@@ -48,5 +49,10 @@ export async function POST(request: Request) {
 
   clearLoginAttempts(ip, email);
   await createSession(user.id);
-  return Response.json({ ok: true });
+  // The client navigates to redirectTo rather than to a hardcoded '/admin':
+  // employers share this table and this cookie but not the admin route tree,
+  // and sending one to /admin would bounce straight back out (PLAN-PHASE2.md
+  // §2.1). The server decides the destination because the server is the only
+  // side that knows the role.
+  return Response.json({ ok: true, redirectTo: homePathForRole(user.role) });
 }
