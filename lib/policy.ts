@@ -5,7 +5,8 @@
 // row records the version that was in effect when it was granted, so "what
 // did this person agree to, and when" stays answerable after later edits.
 //
-// PR 6 lands the real employer terms/privacy copy (/terminos §4-5,
-// /privacidad §5-6) and bumps this from the pre-copy placeholder. Bump again
-// whenever that copy changes materially — see the file-level note above.
-export const POLICY_VERSION = '2026-08-09-employer-copy-v1';
+// PR 6 landed the employer terms/privacy copy (/terminos §4-5, /privacidad
+// §5-6). PR 11 adds the candidate-facing privacy sections (/privacidad §7-9:
+// retention periods, ARCO rights, private-by-default statement) — bumped
+// again per the file-level note above.
+export const POLICY_VERSION = '2026-08-09-candidate-copy-v1';

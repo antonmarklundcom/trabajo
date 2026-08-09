@@ -80,7 +80,7 @@ export default async function EmpresaPostulacionesPage({
                   <td className="px-4 py-3">
                     {app.redactedAt ? (
                       <span className="text-xs italic text-[#8A8378]">
-                        El postulante retiró sus datos.
+                        El postulante eliminó sus datos.
                       </span>
                     ) : (
                       <>
