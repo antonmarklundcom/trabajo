@@ -38,39 +38,13 @@ import 'server-only';
 
 import { revalidatePath, revalidateTag } from 'next/cache';
 
-/**
- * Time-based safety net for the cached read path.
- *
- * Admin writes invalidate on demand (below), so this timer is NOT what keeps
- * the site fresh after an edit. It exists for the two state transitions that
- * happen with no write to hook onto, because both are query predicates rather
- * than stored flags (ARCHITECTURE.md §6):
- *
- *   - a job passing `expires_at` and disappearing from public listings,
- *   - `featured_until` lapsing and the job dropping out of the featured block.
- *
- * Five minutes bounds that drift while cutting worst-case DB traffic per cache
- * key by 10x versus the 30s/60s route timers this replaces — which is the
- * point, given `connectionLimit: 8` on the pool (ARCHITECTURE.md §8).
- */
-export const PUBLIC_CACHE_TTL_SECONDS = 300;
-
-/**
- * Two tags, deliberately coarse.
- *
- * A finer scheme (per-slug, per-category) buys nothing: any job write can move
- * a job in or out of every list, every taxonomy count and the sitemap at once,
- * so a correct fine-grained invalidation would have to fire most of the tags
- * anyway. The failure mode of over-invalidating is a few extra queries; the
- * failure mode of under-invalidating is serving an unapproved or deleted
- * listing. Those costs are not symmetric.
- */
-export const CACHE_TAGS = {
-  /** Every public job read: lists, detail, featured, recent. */
-  jobs: 'public-jobs',
-  /** Categories and cities, including their published-job counts. */
-  taxonomies: 'public-taxonomies',
-} as const;
+// PUBLIC_CACHE_TTL_SECONDS and CACHE_TAGS live in ./cache-tags — that module
+// has no server-only/next runtime imports, so lib/db/queries.ts (loaded by
+// db:* scripts under plain tsx, not just Next) can depend on them without
+// pulling in this file's Next-server-only invalidation logic. Re-exported
+// here so existing Route Handler imports (`@/lib/cache`) are unaffected.
+export { PUBLIC_CACHE_TTL_SECONDS, CACHE_TAGS } from './cache-tags';
+import { CACHE_TAGS } from './cache-tags';
 
 /**
  * Public routes whose rendered output is derived from job or company data.
