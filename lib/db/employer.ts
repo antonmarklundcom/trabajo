@@ -28,11 +28,12 @@
 // tree even when DATA_SOURCE=seed and DATABASE_URL is unset.
 import 'server-only';
 
-import { and, asc, count, desc, eq, inArray, like, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, isNull, like, sql } from 'drizzle-orm';
 import {
   activityLog,
   applications,
   applicationStatusEnum,
+  candidateCvs,
   categories,
   cities,
   companies,
@@ -404,6 +405,46 @@ export async function getEmployerApplication(companyId: number, applicationId: n
     .from(applications)
     .innerJoin(jobs, eq(applications.jobId, jobs.id))
     .where(and(eq(applications.id, applicationId), ownedByCompany(companyId)))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+/**
+ * The CV attached to one of THIS company's applications, or null.
+ *
+ * PLAN-PHASE2.md §3.3: the employer path keys on the **application**, not on
+ * the CV id, because an employer's right to a CV comes from the application —
+ * so the URL carries that relationship rather than leaving the handler to
+ * reconstruct it from a CV id an employer could have guessed.
+ *
+ * Three conditions, all in one WHERE so none can be forgotten by a caller:
+ *   - the application's job belongs to this company;
+ *   - the application is not redacted (the candidate withdrew consent or
+ *     deleted their account — §4.2/§4.4 — and consent, not possession of a
+ *     link, is what makes the CV visible);
+ *   - the CV row is live (its bytes still exist).
+ */
+export async function getEmployerApplicationCv(companyId: number, applicationId: number) {
+  const db = await getDb();
+  const rows = await db
+    .select({
+      applicationId: applications.id,
+      cvId: candidateCvs.id,
+      storageKey: candidateCvs.storageKey,
+      originalFilename: candidateCvs.originalFilename,
+      mimeType: candidateCvs.mimeType,
+    })
+    .from(applications)
+    .innerJoin(jobs, eq(applications.jobId, jobs.id))
+    .innerJoin(candidateCvs, eq(applications.cvId, candidateCvs.id))
+    .where(
+      and(
+        eq(applications.id, applicationId),
+        ownedByCompany(companyId),
+        isNull(applications.redactedAt),
+        isNull(candidateCvs.deletedAt),
+      ),
+    )
     .limit(1);
   return rows[0] ?? null;
 }

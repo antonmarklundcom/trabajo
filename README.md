@@ -111,6 +111,17 @@ Ver `DEPLOY.md` y `MIGRATION.md` para provisionar la base y correr el
 cutover. Variables relevantes: `DATA_SOURCE=db`, `DATABASE_URL`,
 `SESSION_SECRET` (ver `.env.example`).
 
+### Almacenamiento de CVs
+
+Requerido cuando `CANDIDATE_ACCOUNTS_ENABLED=true`. `CV_STORAGE_DRIVER=r2`
+(Cloudflare R2, bucket privado) o `CV_STORAGE_DRIVER=disk` (`CV_STORAGE_DIR`,
+ruta absoluta fuera del build root). No hay valor por defecto. Detalles y
+trampas en `DEPLOY.md`; las variables de cada driver están en `.env.example`.
+
+Los CVs nunca tienen URL pública: se descargan por
+`/api/postulante/cv/[id]`, `/api/empresa/cv/[applicationId]` o
+`/api/admin/cv/[id]`, cada uno con su propia autorización.
+
 ### Analítica (opcional)
 
 ```env
@@ -227,7 +238,16 @@ primario).
 /admin/usuarios                CRUD de usuarios (solo admin)
 /admin/postulaciones          Bandeja de postulaciones por empleo
 /api/admin/*                  Mutaciones — todas verifican rol server-side
+
+/api/postulante/cv            Subida de CV del postulante (magic bytes, 5 MB)
+/api/postulante/cv/[id]       Descarga/borrado del propio CV
+/api/empresa/cv/[applicationId]  CV de una postulación a un empleo propio
+/api/admin/cv/[id]            CV para el operador — exige motivo y queda registrado
 ```
+
+Las rutas `/empresa/*` y `/postulante/*` están detrás de
+`EMPLOYER_DASHBOARD_ENABLED` / `CANDIDATE_ACCOUNTS_ENABLED`: con la flag
+apagada devuelven 404.
 
 ## Desarrollo local
 

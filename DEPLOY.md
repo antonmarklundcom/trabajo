@@ -72,6 +72,13 @@ point it at production. Run it after touching anything in that module. It runs
 under `tsx --conditions=react-server` so that `server-only` resolves to its
 no-op build, the same way it does inside a React Server Component.
 
+`npm run storage:verify` is also local-only and needs neither a database nor a
+bucket: it round-trips the disk driver through a temp directory, asserts the
+magic-byte and 5 MB rules in `lib/cv.ts`, asserts every driver method refuses a
+key that is not `cv/{candidateId}/{uuid}.{ext}`, and checks the hand-rolled
+SigV4 presigner against the signature AWS publishes for its documented example
+request. Run it after touching `lib/storage.ts` or `lib/cv.ts`.
+
 `db:seed` enforces its own gate: it exits non-zero if the row counts do not
 match the seed files, so a broken upsert key shows up as a failure rather than
 as silently duplicated jobs.
@@ -129,6 +136,38 @@ cause.
 `npm`/`npx` are not on the default PATH:
 `export PATH=/opt/alt/alt-nodejs22/root/usr/bin:$PATH` (check what exists under
 `/opt/alt/`). Deployed source lives at `public_html/.builds/last-source/`.
+
+## CV storage
+
+CVs are the most personal thing this application stores, and they do not live
+in MySQL. `CV_STORAGE_DRIVER` picks where the bytes go; there is no default, so
+a deploy that forgets it fails loudly on the first upload instead of quietly
+choosing somewhere wrong.
+
+**Driver `r2` (recommended).** A private Cloudflare R2 bucket. Create the
+bucket with no public access and no custom public domain, then an R2 API token
+scoped to Object Read & Write **on that one bucket** — an account-wide token is
+a token a web process can use to read every other bucket you own. Set
+`CV_R2_ACCOUNT_ID`, `CV_R2_BUCKET`, `CV_R2_ACCESS_KEY_ID` and
+`CV_R2_SECRET_ACCESS_KEY` in hPanel. Downloads are 60-second presigned URLs
+minted per request and never stored, so there is no CV URL anywhere that
+outlives the click that produced it.
+
+**Driver `disk` (fallback).** `CV_STORAGE_DIR` must be an absolute path
+**outside the build root**. The deployed source lives under
+`public_html/.builds/last-source/` and is replaced on every deploy, so a
+directory inside the app is deleted by the next merge to `main` — with the CVs
+in it. Something like `/home/<user>/cv-storage` survives. Nothing on the
+Hostinger side backs that directory up on our schedule, so this driver comes
+with a manual backup step you have to actually schedule; losing a candidate's
+CV is both a product failure and a data-integrity problem under Ley N°
+7593/2025.
+
+Rotating the R2 token is safe at any time: nothing signed with the old one
+lives longer than 60 seconds. Changing the *bucket* or the *driver* is not —
+existing `candidate_cvs.storage_key` values point into whatever store was live
+when they were written, and the app has no migration path between drivers.
+
 
 ## Slots
 
