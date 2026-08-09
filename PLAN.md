@@ -13,6 +13,11 @@
 >
 > Companion docs: `ARCHITECTURE.md` (target design + schema),
 > `MIGRATION.md` (cutover), `DEPLOY.md` (Hostinger + MySQL).
+>
+> **All twelve steps below are merged.** The next body of work — employer
+> dashboard (`employer` role) and job seeker profiles — is planned separately
+> in **`PLAN-PHASE2.md`**, which supersedes this document's open questions 1
+> and 3 (employer self-serve, applications-as-rows).
 
 ---
 

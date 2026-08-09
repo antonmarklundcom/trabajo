@@ -10,7 +10,8 @@ Read before writing code:
 
 | Doc | What it holds |
 |---|---|
-| `PLAN.md` | Phases, gates, model tiering (Opus vs Sonnet), open questions |
+| `PLAN.md` | The WordPress → MySQL rebuild: 12 steps, gates, model tiering, open questions (all merged) |
+| `PLAN-PHASE2.md` | Next body of work: employer dashboard + job seeker profiles — schema, consent/ARCO model, 14 PRs with model per PR |
 | `ARCHITECTURE.md` | Target backend design: the data seam, DB schema, auth, job lifecycle, caching |
 | `MIGRATION.md` | WordPress → MySQL cutover runbook and rollback |
 | `DEPLOY.md` | Hostinger + MySQL operations and their known traps |
