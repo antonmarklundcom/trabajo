@@ -61,6 +61,16 @@ export default async function EmpleosPage({
     getCities(),
   ]);
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://trabajo.com.py';
+  const breadcrumbJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Inicio', item: siteUrl },
+      { '@type': 'ListItem', position: 2, name: 'Empleos', item: `${siteUrl}/empleos` },
+    ],
+  };
+
   const currentFilters = {
     categoria: filters.categoria,
     ciudad: filters.ciudad,
@@ -74,6 +84,18 @@ export default async function EmpleosPage({
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-2 text-sm text-[#57514A] mb-6" aria-label="Ruta">
+        <Link href="/" className="hover:text-[#C0362A]">Inicio</Link>
+        <span aria-hidden="true">›</span>
+        <span className="text-[#1E1B17] font-medium">Empleos</span>
+      </nav>
+
       {/* Search bar */}
       <div className="mb-6">
         <SearchBar initialQ={filters.q ?? ''} />

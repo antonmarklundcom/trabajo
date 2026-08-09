@@ -89,6 +89,24 @@ export default async function JobDetailPage({ params }: { params: Params }) {
     url: `${siteUrl}/empleos/${job.slug}`,
   };
 
+  const breadcrumbJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Inicio', item: siteUrl },
+      { '@type': 'ListItem', position: 2, name: 'Empleos', item: `${siteUrl}/empleos` },
+      ...(category
+        ? [{ '@type': 'ListItem', position: 3, name: category.name, item: `${siteUrl}/trabajo/${category.slug}` }]
+        : []),
+      {
+        '@type': 'ListItem',
+        position: category ? 4 : 3,
+        name: job.title,
+        item: `${siteUrl}/empleos/${job.slug}`,
+      },
+    ],
+  };
+
   const chips = [
     contractTypeLabel(job.contractType),
     seniorityLabel(job.seniority),
@@ -101,6 +119,10 @@ export default async function JobDetailPage({ params }: { params: Params }) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

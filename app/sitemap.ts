@@ -6,14 +6,37 @@ import { getJobs, getCategories, getCities } from '@/lib/data';
 // the timer only has to cover job expiry.
 export const revalidate = 3600;
 
+/**
+ * getJobs() is paginated (PAGE_SIZE = 20 in both the seed and db seams) — the
+ * sitemap needs every published job, not just the first page, so it walks
+ * every page. Cheap: this route only runs on the 1h revalidate timer.
+ */
+async function getAllJobs() {
+  const first = await getJobs({ orden: 'recientes', page: 1 });
+  const totalPages = Math.ceil(first.total / 20);
+  if (totalPages <= 1) return first.jobs;
+
+  const rest = await Promise.all(
+    Array.from({ length: totalPages - 1 }, (_, i) => getJobs({ orden: 'recientes', page: i + 2 })),
+  );
+  return [...first.jobs, ...rest.flatMap((page) => page.jobs)];
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://trabajo.com.py';
 
-  const [{ jobs }, categories, cities] = await Promise.all([
-    getJobs({ orden: 'recientes', page: 1 }),
+  const [jobs, categories, cities] = await Promise.all([
+    getAllJobs(),
     getCategories(),
     getCities(),
   ]);
+
+  // Category/city pairs that actually have a published job — the taxonomy
+  // pages already noindex empty combinations (app/trabajo/[categoria]/
+  // [ciudad]/page.tsx); the sitemap must not list what it tells crawlers not
+  // to index, or it sends Search Console a contradictory signal and wastes
+  // crawl budget on thin pages.
+  const nonEmptyCombos = new Set(jobs.map((job) => `${job.categorySlug}|${job.citySlug}`));
 
   // Static pages
   const staticPages: MetadataRoute.Sitemap = [
@@ -44,14 +67,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
     }));
 
-  // Category + city landing pages (only non-empty combinations)
+  // Category + city landing pages — only combinations with a published job.
   const landingPages: MetadataRoute.Sitemap = [];
   for (const cat of categories) {
     for (const city of cities) {
-      // We only include combinations where there are actual jobs
-      // (jobCount on category is aggregate; we use a simple heuristic here)
-      // In production with WP backend, do a real count query.
-      // For seed data, we include all non-empty city combos.
+      if (!nonEmptyCombos.has(`${cat.slug}|${city.slug}`)) continue;
       landingPages.push({
         url: `${siteUrl}/trabajo/${cat.slug}/${city.slug}`,
         lastModified: new Date(),
