@@ -13,12 +13,19 @@ const ACTION_LABELS: Record<string, string> = {
   reject: 'rechazó',
   archive: 'archivó',
   feature: 'destacó',
+  // Written by lib/db/employer.ts — an employer acting on their own company's
+  // data shows up in the same feed the curation team already reads.
+  employer_create: 'creó (empleador)',
+  employer_update: 'actualizó (empleador)',
+  status_change: 'cambió el estado de',
+  invite_employer: 'invitó a un usuario para',
 };
 
 const ENTITY_LABELS: Record<string, string> = {
   job: 'el empleo',
   company: 'la empresa',
   user: 'el usuario',
+  application: 'la postulación',
 };
 
 export default async function AdminDashboardPage() {

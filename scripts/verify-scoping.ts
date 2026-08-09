@@ -313,6 +313,59 @@ async function main() {
       .where(eq(schema.jobs.id, a.jobId));
     assert(edited.status === 'pending', 'editing a published job returns it to pending');
     assert(edited.slug === `${FIXTURE_PREFIX}a-job`, 'editing does not change the slug (live SEO URL)');
+
+    // Material-change rule (PLAN-PHASE2.md §6.1): a non-strict field
+    // (whatsapp) on a published job applies live and does NOT re-queue it.
+    await db
+      .update(schema.jobs)
+      .set({ status: 'published', publishedAt: now })
+      .where(and(eq(schema.jobs.id, a.jobId), eq(schema.jobs.companyId, a.companyId)));
+    await employer.updateEmployerJob(a.companyId, actor, a.jobId, {
+      title: `${FIXTURE_PREFIX} Puesto a editado`,
+      categoryId: category.id,
+      cityId: city.id,
+      contractType: 'tiempo_completo',
+      seniority: 'junior',
+      modality: 'presencial',
+      salaryMin: null,
+      salaryMax: null,
+      salaryHidden: true,
+      description: 'edited',
+      whatsapp: '595981000111',
+    });
+    const [whatsappEdited] = await db
+      .select({ status: schema.jobs.status, whatsapp: schema.jobs.whatsapp, publishedAt: schema.jobs.publishedAt })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, a.jobId));
+    assert(
+      whatsappEdited.status === 'published',
+      'editing only whatsapp on a published job keeps it published',
+    );
+    assert(whatsappEdited.whatsapp === '595981000111', 'the whatsapp edit was actually applied');
+    assert(whatsappEdited.publishedAt !== null, 'publishedAt is preserved when the job stays published');
+
+    // A strict field (title) on the same published job DOES re-queue it.
+    await employer.updateEmployerJob(a.companyId, actor, a.jobId, {
+      title: `${FIXTURE_PREFIX} Puesto a re-editado`,
+      categoryId: category.id,
+      cityId: city.id,
+      contractType: 'tiempo_completo',
+      seniority: 'junior',
+      modality: 'presencial',
+      salaryMin: null,
+      salaryMax: null,
+      salaryHidden: true,
+      description: 'edited',
+      whatsapp: '595981000111',
+    });
+    const [titleEdited] = await db
+      .select({ status: schema.jobs.status })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, a.jobId));
+    assert(
+      titleEdited.status === 'pending',
+      'editing title on a published job returns it to pending (material change)',
+    );
   } finally {
     await cleanup();
     console.log('\nFixtures removed.');
