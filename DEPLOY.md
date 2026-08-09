@@ -81,8 +81,17 @@ SigV4 presigner against the signature AWS publishes for its documented example
 request. Run it after touching `lib/storage.ts` or `lib/cv.ts`.
 
 `npm run retention:verify` needs nothing at all — no database, no env — and
-asserts the month arithmetic behind `db:purge` (see below). Both it and
-`storage:verify` run in CI on every push.
+asserts the month arithmetic behind `db:purge` (see below).
+
+`npm run access:verify` also needs nothing: it reads
+`lib/db/candidates-admin.ts` and asserts the `PLAN-PHASE2.md` §2.4
+construction — every export checks for `admin`, every function that returns
+candidate data validates its reason and writes `data_access_logs` **before**
+returning, and neither a `LIKE` search nor a bulk export has appeared in the
+file. A new export there fails this check until it is classified in the script,
+which is the point: adding one should be a decision, not a diff.
+
+All three run in CI on every push.
 
 `db:seed` enforces its own gate: it exits non-zero if the row counts do not
 match the seed files, so a broken upsert key shows up as a failure rather than

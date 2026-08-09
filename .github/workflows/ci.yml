@@ -45,3 +45,10 @@ jobs:
       # any different in the output.
       - name: Verify retention cutoffs
         run: npm run retention:verify
+
+      # PLAN-PHASE2.md §2.4's promise — no code path returns candidate data
+      # without writing data_access_logs — is a property of one file, so it is
+      # checked on every push rather than at review time. Also fails on a LIKE
+      # search or a bulk export appearing in that module (§5.2).
+      - name: Verify candidate access construction
+        run: npm run access:verify

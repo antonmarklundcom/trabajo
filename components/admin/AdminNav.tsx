@@ -13,6 +13,12 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/admin/postulaciones', label: 'Postulaciones', roles: ['admin', 'editor'] },
   { href: '/admin/empresas', label: 'Empresas', roles: ['admin', 'editor'] },
   { href: '/admin/estadisticas', label: 'Estadísticas', roles: ['admin', 'editor'] },
+  // Candidate data is admin-only, a deliberate narrowing of today's
+  // admin/editor parity (PLAN-PHASE2.md §2.4): the curation team needs jobs,
+  // not CVs. Hiding the link is UX — the pages and every function in
+  // lib/db/candidates-admin.ts re-check the role themselves (AGENTS.md).
+  { href: '/admin/postulantes', label: 'Postulantes', roles: ['admin'] },
+  { href: '/admin/registros-de-acceso', label: 'Registros de acceso', roles: ['admin'] },
   { href: '/admin/usuarios', label: 'Usuarios', roles: ['admin'] },
 ];
 
