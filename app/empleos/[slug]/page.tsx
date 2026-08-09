@@ -7,6 +7,8 @@ import WhatsAppButton from '@/components/WhatsAppButton';
 import LeadForm from '@/components/LeadForm';
 import MarkdownContent from '@/components/MarkdownContent';
 import CompanyAvatar from '@/components/CompanyAvatar';
+import ApplySection from '@/components/postulante/ApplySection';
+import { candidateAccountsEnabled } from '@/lib/flags';
 
 // Cached reads are invalidated on demand by every admin mutation
 // (lib/cache.ts), so this timer is only the safety net for job expiry and
@@ -206,6 +208,10 @@ export default async function JobDetailPage({ params }: { params: Params }) {
           <aside className="w-full lg:w-80 flex-shrink-0">
             <div className="bg-white rounded-[10px] border border-[#E7E1D6] p-6 sticky top-24">
               <h2 className="text-lg font-bold text-[#1E1B17] mb-4">Postulate ahora</h2>
+
+              {candidateAccountsEnabled() && (
+                <ApplySection jobSlug={job.slug} companyName={job.company} />
+              )}
 
               {job.whatsapp && (
                 <div className="mb-6">

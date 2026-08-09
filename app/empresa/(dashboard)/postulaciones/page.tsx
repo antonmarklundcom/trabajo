@@ -78,14 +78,34 @@ export default async function EmpresaPostulacionesPage({
               applications.map((app) => (
                 <tr key={app.id} className="hover:bg-[#F5F1EA]">
                   <td className="px-4 py-3">
-                    <div className="font-medium text-[#1E1B17]">{app.name}</div>
-                    {app.message && (
-                      <div className="text-xs text-[#8A8378] mt-0.5 max-w-xs truncate">{app.message}</div>
+                    {app.redactedAt ? (
+                      <span className="text-xs italic text-[#8A8378]">
+                        El postulante retiró sus datos.
+                      </span>
+                    ) : (
+                      <>
+                        <div className="font-medium text-[#1E1B17]">{app.name}</div>
+                        {app.message && (
+                          <div className="text-xs text-[#8A8378] mt-0.5 max-w-xs truncate">{app.message}</div>
+                        )}
+                        {app.cvId && (
+                          <a
+                            href={`/api/empresa/cv/${app.id}`}
+                            className="mt-1 inline-block text-xs text-[#C0362A] hover:underline"
+                          >
+                            Ver CV
+                          </a>
+                        )}
+                      </>
                     )}
                   </td>
                   <td className="px-4 py-3 text-[#57514A]">
-                    <div>{app.phone}</div>
-                    {app.email && <div className="text-xs text-[#8A8378]">{app.email}</div>}
+                    {!app.redactedAt && (
+                      <>
+                        <div>{app.phone}</div>
+                        {app.email && <div className="text-xs text-[#8A8378]">{app.email}</div>}
+                      </>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <Link
