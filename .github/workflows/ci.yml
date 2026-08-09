@@ -38,3 +38,10 @@ jobs:
       # asserted on every push rather than the day someone reads the file.
       - name: Verify CV storage layer
         run: npm run storage:verify
+
+      # Same reasoning, for the retention sweep's cutoff arithmetic
+      # (PLAN-PHASE2.md §4.3): pure functions, no database, and a wrong answer
+      # here deletes data earlier than the privacy policy allows without looking
+      # any different in the output.
+      - name: Verify retention cutoffs
+        run: npm run retention:verify
