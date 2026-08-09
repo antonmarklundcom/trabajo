@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { createPublicJobSubmission } from '@/lib/db/admin';
+import { getClientIp, HONEYPOT_FIELD, isHoneypotFilled, isRateLimited } from '@/lib/leads';
 
 // Public, unauthenticated by design — every row this creates lands as
 // `status = 'pending'`, which lib/db/queries.ts's visiblePredicate() already
@@ -15,6 +16,20 @@ const schema = z.object({
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
+
+  // Same bot guard as POST /api/v1/leads (lib/leads.ts, PLAN.md step 9) —
+  // this is the second public write on the /publicar submission path.
+  // Rejections are a SILENT 2xx, logged server-side only.
+  const ip = getClientIp(request.headers);
+  if (isHoneypotFilled((body as Record<string, unknown> | null)?.[HONEYPOT_FIELD])) {
+    console.warn('[publicar] honeypot triggered — rejecting silently', { ip });
+    return Response.json({ ok: true }, { status: 201 });
+  }
+  if (isRateLimited(ip)) {
+    console.warn('[publicar] rate limit exceeded — rejecting silently', { ip });
+    return Response.json({ ok: true }, { status: 201 });
+  }
+
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
     return Response.json({ error: 'Datos inválidos.' }, { status: 400 });

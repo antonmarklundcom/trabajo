@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { z } from 'zod';
 import { track } from '@/lib/analytics';
+import { HONEYPOT_FIELD } from '@/lib/leads';
+import HoneypotField from '@/components/HoneypotField';
 
 const formSchema = z.object({
   name: z.string().min(2, 'Ingresá tu nombre completo'),
@@ -25,6 +27,7 @@ export default function LeadForm({ jobSlug, jobTitle, citySlug, categorySlug, co
   const [state, setState] = useState<FormState>('idle');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [values, setValues] = useState({ name: '', phone: '', email: '', message: '' });
+  const [honeypot, setHoneypot] = useState('');
 
   function setField(field: keyof typeof values, value: string) {
     setValues((v) => ({ ...v, [field]: value }));
@@ -59,6 +62,7 @@ export default function LeadForm({ jobSlug, jobTitle, citySlug, categorySlug, co
           channel: 'form',
           sourcePage: typeof window !== 'undefined' ? window.location.pathname : undefined,
           ...parsed.data,
+          [HONEYPOT_FIELD]: honeypot,
         }),
       });
       if (!res.ok) throw new Error('Error del servidor');
@@ -85,6 +89,8 @@ export default function LeadForm({ jobSlug, jobTitle, citySlug, categorySlug, co
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-4">
+      <HoneypotField value={honeypot} onChange={setHoneypot} />
+
       <Field
         label="Nombre completo"
         required

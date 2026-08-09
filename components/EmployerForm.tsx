@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { z } from 'zod';
 import { track } from '@/lib/analytics';
+import { HONEYPOT_FIELD } from '@/lib/leads';
+import HoneypotField from '@/components/HoneypotField';
 import type { Category, City } from '@/lib/types';
 
 const schema = z.object({
@@ -33,6 +35,7 @@ export default function EmployerForm({ categories, cities }: Props) {
     citySlug: '',
     description: '',
   });
+  const [honeypot, setHoneypot] = useState('');
 
   type FieldKey = keyof typeof values;
 
@@ -62,6 +65,7 @@ export default function EmployerForm({ categories, cities }: Props) {
           type: 'employer_post',
           ...parsed.data,
           sourcePage: typeof window !== 'undefined' ? window.location.pathname : undefined,
+          [HONEYPOT_FIELD]: honeypot,
         }),
       });
       if (!res.ok) throw new Error();
@@ -81,6 +85,7 @@ export default function EmployerForm({ categories, cities }: Props) {
           categorySlug: parsed.data.categorySlug,
           citySlug: parsed.data.citySlug,
           description: parsed.data.description,
+          [HONEYPOT_FIELD]: honeypot,
         }),
       }).catch(() => {});
     } catch {
@@ -106,6 +111,8 @@ export default function EmployerForm({ categories, cities }: Props) {
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-6">
+      <HoneypotField value={honeypot} onChange={setHoneypot} />
+
       <div className="pb-4 border-b border-[#E7E1D6]">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-[#57514A]">
           Datos de contacto

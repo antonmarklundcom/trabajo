@@ -223,3 +223,46 @@ export async function processLead(lead: LeadInput): Promise<void> {
     }
   }
 }
+
+// ---------------------------------------------------------------------------
+// Abuse hardening guard (PLAN.md step 9) — shared by POST /api/v1/leads and
+// POST /api/publicar, the two public write endpoints reachable from
+// /publicar and every job page's apply form.
+//
+// Rejections must be a SILENT 2xx to whatever submitted them (a bot watching
+// for a non-2xx just adapts) and logged server-side only.
+// ---------------------------------------------------------------------------
+
+/**
+ * Hidden form field name. Real users never see or fill it (CSS-hidden +
+ * `tabIndex={-1}` + `autoComplete="off"` in the form components); a bot that
+ * fills every field it can see trips it.
+ */
+export const HONEYPOT_FIELD = 'website_url';
+
+export function isHoneypotFilled(value: unknown): boolean {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+/** First hop in X-Forwarded-For is the original client (Hostinger sits behind a proxy). */
+export function getClientIp(headers: Headers): string {
+  const forwarded = headers.get('x-forwarded-for');
+  if (forwarded) return forwarded.split(',')[0]!.trim();
+  return headers.get('x-real-ip') ?? 'unknown';
+}
+
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX_REQUESTS = 5;
+
+// In-memory sliding window, keyed by IP. Correct for this app's deployment
+// (DEPLOY.md: one persistent Node process on Hostinger, not a serverless
+// fan-out) — a distributed store would be needed only if that changed.
+const requestTimestamps = new Map<string, number[]>();
+
+export function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const recent = (requestTimestamps.get(ip) ?? []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+  recent.push(now);
+  requestTimestamps.set(ip, recent);
+  return recent.length > RATE_LIMIT_MAX_REQUESTS;
+}
