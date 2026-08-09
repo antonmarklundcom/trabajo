@@ -54,13 +54,14 @@ export default async function AdminEmpleosPage({
               <th className="px-4 py-3 font-medium">Empresa</th>
               <th className="px-4 py-3 font-medium">Categoría / Ciudad</th>
               <th className="px-4 py-3 font-medium">Estado</th>
+              <th className="px-4 py-3 font-medium">Postulantes</th>
               <th className="px-4 py-3 font-medium">Actualizado</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#E7E1D6]">
             {jobs.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-[#57514A]">
+                <td colSpan={6} className="px-4 py-10 text-center text-[#57514A]">
                   No se encontraron empleos con esos filtros.
                 </td>
               </tr>
@@ -81,6 +82,18 @@ export default async function AdminEmpleosPage({
                   </td>
                   <td className="px-4 py-3">
                     <StatusBadge status={job.status} />
+                  </td>
+                  <td className="px-4 py-3 text-[#57514A]">
+                    {job.applicantCount > 0 ? (
+                      <Link
+                        href={`/admin/postulaciones?job=${job.id}`}
+                        className="hover:text-[#C0362A] font-medium"
+                      >
+                        {job.applicantCount}
+                      </Link>
+                    ) : (
+                      <span className="text-[#8A8378]">0</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-[#8A8378]">
                     {new Date(job.createdAt).toLocaleDateString('es-PY')}

@@ -14,7 +14,17 @@
 import 'server-only';
 
 import { and, asc, count, desc, eq, like, ne, or } from 'drizzle-orm';
-import { activityLog, categories, cities, companies, jobs, jobStatusEnum, users } from './schema';
+import {
+  activityLog,
+  applications,
+  applicationStatusEnum,
+  categories,
+  cities,
+  companies,
+  jobs,
+  jobStatusEnum,
+  users,
+} from './schema';
 import type { Role } from '../auth';
 import { normalizePhone } from '../leads';
 import { slugify, uniqueSlug } from '../slug';
@@ -138,19 +148,19 @@ export async function getAdminJobs(filters: AdminJobFilters) {
     featuredUntil: jobs.featuredUntil,
     publishedAt: jobs.publishedAt,
     createdAt: jobs.createdAt,
+    applicantCount: count(applications.id),
   };
 
-  const base = () =>
+  const [rows, [{ total }]] = await Promise.all([
     db
       .select(selection)
       .from(jobs)
       .innerJoin(companies, eq(jobs.companyId, companies.id))
       .innerJoin(categories, eq(jobs.categoryId, categories.id))
-      .innerJoin(cities, eq(jobs.cityId, cities.id));
-
-  const [rows, [{ total }]] = await Promise.all([
-    base()
+      .innerJoin(cities, eq(jobs.cityId, cities.id))
+      .leftJoin(applications, eq(applications.jobId, jobs.id))
       .where(where)
+      .groupBy(jobs.id)
       .orderBy(desc(jobs.createdAt))
       .limit(ADMIN_PAGE_SIZE)
       .offset((page - 1) * ADMIN_PAGE_SIZE),
@@ -471,4 +481,108 @@ export async function updateUser(
     .set({ ...input, updatedAt: new Date() })
     .where(eq(users.id, id));
   await logActivity(actorUserId, 'user', id, 'update');
+}
+
+// ---------------------------------------------------------------------------
+// Applications — inserted from POST /api/v1/leads (public, unauthenticated),
+// reviewed from /admin/postulaciones.
+// ---------------------------------------------------------------------------
+
+export type ApplicationInput = {
+  jobSlug: string;
+  name: string;
+  phone: string;
+  email: string | null;
+  message: string | null;
+  sourcePage: string | null;
+};
+
+/**
+ * Returns `null` (never throws) when the job slug doesn't resolve — the
+ * caller in app/api/v1/leads/route.ts must never let a DB failure fail the
+ * seeker's submission (ARCHITECTURE.md §7).
+ */
+export async function createApplication(input: ApplicationInput): Promise<number | null> {
+  const db = await getDb();
+  const [job] = await db.select({ id: jobs.id }).from(jobs).where(eq(jobs.slug, input.jobSlug)).limit(1);
+  if (!job) return null;
+
+  const [result] = await db.insert(applications).values({
+    jobId: job.id,
+    name: input.name,
+    phone: input.phone,
+    email: input.email,
+    message: input.message,
+    sourcePage: input.sourcePage,
+    status: 'new',
+    createdAt: new Date(),
+  });
+  return result.insertId;
+}
+
+export type AdminApplicationFilters = {
+  jobId?: number;
+  status?: (typeof applicationStatusEnum)[number];
+  page?: number;
+};
+
+const APPLICATION_PAGE_SIZE = 20;
+
+export async function getAdminApplications(filters: AdminApplicationFilters) {
+  const db = await getDb();
+  const page = filters.page ?? 1;
+  const conditions = [];
+  if (filters.jobId) conditions.push(eq(applications.jobId, filters.jobId));
+  if (filters.status) conditions.push(eq(applications.status, filters.status));
+  const where = conditions.length ? and(...conditions) : undefined;
+
+  const selection = {
+    id: applications.id,
+    jobId: applications.jobId,
+    jobTitle: jobs.title,
+    jobSlug: jobs.slug,
+    name: applications.name,
+    phone: applications.phone,
+    email: applications.email,
+    message: applications.message,
+    status: applications.status,
+    createdAt: applications.createdAt,
+  };
+
+  const base = () =>
+    db.select(selection).from(applications).innerJoin(jobs, eq(applications.jobId, jobs.id));
+
+  const [rows, [{ total }]] = await Promise.all([
+    base()
+      .where(where)
+      .orderBy(desc(applications.createdAt))
+      .limit(APPLICATION_PAGE_SIZE)
+      .offset((page - 1) * APPLICATION_PAGE_SIZE),
+    db
+      .select({ total: count() })
+      .from(applications)
+      .innerJoin(jobs, eq(applications.jobId, jobs.id))
+      .where(where),
+  ]);
+
+  return { applications: rows, total, pageSize: APPLICATION_PAGE_SIZE };
+}
+
+/** Jobs that have at least one application — populates the postulaciones job filter. */
+export async function listJobOptionsWithApplications() {
+  const db = await getDb();
+  return db
+    .select({ id: jobs.id, title: jobs.title })
+    .from(jobs)
+    .innerJoin(applications, eq(applications.jobId, jobs.id))
+    .groupBy(jobs.id)
+    .orderBy(desc(jobs.createdAt));
+}
+
+export async function updateApplicationStatus(
+  id: number,
+  status: (typeof applicationStatusEnum)[number],
+) {
+  const db = await getDb();
+  await db.update(applications).set({ status }).where(eq(applications.id, id));
 }
