@@ -18,7 +18,8 @@
     "candidate:create": "tsx --env-file-if-exists=.env scripts/create-candidate.ts",
     "db:verify-scoping": "tsx --conditions=react-server --env-file-if-exists=.env scripts/verify-scoping.ts",
     "storage:verify": "tsx --conditions=react-server --env-file-if-exists=.env scripts/verify-storage.ts",
-    "retention:verify": "tsx scripts/verify-retention.ts"
+    "retention:verify": "tsx scripts/verify-retention.ts",
+    "access:verify": "tsx scripts/verify-candidate-access.ts"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
