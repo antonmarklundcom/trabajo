@@ -64,6 +64,14 @@ npm run db:parity    # diffs the seed and db read paths, exits 1 on any mismatch
 `npm run db:generate` (drizzle-kit) writes a new migration after a schema
 change; it does not connect to a database.
 
+`npm run db:verify-scoping` is a **local-only** check, not an operation: it
+writes two throwaway companies with a job and an applicant each, asserts that
+neither can see or modify the other through `lib/db/employer.ts`, and deletes
+them again. It refuses a non-local `DATABASE_URL` without `--force` — do not
+point it at production. Run it after touching anything in that module. It runs
+under `tsx --conditions=react-server` so that `server-only` resolves to its
+no-op build, the same way it does inside a React Server Component.
+
 `db:seed` enforces its own gate: it exits non-zero if the row counts do not
 match the seed files, so a broken upsert key shows up as a failure rather than
 as silently duplicated jobs.
