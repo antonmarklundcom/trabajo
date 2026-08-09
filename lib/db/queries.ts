@@ -2,7 +2,7 @@ import { and, asc, desc, eq, gt, isNull, like, or, sql, count } from 'drizzle-or
 import { unstable_cache } from 'next/cache';
 import { db } from './index';
 import { categories, cities, companies, jobs } from './schema';
-import { CACHE_TAGS, PUBLIC_CACHE_TTL_SECONDS } from '../cache';
+import { CACHE_TAGS, PUBLIC_CACHE_TTL_SECONDS } from '../cache-tags';
 import type { Job, Category, City, JobFilters } from '../types';
 
 const PAGE_SIZE = 20;
