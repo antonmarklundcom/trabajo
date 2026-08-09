@@ -52,6 +52,7 @@ export type JobFormInitial = {
   whatsapp: string;
   status: string;
   featuredUntil: string;
+  rejectionReason: string;
   originalSlug?: string;
   originalStatus?: string;
 };
@@ -72,6 +73,7 @@ const EMPTY: JobFormInitial = {
   whatsapp: '',
   status: 'draft',
   featuredUntil: '',
+  rejectionReason: '',
 };
 
 type Props = {
@@ -112,6 +114,7 @@ export default function JobForm({ companies, categories, cities, initial }: Prop
       whatsapp: values.whatsapp || null,
       status: values.status,
       featuredUntil: values.featuredUntil ? new Date(values.featuredUntil).toISOString() : null,
+      rejectionReason: values.rejectionReason || null,
       confirmSlugChange,
     };
 
@@ -348,6 +351,19 @@ export default function JobForm({ companies, categories, cities, initial }: Prop
           />
         </Field>
       </div>
+
+      {values.status === 'rejected' && (
+        <Field label="Motivo de rechazo" required>
+          <textarea
+            required
+            rows={3}
+            value={values.rejectionReason}
+            onChange={(e) => setField('rejectionReason', e.target.value)}
+            placeholder="Explicá por qué se rechaza esta publicación — se le mostrará al empleador."
+            className={`${inputCls()} resize-none`}
+          />
+        </Field>
+      )}
 
       {needsSlugConfirm && (
         <div className="rounded-[10px] border border-[#C0362A]/30 bg-[#FBECE9] p-4 space-y-3">

@@ -21,10 +21,14 @@ const jobSchema = z.object({
   whatsapp: z.string().max(20).nullable(),
   status: z.enum(jobStatusEnum),
   featuredUntil: z.string().datetime().nullable().optional(),
+  rejectionReason: z.string().max(2000).nullable().optional(),
   // Slugs are live SEO URLs (AGENTS.md). Renaming one on a published job
   // needs an explicit confirmation from the editor, who is told a 301 is
   // needed — this app has no automated redirect issuance yet.
   confirmSlugChange: z.boolean().optional(),
+}).refine((data) => data.status !== 'rejected' || !!data.rejectionReason?.trim(), {
+  message: 'El motivo de rechazo es obligatorio.',
+  path: ['rejectionReason'],
 });
 
 async function loadId(params: Promise<{ id: string }>) {
@@ -85,6 +89,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         whatsapp: data.whatsapp,
         status: data.status,
         featuredUntil: data.featuredUntil ? new Date(data.featuredUntil) : null,
+        rejectionReason: data.rejectionReason ?? null,
       },
       user.id,
     );

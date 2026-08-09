@@ -90,7 +90,7 @@ export type LeadPayload = {
 };
 
 /** Strip everything but digits and, where possible, express PY numbers in E.164. */
-function normalizePhone(raw: string | undefined): string {
+export function normalizePhone(raw: string | undefined): string {
   if (!raw) return '';
   const digits = raw.replace(/\D/g, '');
   if (!digits) return '';
