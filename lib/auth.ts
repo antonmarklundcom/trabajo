@@ -46,6 +46,18 @@ const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
 const BCRYPT_COST = 12;
 
 export const LOGIN_PATH = '/admin/login';
+export const EMPLOYER_LOGIN_PATH = '/empresa/login';
+
+/**
+ * Where a user belongs after logging in, and where a wrong-role redirect sends
+ * them. Employers share this table and this cookie with staff but never share
+ * a route tree (PLAN-PHASE2.md §2.1), so every redirect that used to be a
+ * hardcoded '/admin' has to go through here — sending an employer to '/admin'
+ * would bounce them straight back out and loop.
+ */
+export function homePathForRole(role: Role): string {
+  return role === 'employer' ? '/empresa' : '/admin';
+}
 
 // ---------------------------------------------------------------------------
 // Lazy module loading
@@ -164,14 +176,65 @@ export function requireRole(user: SessionUser, roles: readonly Role[]): void {
 
 /**
  * Page-layer convenience: authenticate, then authorize, redirecting rather
- * than throwing. An authenticated user with the wrong role goes to the admin
+ * than throwing. An authenticated user with the wrong role goes to their own
  * home, not the login form — bouncing them to a login they already passed
  * reads as a broken app.
  */
 export async function requireSessionWithRole(roles: readonly Role[]): Promise<SessionUser> {
   const user = await requireSession();
-  if (!roles.includes(user.role)) redirect('/admin');
+  if (!roles.includes(user.role)) redirect(homePathForRole(user.role));
   return user;
+}
+
+// ---------------------------------------------------------------------------
+// Company scoping (PLAN-PHASE2.md §2.3)
+//
+// The risk these two guards exist for is not an unauthorized write — every
+// mutating handler already re-checks its role — it is a READ that returns
+// another company's applicants. So they return the `companyId` that every
+// function in lib/db/employer.ts requires as its first argument, rather than
+// leaving each caller to fish it off the session and possibly forget.
+//
+// Both fail closed on an employer whose company_id is NULL. A misconfigured
+// account must see nothing, not everything: a query with `WHERE company_id IS
+// NULL` matches no jobs, but one built from `companyId ?? undefined` would drop
+// the predicate entirely and match all of them. Making that unrepresentable is
+// the whole job here.
+// ---------------------------------------------------------------------------
+
+export type CompanyScope = { user: SessionUser; companyId: number };
+
+/**
+ * Route-handler guard for /api/empresa/*. Throws AuthError, so
+ * authErrorResponse() maps it to 401/403 like every other admin handler.
+ *
+ * Note `admin` is NOT accepted here. Admin oversight uses lib/db/admin.ts,
+ * which is a different module with different queries — there is deliberately no
+ * "admin passes through the employer path with the filter relaxed" branch
+ * anywhere in the codebase.
+ */
+export async function requireApiCompanyScope(): Promise<CompanyScope> {
+  const user = await requireApiSession();
+  if (user.role !== 'employer') {
+    throw new AuthError(403, `Role "${user.role}" is not an employer.`);
+  }
+  if (user.companyId === null) {
+    throw new AuthError(403, `Employer ${user.id} has no company assigned.`);
+  }
+  return { user, companyId: user.companyId };
+}
+
+/**
+ * Page-layer equivalent: redirects instead of throwing. An employer with no
+ * company goes back to the employer login with a reason code rather than
+ * rendering an empty dashboard that looks broken; PR 4 renders that message.
+ */
+export async function requireCompanyScope(): Promise<CompanyScope> {
+  const user = await getSessionUser();
+  if (!user) redirect(EMPLOYER_LOGIN_PATH);
+  if (user.role !== 'employer') redirect(homePathForRole(user.role));
+  if (user.companyId === null) redirect(`${EMPLOYER_LOGIN_PATH}?error=sin_empresa`);
+  return { user, companyId: user.companyId };
 }
 
 // ---------------------------------------------------------------------------
@@ -242,7 +305,9 @@ export async function hashPassword(plain: string): Promise<string> {
 // that a wrong email and a wrong password cost the same ~270ms — otherwise
 // response latency enumerates valid accounts. It must be a real hash: bcrypt
 // rejects a malformed one immediately and the delay disappears.
-const DUMMY_HASH = '$2b$12$R8J/SwWDfFwOsEo2aDaWoudtvnrsaKTsTMSHtOkbpghdY/qY66UTS';
+// Exported so the candidate login path (lib/auth-candidate.ts) gets the same
+// protection from one place rather than generating a second one.
+export const DUMMY_HASH = '$2b$12$R8J/SwWDfFwOsEo2aDaWoudtvnrsaKTsTMSHtOkbpghdY/qY66UTS';
 
 export async function verifyPassword(plain: string, hash: string): Promise<boolean> {
   const bcrypt = (await import('bcrypt')).default;
@@ -299,67 +364,32 @@ export async function authenticate(email: string, password: string): Promise<Ses
 // ---------------------------------------------------------------------------
 // Login rate limiting
 //
-// In-memory and therefore per-process. Hostinger runs this app as a single
-// Node process, so it holds for the deployment this repo targets; it resets on
-// deploy and would not cover a multi-instance setup. It exists to blunt
-// credential stuffing, not to be an audited quota system — if the app is ever
-// scaled horizontally, move this to a `login_attempts` table.
+// The implementation moved to lib/rate-limit.ts in PR 2 so the candidate login
+// path can reuse it (PLAN-PHASE2.md §2.1). Behaviour, limits and the exported
+// signatures are unchanged: 5 attempts per 15 minutes, keyed on IP + email,
+// in-memory and therefore per-process. This limiter instance is the staff and
+// employer budget; candidates get their own, so neither audience can exhaust
+// the other's.
 // ---------------------------------------------------------------------------
 
-const MAX_ATTEMPTS = 5;
-const WINDOW_MS = 15 * 60 * 1000;
+import { createAttemptLimiter, LOGIN_WINDOW_MS, MAX_LOGIN_ATTEMPTS } from './rate-limit';
 
-type Attempt = { count: number; firstAt: number };
-const attempts = new Map<string, Attempt>();
+const staffLoginLimiter = createAttemptLimiter(MAX_LOGIN_ATTEMPTS, LOGIN_WINDOW_MS);
 
-function pruneAttempts(now: number) {
-  // Bounded cleanup so a stream of unique keys cannot grow the map forever.
-  for (const [key, attempt] of attempts) {
-    if (now - attempt.firstAt > WINDOW_MS) attempts.delete(key);
-  }
-}
-
-/**
- * Call BEFORE checking the password. Returns whether the attempt may proceed,
- * and how long to wait if not. Keyed on IP + email so that one attacker cannot
- * lock a known-good account out by hammering it from elsewhere.
- */
+/** Call BEFORE checking the password. */
 export function checkLoginRateLimit(
   ip: string,
   email: string,
 ): { allowed: boolean; retryAfterSeconds: number } {
-  const now = Date.now();
-  pruneAttempts(now);
-
-  const key = `${ip}:${email.trim().toLowerCase()}`;
-  const attempt = attempts.get(key);
-
-  if (!attempt || now - attempt.firstAt > WINDOW_MS) {
-    return { allowed: true, retryAfterSeconds: 0 };
-  }
-  if (attempt.count >= MAX_ATTEMPTS) {
-    return {
-      allowed: false,
-      retryAfterSeconds: Math.ceil((WINDOW_MS - (now - attempt.firstAt)) / 1000),
-    };
-  }
-  return { allowed: true, retryAfterSeconds: 0 };
+  return staffLoginLimiter.check(ip, email);
 }
 
 /** Call after a failed login. */
 export function recordFailedLogin(ip: string, email: string): void {
-  const now = Date.now();
-  const key = `${ip}:${email.trim().toLowerCase()}`;
-  const attempt = attempts.get(key);
-
-  if (!attempt || now - attempt.firstAt > WINDOW_MS) {
-    attempts.set(key, { count: 1, firstAt: now });
-    return;
-  }
-  attempt.count += 1;
+  staffLoginLimiter.recordFailure(ip, email);
 }
 
 /** Call after a successful login, so a legitimate user is not left throttled. */
 export function clearLoginAttempts(ip: string, email: string): void {
-  attempts.delete(`${ip}:${email.trim().toLowerCase()}`);
+  staffLoginLimiter.clear(ip, email);
 }

@@ -26,7 +26,9 @@ export default function LoginForm() {
         setSubmitting(false);
         return;
       }
-      router.push('/admin');
+      // Destination comes from the server, which knows the role; an employer
+      // logging in here belongs on /empresa, not /admin.
+      router.push(typeof data.redirectTo === 'string' ? data.redirectTo : '/admin');
       router.refresh();
     } catch {
       setError('Error de conexión. Intentá de nuevo.');
