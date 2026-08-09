@@ -518,7 +518,7 @@ PR 2 medium-high, PR 3 medium. One Opus session.
 | PR | Title | Model | Scope |
 |---|---|---|---|
 | **4** | Employer dashboard UI | Sonnet | `/empresa` (layout, nav, dashboard counts), `/empresa/login`, `/empresa/empleos` (own jobs, read-only), `/empresa/postulaciones` (own applications, contact details, status change), `/api/empresa/*` handlers. Spanish (PY). `noindex` on the whole tree + excluded from `sitemap.ts`/`robots.ts`. |
-| **5** | Employer provisioning + job submission | Sonnet | Invitation issue/accept flow per §2.2; `/admin/empresas/[id]` gains "invitar usuario"; employer creates/edits **own** jobs, always saved as `pending`, never self-published; **slug is not editable by employers at all** (slugs are live SEO URLs — an employer must not be able to trigger a 301 obligation). Reuses the admin job form component. |
+| **5** | Employer provisioning + job submission | Sonnet | Invitation issue/accept flow per §2.2; `/admin/empresas/[id]` gains "invitar usuario"; employer creates/edits **own** jobs, always saved as `pending`, never self-published; **slug is not editable by employers at all** (slugs are live SEO URLs — an employer must not be able to trigger a 301 obligation). Reuses the admin job form component. Also implements the material-change rule in §6.1. |
 | **6** | Phase-1 legal copy + flag flip | Sonnet | §7 items 1–6. Ends by setting `EMPLOYER_DASHBOARD_ENABLED=true` in hPanel. ⛔ **No auto-merge** — the owner reads the Spanish copy before it is public. |
 
 *Complexity:* PR 4 large (biggest UI chunk in the plan), PR 5 medium, PR 6
@@ -565,7 +565,35 @@ CV parsing, anything implying we screen or verify anyone. If a PR description
 in this project starts sounding like one of those, that is the signal to stop
 and ask.
 
-### 6.1 Session batching
+### 6.1 When an employer edit needs re-approval (owner-decided, 2026-08-09)
+
+PR 3 shipped the strict rule: **any** employer edit to a published job returns
+it to `pending`. That protects the approval workflow, but it also takes a live
+listing offline because someone fixed a typo in a phone number — and the first
+employer that happens to will call the team about it.
+
+The rule PR 5 implements instead: **re-approval is required only when the
+content that was approved changes.**
+
+| Field | On edit of a published job |
+|---|---|
+| `title`, `description` | → back to `pending` |
+| `salaryMin`, `salaryMax`, `salaryHidden` | → back to `pending` |
+| `whatsapp`, and the company-profile fields (logo, website, description) | applied live, stays `published` |
+| `categoryId`, `cityId`, `contractType`, `seniority`, `modality` | → back to `pending` — they decide which SEO landings the listing appears on, so a silent change is a silent re-targeting |
+
+Salary is in the strict group deliberately. Changing the advertised salary after
+approval is the classic bait-and-switch, and it is exactly the kind of edit a
+moderation queue exists to catch — not a formality.
+
+Implementation note: compare the incoming input against the stored row inside
+`updateEmployerJob()` in `lib/db/employer.ts` and set `status` accordingly.
+Keep it in that function rather than in the route handler — the rule is a
+property of the write, and a second caller must not be able to skip it. The
+unpublished-job case is unchanged: a `draft`/`pending`/`rejected` job stays
+`pending` whatever changed.
+
+### 6.2 Session batching
 
 Same discipline as `PLAN.md` §7: one session per batch, PRs opened and merged
 **sequentially** — create PR → CI green → merge → pull `main` → next PR.
