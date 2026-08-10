@@ -38,6 +38,7 @@ import {
   dataAccessLogs,
   deletionRequests,
   jobs,
+  savedJobs,
 } from './schema';
 import { getStorage } from '../storage';
 
@@ -62,6 +63,7 @@ export type CandidateExport = {
   experiencias: Record<string, unknown>[];
   cvs: Record<string, unknown>[];
   postulaciones: Record<string, unknown>[];
+  guardados: Record<string, unknown>[];
   consentimientos: Record<string, unknown>[];
   accesosDeNuestroEquipo: Record<string, unknown>[];
 };
@@ -109,7 +111,7 @@ export async function buildCandidateExport(candidateId: number): Promise<Candida
 
   if (!profile) return null;
 
-  const [experiences, cvs, applicationRows, consentRows, accessRows] = await Promise.all([
+  const [experiences, cvs, applicationRows, savedJobRows, consentRows, accessRows] = await Promise.all([
     db
       .select()
       .from(candidateExperiences)
@@ -140,6 +142,20 @@ export async function buildCandidateExport(candidateId: number): Promise<Candida
       .innerJoin(companies, eq(jobs.companyId, companies.id))
       .where(eq(applications.candidateId, candidateId))
       .orderBy(desc(applications.createdAt)),
+
+    db
+      .select({
+        id: savedJobs.id,
+        jobTitle: jobs.title,
+        jobSlug: jobs.slug,
+        companyName: companies.name,
+        createdAt: savedJobs.createdAt,
+      })
+      .from(savedJobs)
+      .innerJoin(jobs, eq(savedJobs.jobId, jobs.id))
+      .innerJoin(companies, eq(jobs.companyId, companies.id))
+      .where(eq(savedJobs.candidateId, candidateId))
+      .orderBy(desc(savedJobs.createdAt)),
 
     db
       .select({
@@ -230,6 +246,13 @@ export async function buildCandidateExport(candidateId: number): Promise<Candida
       // the candidate withdrew consent for this application (§4.2).
       datosRetiradosEl: iso(row.redactedAt),
       creadaEl: iso(row.createdAt),
+    })),
+    guardados: savedJobRows.map((row) => ({
+      id: row.id,
+      empleo: row.jobTitle,
+      empleoUrl: `/empleos/${row.jobSlug}`,
+      empresa: row.companyName,
+      guardadoEl: iso(row.createdAt),
     })),
     consentimientos: consentRows.map((row) => ({
       id: row.id,
@@ -366,6 +389,9 @@ export async function deleteCandidateAccount(
   const [experienceDelete] = await db
     .delete(candidateExperiences)
     .where(eq(candidateExperiences.candidateId, candidateId));
+  // No FK ties saved_jobs to candidates either (schema.ts convention), so this
+  // hard delete must clean up bookmarks itself.
+  await db.delete(savedJobs).where(eq(savedJobs.candidateId, candidateId));
 
   // --- 4. Redact the applications, keep the husk --------------------------
   // Two statements so that an application the candidate had already withdrawn

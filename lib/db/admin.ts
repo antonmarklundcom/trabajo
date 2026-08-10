@@ -23,6 +23,7 @@ import {
   companies,
   jobs,
   jobStatusEnum,
+  savedJobs,
   users,
 } from './schema';
 import type { Role } from '../auth';
@@ -260,6 +261,10 @@ export async function updateJob(id: number, input: JobInput, actorUserId: number
 
 export async function deleteJob(id: number, actorUserId: number) {
   const db = await getDb();
+  // No FK constraint ties saved_jobs to jobs (schema.ts convention — every
+  // cross-table cleanup is done here in code, never by the schema), so a hard
+  // delete must clean up bookmarks itself or leave a dangling reference behind.
+  await db.delete(savedJobs).where(eq(savedJobs.jobId, id));
   await db.delete(jobs).where(eq(jobs.id, id));
   await logActivity(actorUserId, 'job', id, 'delete');
 }

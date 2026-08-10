@@ -8,6 +8,7 @@ import LeadForm from '@/components/LeadForm';
 import MarkdownContent from '@/components/MarkdownContent';
 import CompanyAvatar from '@/components/CompanyAvatar';
 import ApplySection from '@/components/postulante/ApplySection';
+import SaveJobSection from '@/components/postulante/SaveJobSection';
 import { candidateAccountsEnabled } from '@/lib/flags';
 
 // Cached reads are invalidated on demand by every admin mutation
@@ -210,7 +211,10 @@ export default async function JobDetailPage({ params }: { params: Params }) {
               <h2 className="text-lg font-bold text-[#1E1B17] mb-4">Postulate ahora</h2>
 
               {candidateAccountsEnabled() && (
-                <ApplySection jobSlug={job.slug} companyName={job.company} />
+                <>
+                  <ApplySection jobSlug={job.slug} companyName={job.company} />
+                  <SaveJobSection jobSlug={job.slug} />
+                </>
               )}
 
               {job.whatsapp && (

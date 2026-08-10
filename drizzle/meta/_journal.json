@@ -15,6 +15,13 @@
       "when": 1786290485037,
       "tag": "0001_furry_warpath",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1786355459764,
+      "tag": "0002_eminent_warbound",
+      "breakpoints": true
     }
   ]
 }

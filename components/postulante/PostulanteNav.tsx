@@ -7,6 +7,7 @@ import { useState } from 'react';
 const NAV_ITEMS = [
   { href: '/postulante/perfil', label: 'Mi perfil' },
   { href: '/postulante/mis-postulaciones', label: 'Mis postulaciones' },
+  { href: '/postulante/mis-guardados', label: 'Mis guardados' },
   { href: '/postulante/mis-datos', label: 'Mis datos' },
 ];
 
