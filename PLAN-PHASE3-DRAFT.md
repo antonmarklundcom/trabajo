@@ -1,7 +1,14 @@
-# Phase 3 draft — blogg + sparade jobb
+# Phase 3 — blogg + sparade jobb
 
-> Status: **utkast, ej godkänt**. Skrivet av Sonnet på ägarens begäran, för att
-> Opus ska granska och besluta i en separat session. Ingen kod skriven än.
+> Status: **beslutad**. Skrivet av Sonnet som utkast, granskat och avgjort av
+> Opus 2026-08-10. §1 (sparade jobb) är byggt och mergat som PR 15 (`1e49e5d`,
+> PR #37); efterkontrollen och rättningarna ligger i PR 15b (§6). §2 (bloggen)
+> är beslutad men obyggd —
+> bygg-briefen ligger i §7.
+>
+> §2:s öppna frågor besvaras i §5, §1:s i §6. De ursprungliga
+> formuleringarna står kvar oredigerade, så att beslutet går att läsa mot det
+> som faktiskt frågades.
 
 ## 1. Sparade jobb (favoriter) för postulantes
 
@@ -93,11 +100,13 @@ dataskydds- eller tenant-gränsyta enligt samma regel som `PLAN.md` §4 /
 
 ## 3. Föreslagen PR-uppdelning om båda godkänns
 
-| PR | Innehåll | Modell |
-|---|---|---|
-| 15 | Sparade jobb (schema + UI + query) | Sonnet |
-| 16 | Blogg Väg A: statiska sidor, sitemap, OG, schema.org | Sonnet |
-| (ev. 17) | Blogg Väg B-uppgradering: DB + admin-CRUD, om Väg A inte räcker | Sonnet |
+| PR | Innehåll | Modell | Status |
+|---|---|---|---|
+| 15 | Sparade jobb (schema + UI + query) | Sonnet | **Mergat** (`1e49e5d`, PR #37) |
+| 15b | Efterkontroll batch J: no-FK-beslutet + `cascade:verify` | Opus | Byggd, väntar på merge (se §6) |
+| 16 | Blogg Väg A: `lib/blog.ts`, `/blog`, `/blog/[slug]`, sitemap, OG, JSON-LD | Sonnet | Brief i §7 |
+| 17 | Blogg: de tre första artiklarna som innehåll (bara `content/blog/*.md`) | Sonnet | Efter 16 |
+| (ev. 18) | Blogg Väg B-uppgradering: DB + admin-CRUD, om Väg A inte räcker | Sonnet | Villkorad, se §5 |
 
 Ingen av dessa rör tenant-gränser, kandidatdata eller destruktiva flöden, så
 ingen Opus-batch krävs enligt samma modell-tiering-regel som tidigare faser
@@ -150,3 +159,342 @@ problem:
    faktiskt korsade in i kandidat-/arbetsgivardata (t.ex. en "populära bland
    sökande"-widget på bloggen som i onödan läcker ansökningsstatistik) — om
    något sådant smugit sig in bör det has flaggats som Opus-yta i efterhand.
+
+---
+
+## 5. Beslut om bloggen (Opus, 2026-08-10)
+
+### 5.1 Väg A. Inte Väg B, och inte "A nu, B snart".
+
+**Väg A — statisk Markdown i repot.** Ingen tabell, inget admin-UI, ingen
+bilduppladdning, ingen ny auth-yta.
+
+Utkastets invändning mot Väg A var att Git-PR-flödet kanske inte är realistiskt
+för den som skriver. Den invändningen faller på hur det här repot faktiskt
+redigeras: allt innehåll som finns i det — jobbtexter i `lib/seed/*.json`,
+`/privacidad`, `/terminos`, hela admin-panelens spanska copy — har skrivits och
+mergats genom en Claude Code-session. Att lägga en `.md`-fil i `content/blog/`
+och pusha är inte ett nytt arbetssätt som måste införas, det är det arbetssätt
+som redan används. Väg B skulle bygga ett CMS för en skribent som inte finns.
+
+Väg B blir aktuell **först** när ett av dessa är sant, inte tidigare:
+
+1. Någon som inte är ägaren, och inte arbetar genom en Claude-session, ska
+   kunna publicera utan att be någon annan.
+2. Publiceringstakten går över ungefär två artiklar i veckan, där en deploy per
+   artikel börjar kosta mer än den är värd.
+3. Artiklar behöver redigeras oftare än de skrivs (rättelser, prisuppdateringar
+   i lönestatistik), så att "en commit per ändring" blir ett hinder.
+
+Inget av det är sant idag. PR 18 finns i tabellen i §3 som en villkorad post,
+inte som ett planerat steg. Migreringen A→B är billig och blir inte dyrare av
+att vänta: slugsen är desamma, sidorna är desamma, bara läskällan byts — vilket
+är exakt varför `lib/blog.ts` i §7 är obligatorisk som enda läsväg.
+
+### 5.2 Vem skriver: AI-utkast + ägarens redigering, commitat som Markdown.
+
+Utkastets fråga 2 hade tre alternativ. Beslut: **AI-utkast som ägaren redigerar
+och godkänner**, inte frilansare. En frilansare skulle antingen behöva Väg B
+eller en Git-utbildning, och ingen av de kostnaderna är motiverad innan bloggen
+har visat att den ger trafik alls.
+
+Två regler som följer av att innehållet är AI-utkastat och inte
+research-granskat av en redaktion:
+
+- **Ingen siffra utan källa.** Lönestatistik, arbetslöshetstal, "X % av
+  paraguayanska arbetsgivare…" — antingen med länk till källan (DGEEC/INE,
+  MTESS, IPS) i texten, eller så stryks påståendet. En lönesiffra utan källa är
+  det som gör att den här sortens sajt tappar förtroende, och den är
+  dessutom det som folk delar vidare.
+- **Ingen juridisk rådgivning i första person.** "Enligt Código del Trabajo
+  art. X gäller Y" med hänvisning, aldrig "du har rätt att kräva Z". Portalen
+  är inte en advokatbyrå och ska inte läsas som en.
+
+Detta är innehållsregler, inte kodregler, och hör hemma i `content/blog/README.md`
+(se §7).
+
+### 5.3 Kategorier: fältet från dag ett, egna URL:er senare.
+
+Utkastets fråga 3 ställde platt lista mot kategorier. Beslut: **båda, i rätt
+ordning.**
+
+- Varje artikel har ett obligatoriskt `category`-fält i frontmatter, validerat
+  mot en sluten lista på tre värden: `noticias`, `analisis-laboral`,
+  `consejos-cv`. Fel värde = build-fel, inte en tyst femte kategori.
+- `/blog` renderar en platt, kronologisk lista. Kategorin visas som en etikett
+  på varje kort och i artikelhuvudet.
+- **Inga `/blog/categoria/[slug]`-routes byggs nu.** De läggs till när det
+  finns minst fem publicerade artiklar fördelade på minst två kategorier —
+  tidigare är det tunna sidor som Google behandlar som just tunna sidor.
+
+Ordningen är hela poängen: att lägga till kategorisidor senare *lägger till*
+URL:er, medan att retrofitta ett kategorifält på publicerade artiklar innebär
+att man antingen gissar i efterhand eller ändrar befintliga URL:er. Fältet är
+gratis nu, kategoriseringen i efterhand är det inte.
+
+### 5.4 Kommentarer: nej. Delning: ja, men bara som länkar.
+
+Utkastets fråga 4 föreslog nej till båda. Kommentarer: **nej**, av exakt det
+skäl utkastet angav — en modereringsyta på spanska, utan SEO-vinst, på en sajt
+vars enda befintliga användargenererade innehåll (jobbansökningar) är strikt
+åtkomstkontrollerat.
+
+Delning avviker från utkastet: **ja, men implementerat som vanliga `<a href>`**
+mot `wa.me` och Facebooks sharer, plus en "kopiera länk"-knapp. Skälet är
+paraguayanskt snarare än tekniskt: innehåll sprids här via WhatsApp, och en
+artikel om hur man skriver ett CV är precis den sorts sak som vidarebefordras i
+en familjegrupp. Kostnaden är noll — inga SDK:er, inga tredjepartsskript, inget
+som laddar eller mäter något när sidan öppnas. Det som utkastet ville undvika
+(en modereringsyta, en spårningsyta) uppstår inte av en länk.
+
+**Uttryckligen förbjudet på bloggen**, för att §4 punkt 9 ska ha ett svar i
+förväg: ingen "populärt bland sökande"-widget, ingen "X personer har sökt det
+här jobbet", ingen ansökningsstatistik, ingen kandidatdata över huvud taget.
+Bloggen läser jobbkatalogen genom `lib/data.ts` och ingenting annat. En
+blogg-PR som importerar från `lib/db/candidate-*` eller `lib/db/employer` är
+fel oavsett hur den ser ut.
+
+---
+
+## 6. Efterkontroll batch J — resultat (Opus, medium effort)
+
+Granskningen som §4 efterlyste, körd efter att PR 15 mergats. Punkterna nedan
+följer §4:s numrering.
+
+### 6.1 Schemafrågan: `saved_jobs` behåller no-FK-konventionen. Beslutat.
+
+§1 i det här dokumentet bad om FK:er med `ON DELETE CASCADE`. `lib/db/schema.ts`
+förbjuder FK-constraints i hela repot. **Schemakonventionen vinner.** Det här
+är ett avgjort beslut, inte en avvägning som ska tas upp igen:
+
+- En constrained tabell i ett i övrigt oconstrained schema ger ingen garanti.
+  ARCO-raderingen lämnar medvetet `consents` och `deletion_requests` pekande på
+  id:n som inte längre går att slå upp (`candidate-arco.ts` steg 6). Ett schema
+  där läsaren måste komma ihåg vilken enda tabell som är skyddad är sämre än ett
+  där ingen är det.
+- En cascade på `candidate_id` skulle dessutom flytta en del av §4.4:s radering
+  in i schemat. `deletion_requests.outcome` är beviset för vad en cancelación
+  faktiskt förstörde; rader som databasen tar bort bakom ryggen på funktionen
+  kan inte räknas i det beviset. §4.4 måste ha exakt en läsbar implementation.
+
+Kompensationen i kod är **komplett och rätt ordnad**. De enda produktionsvägar
+som hard-deletar en `jobs`- eller `candidates`-rad är `admin.ts#deleteJob` och
+`candidate-arco.ts#deleteCandidateAccount` (verifierat genom att räkna upp
+samtliga `.delete(...)`-anrop i `lib/` och `scripts/`). Båda rensar
+`saved_jobs`, och båda gör det *före* föräldraraden — rätt ordning, eftersom en
+krasch mittemellan då förlorar ett bokmärke i stället för att lämna en
+föräldralös rad som inga JOIN hittar. `lib/db/retention.ts` raderar varken jobb
+eller kandidater (den delegerar till `deleteCandidateAccount`), och
+`scripts/verify-scoping.ts` raderar bara sina egna fixtures.
+
+Tre saker rättades i PR 15b:
+
+1. **Bekräftad bugg.** `listSavedJobs()` räknade `total` på enbart `saved_jobs`
+   medan sidfrågan `innerJoin`:ade `jobs` och `companies`. Vid en enda
+   föräldralös rad skrev sidan ut ett antal som var högre än antalet rader, och
+   sista sidan kunde bli tom. Räkningen använder nu samma JOIN:ar.
+2. **Bekräftad lucka i bevisföringen.** `deleteCandidateAccount()` raderade
+   `saved_jobs` utan att räkna dem, så `deletion_requests.outcome` utelämnade en
+   tabell den förstör. Nu räknad och rapporterad (`savedJobsDeleted`).
+3. **`scripts/verify-cascades.ts`** (`npm run cascade:verify`) gör konventionen
+   mekaniskt kontrollerbar, i samma idiom som `verify-scoping.ts` och
+   `verify-candidate-access.ts`: den slår fast att `schema.ts` inte innehåller
+   någon `.references()`, och att varje modul som hard-deletar en registrerad
+   förälder rensar sina beroenden först. Att lägga till en tabell som pekar på
+   en annan kräver nu en post i registret — ett beslut i stället för en diff.
+
+Regeln står numera i `AGENTS.md` så att nästa session inte behöver härleda den
+ur `schema.ts` igen.
+
+### 6.2 Scoping-läckage: rent.
+
+Alla fyra exporter i `lib/db/candidate-saved-jobs.ts` tar `candidateId` som
+första parameter och nämner den i varje WHERE-klausul. `candidateId` kommer
+uteslutande från `requireApiCandidate()` / `getCandidate()` / `requireCandidate()`;
+klientens body innehåller bara `jobSlug`, validerad med zod. Ingen adminbranch,
+ingen cross-candidate-vy.
+
+Värt att notera som ett medvetet rätt val snarare än en slump: hela flödet är
+nycklat på **`jobSlug`, aldrig på `savedJobs.id`**. `UnsaveJobButton` skickar
+slug, inte radens id. Eftersom `saved_jobs.id` är globalt löpande skulle en
+id-baserad DELETE-route ha varit den självklara platsen för en IDOR — den routen
+finns inte. Samma sak för `unsaveJob()` och `isJobSaved()`: båda matchar på
+`(candidateId, jobId)`, så en kandidat kan varken läsa eller radera någon annans
+bokmärke ens med rätt gissat id.
+
+### 6.3 Cascade/orphan end to end: rent efter 6.1.
+
+Med rättningarna ovan: ett hard-deletat jobb tar sina bokmärken med sig; en
+ARCO-radering tar kandidatens bokmärken med sig och redovisar dem. Ett jobb som
+arkiveras, går ut eller avvisas — vilket är det normala fallet, till skillnad
+från hard delete som bara admin kan göra — raderar ingenting: raden ligger kvar
+och renderas som "Ya no disponible" med titeln oklickbar. Det är rätt beteende
+och det var §4 punkt 2:s faktiska fråga. UI:t kraschar inte, eftersom
+`isAvailable` beräknas i frågelagret och sidan aldrig antar att en länk finns.
+
+### 6.4 `lib/data.ts`-sömmen: rent, och precedenset är korrekt.
+
+`app/postulante/(dashboard)/mis-guardados/page.tsx` importerar
+`lib/db/candidate-saved-jobs` direkt, precis som `mis-postulaciones` importerar
+`lib/db/candidate-applications` och hela `/empresa`-trädet importerar
+`lib/db/employer`. **Det precedenset är inte en överträdelse.** Sömmen i
+`ARCHITECTURE.md` §3 är definierad kring åtta funktioner över den *publika
+jobbkatalogen*, och den finns för att `DATA_SOURCE=seed|db` ska gå att växla.
+Kontodata har ingen seed-representation och därmed ingenting att växla mellan;
+att lägga den bakom `lib/data.ts` skulle ge sömmen en gren som aldrig kan ta
+något annat värde än `db`.
+
+`AGENTS.md` formulerade regeln absolut ("den enda ingången") medan tre moduler
+redan byggde på ett underförstått undantag. Regeln är omskriven till att säga
+var gränsen faktiskt går, så att nästa läsare inte behöver välja mellan att tro
+på dokumentet eller på koden.
+
+En kvarstående inkonsekvens, medvetet inte åtgärdad: `saveJob()` slår upp jobbet
+direkt i `jobs`-tabellen, inte via sömmen, vilket betyder att med
+`DATA_SOURCE=seed` skulle en spara-knapp på en seed-annons ge 404. Det gäller
+redan `createCandidateApplication()` på samma sätt och av samma skäl — inloggade
+kandidater existerar bara i DB-läge — så det är inte något PR 15 införde. Om
+`DATA_SOURCE=seed` någon gång ska köras med kandidatkonton påslagna är det den
+ena buggen att komma ihåg; idag kan de två flaggorna inte vara på samtidigt i
+praktiken.
+
+### 6.5 Ingen bulk-/admin-/cross-candidate-yta: rent.
+
+Ingen kod någonstans räknar hur många kandidater som sparat ett visst jobb.
+`lib/db/stats.ts` rör inte `saved_jobs` alls. Ingen admin-vy, ingen export,
+ingen sortering på popularitet. Modulens filhuvud skriver ut varför, vilket är
+värt att behålla: en `count(*) GROUP BY job_id` här vore rankningsdata om
+kandidaters beteende, alltså Phase 4-yta enligt `AGENTS.md`.
+
+### 6.6 Kvarstående, inte åtgärdat: ingen gräns på antal sparade jobb.
+
+§1:s öppna fråga 2 föreslog ingen gräns. Det står fast, men noteras här som en
+känd yta: `POST /api/postulante/guardados` har ingen rate limit, till skillnad
+från inloggning och kontoradering. En inloggad kandidat kan alltså skapa
+obegränsat många rader. Det kräver ett giltigt konto och en giltig
+publicerad-jobb-slug per rad, taket är antalet publicerade jobb gånger antalet
+konton, och unique-indexet stoppar dubbletter — så det är en storleksordning
+från att vara ett problem. Åtgärdas om och när kandidatkonton öppnas brett; en
+enkel `MAX_SAVED_JOBS`-kontroll i `saveJob()` räcker då.
+
+---
+
+## 7. Bygg-brief: PR 16, blogg Väg A (Sonnet)
+
+Fullt scopad. Bygg exakt det här; avvikelser ska tas upp innan de byggs, inte
+efter. Beslutsunderlaget står i §5 — läs det, inte bara listan nedan.
+
+**Modell: Sonnet.** Ren statisk läs- och renderingsyta: ingen databas, ingen
+auth, ingen kandidat- eller arbetsgivardata, inga destruktiva flöden. Faller
+under samma modell-tiering-regel som `PLAN.md` §4 och `PLAN-PHASE2.md` §6.
+
+### 7.1 Innehållsformat
+
+`content/blog/<slug>.md` — **filnamnet är slugen**, vilket också är det som gör
+slug-unikhet omöjlig att bryta (filsystemet gör jobbet; §4 punkt 6 kräver ingen
+kod). Slugs är live SEO-URL:er så fort en artikel publicerats: ett filnamnsbyte
+är en 301, inte en rename.
+
+Frontmatter, avgränsad med `---`, **platt `key: value` och inget annat** — inga
+listor, ingen nästling, ingen YAML-parser (`js-yaml`/`gray-matter` ska inte
+läggas till; en handskriven parser för sex platta fält är mindre kod än
+beroendet och kan inte råka tolka `no` som `false`):
+
+```
+---
+title: Cómo escribir un CV en Paraguay
+description: Guía práctica de una página, con lo que los empleadores paraguayos realmente miran.
+category: consejos-cv
+publishedAt: 2026-08-14
+updatedAt: 2026-08-14
+published: true
+relatedCategory: administracion
+relatedCity: asuncion
+---
+```
+
+- Validera hela frontmatter med **zod** (redan ett beroende). Ogiltig
+  frontmatter = kastat fel vid build, aldrig en artikel som tyst hoppas över.
+- `category` ∈ `noticias` | `analisis-laboral` | `consejos-cv`. Sluten lista.
+- `published: false` → artikeln finns inte: inte i listan, inte i sitemap, och
+  **ingen route genereras** (uteslut i `generateStaticParams`).
+- `relatedCategory` / `relatedCity` är valfria och matchar befintliga
+  taxonomi-slugs.
+- `description` är obligatorisk och används som `<meta name="description">` och
+  som OG-beskrivning. Max 160 tecken, validerat.
+
+### 7.2 `lib/blog.ts` — enda läsvägen
+
+All filläsning ligger här. Ingen page-, komponent- eller route-fil får anropa
+`node:fs` för blogginnehåll. Det är samma disciplin som `lib/data.ts` har, av
+samma skäl, och det är också det som gör en eventuell Väg B-migrering (§5.1)
+till en ändring i en fil.
+
+Exportera: `getBlogPosts()` (publicerade, nyast först), `getBlogPost(slug)`,
+`getBlogSlugs()`. Läsning sker vid build; ingen ISR behövs eftersom en ny
+artikel innebär en deploy.
+
+### 7.3 Markdown-rendering
+
+**Återanvänd inte `components/MarkdownContent.tsx`.** Den klarar fet/kursiv,
+h2/h3 och punktlistor — inga länkar, inga bilder, ingen kod, inga tabeller — och
+intern länkning är hela SEO-motivet för bloggen. Den escapar dessutom inte HTML.
+
+Lägg till **`marked`** (litet, synkront, inga peer-beroenden) och konfigurera
+`gfm: true`. Sanitizer (`DOMPurify`/`jsdom`) ska **inte** läggas till, och skälet
+ska stå i en kommentar i filen: innehållet ligger i repot, så den som kan
+publicera en artikel kan redan publicera godtycklig React — en sanitizer skulle
+skydda mot en angripare som per definition redan vunnit. Det som däremot ska
+göras, som hygien snarare än säkerhet, är att **slå av rå HTML-genomsläpp** i
+renderaren, så att ett inklistrat kodblock från en annan sajt inte kan smuggla
+in en spårningspixel utan att någon märker det. `MarkdownContent.tsx` lämnas
+orörd för jobbannonser. (Detta är svaret på §4 punkt 7; Väg B-frågan om
+rich-text-sanering blir aktuell först om PR 18 någonsin byggs.)
+
+### 7.4 Sidor
+
+- `app/blog/page.tsx` — lista, kronologisk, kategorietikett per kort,
+  `ItemList` + `BreadcrumbList` JSON-LD efter mönstret i
+  `app/trabajo/[categoria]/page.tsx`.
+- `app/blog/[slug]/page.tsx` — artikel, `generateStaticParams` över
+  `getBlogSlugs()`, `BlogPosting` + `BreadcrumbList` JSON-LD efter mönstret i
+  `app/empleos/[slug]/page.tsx` (`datePublished`, `dateModified`, `author` =
+  organisationen, inte en person).
+- `app/blog/[slug]/opengraph-image.tsx` — samma stilmall som
+  `app/opengraph-image.tsx` (`#FBF9F6`, `#C0362A`-list, samma typografi), med
+  artikelrubriken.
+- Delningslänkar (§5.4): `wa.me/?text=`, Facebook sharer, kopiera-länk. Vanliga
+  `<a>`/knappar. Inga skript från tredje part, inga pixlar, ingenting som laddar
+  vid sidvisning.
+- **"Empleos relacionados"** i artikelfoten när `relatedCategory`/`relatedCity`
+  finns: `getJobs({ categoria, ciudad })` **från `lib/data.ts`**, max fem
+  träffar, blocket utelämnas helt när det inte finns några. Det här är den enda
+  punkten där bloggen rör jobbdata, och den ska gå genom sömmen. Ingen
+  kandidat- eller ansökningsdata, någonsin (§5.4).
+
+### 7.5 SEO-hygien (§4 punkt 5 och 6)
+
+- Lägg in `/blog` och varje publicerad artikel i `app/sitemap.ts`.
+  `lastModified` = `updatedAt`. Artiklar med `published: false` ska inte med.
+- `app/robots.ts` tillåter redan `/`; `/blog` ska **inte** läggas till i
+  `disallow`.
+- `app/blog/` är syskon till `app/admin/` och `app/empresa/` och ärver
+  ingenting från deras layouter — men verifiera det uttryckligen i webbläsaren
+  eller i byggutdata i stället för att anta det. Ett `noindex` som smugit in via
+  en kopierad layout är precis den copy-paste-miss §4 punkt 5 pekar ut.
+- Slugkollision med befintliga route-segment är strukturellt omöjlig: allt ligger
+  under `/blog/`. Skapa inga alias eller rewrites från roten.
+
+### 7.6 `content/blog/README.md`
+
+Kort fil, på engelska som övrig dokumentation, som beskriver frontmatter-fälten,
+den slutna kategorilistan, att filnamnet är slugen och att ett filnamnsbyte
+kräver en 301 — plus innehållsreglerna i §5.2 (ingen siffra utan källa, ingen
+juridisk rådgivning i första person). Det är den fil nästa skribent-session
+kommer att läsa i stället för det här dokumentet.
+
+### 7.7 Utanför scope för PR 16
+
+Artikelinnehåll (det är PR 17), kategorisidor, RSS, nyhetsbrev, författarsidor,
+kommentarer, bilduppladdning, admin-UI. Bygg inget av det "medan du ändå är
+inne i filen".
