@@ -21,7 +21,8 @@
     "image-storage:verify": "tsx --conditions=react-server --env-file-if-exists=.env scripts/verify-image-storage.ts",
     "retention:verify": "tsx scripts/verify-retention.ts",
     "access:verify": "tsx scripts/verify-candidate-access.ts",
-    "cascade:verify": "tsx scripts/verify-cascades.ts"
+    "cascade:verify": "tsx scripts/verify-cascades.ts",
+    "blog:verify": "tsx --conditions=react-server scripts/verify-blog.ts"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
