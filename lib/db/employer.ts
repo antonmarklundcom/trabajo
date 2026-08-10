@@ -37,10 +37,12 @@ import {
   categories,
   cities,
   companies,
+  jobImages,
   jobs,
   jobStatusEnum,
 } from './schema';
 import { slugify, uniqueSlug } from '../slug';
+import { deleteImage } from '../image-storage';
 
 async function getDb() {
   return (await import('./index')).db;
@@ -319,6 +321,115 @@ export async function updateEmployerJob(
   const changed = result.affectedRows > 0;
   if (changed) await logEmployerActivity(actorUserId, 'job', jobId, 'employer_update');
   return changed;
+}
+
+// ---------------------------------------------------------------------------
+// Job images (PLAN-IMAGES.md) — 1–3 public photos per posting, stored through
+// lib/image-storage.ts. Every function below still opens with the ownership
+// check the rest of this file requires: an image row has no company_id of its
+// own, so the scope comes from the job it belongs to, exactly like
+// `applications` above.
+// ---------------------------------------------------------------------------
+
+export const MAX_JOB_IMAGES = 3;
+
+export type EmployerJobImage = {
+  id: number;
+  imageKey: string;
+  width: number;
+  height: number;
+  sortOrder: number;
+};
+
+const jobImageColumns = {
+  id: jobImages.id,
+  imageKey: jobImages.imageKey,
+  width: jobImages.width,
+  height: jobImages.height,
+  sortOrder: jobImages.sortOrder,
+};
+
+export async function listEmployerJobImages(
+  companyId: number,
+  jobId: number,
+): Promise<EmployerJobImage[]> {
+  const db = await getDb();
+  return db
+    .select(jobImageColumns)
+    .from(jobImages)
+    .innerJoin(jobs, eq(jobImages.jobId, jobs.id))
+    .where(and(eq(jobImages.jobId, jobId), ownedByCompany(companyId)))
+    .orderBy(asc(jobImages.sortOrder), asc(jobImages.id));
+}
+
+export type NewJobImage = { key: string; width: number; height: number };
+
+export type AddJobImageResult =
+  | { ok: true; id: number }
+  | { ok: false; reason: 'not_found' | 'limit_reached' };
+
+/**
+ * Appends one image to the job, or refuses. The MAX_JOB_IMAGES check and the
+ * insert are not one atomic statement — two near-simultaneous uploads on the
+ * same job could both pass the count check — which is an accepted race on a
+ * limit this small, the same tradeoff every other count-then-write path in
+ * this codebase makes.
+ */
+export async function addEmployerJobImage(
+  companyId: number,
+  actorUserId: number,
+  jobId: number,
+  image: NewJobImage,
+): Promise<AddJobImageResult> {
+  const job = await getEmployerJob(companyId, jobId);
+  if (!job) return { ok: false, reason: 'not_found' };
+
+  const existing = await listEmployerJobImages(companyId, jobId);
+  if (existing.length >= MAX_JOB_IMAGES) return { ok: false, reason: 'limit_reached' };
+
+  const db = await getDb();
+  const [result] = await db.insert(jobImages).values({
+    jobId,
+    imageKey: image.key,
+    width: image.width,
+    height: image.height,
+    sortOrder: existing.length,
+    createdAt: new Date(),
+  });
+
+  await logEmployerActivity(actorUserId, 'job', jobId, 'employer_add_image');
+  return { ok: true, id: result.insertId };
+}
+
+/**
+ * Deletes one image: the object first, then the row (PLAN-IMAGES.md §5, same
+ * asymmetry as CVs). Returns false when the image does not exist, is not on
+ * this job, or the job is not this company's — a caller must not distinguish
+ * those, same reasoning as updateEmployerJob().
+ */
+export async function deleteEmployerJobImage(
+  companyId: number,
+  actorUserId: number,
+  jobId: number,
+  imageId: number,
+): Promise<boolean> {
+  const db = await getDb();
+  const rows = await db
+    .select({ id: jobImages.id, imageKey: jobImages.imageKey })
+    .from(jobImages)
+    .innerJoin(jobs, eq(jobImages.jobId, jobs.id))
+    .where(and(eq(jobImages.id, imageId), eq(jobImages.jobId, jobId), ownedByCompany(companyId)))
+    .limit(1);
+  const row = rows[0];
+  if (!row) return false;
+
+  // Throws on anything but "already gone". Deliberately outside a try/catch —
+  // this must not reach the row delete below with the object still stored.
+  await deleteImage(row.imageKey);
+
+  await db.delete(jobImages).where(eq(jobImages.id, imageId));
+  await logEmployerActivity(actorUserId, 'job', jobId, 'employer_delete_image');
+  return true;
 }
 
 // ---------------------------------------------------------------------------

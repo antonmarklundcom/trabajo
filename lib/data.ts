@@ -5,7 +5,10 @@ import rawJobs from './seed/jobs.json';
 import rawCategories from './seed/categories.json';
 import rawCities from './seed/cities.json';
 
-const seedJobs = rawJobs as Job[];
+// `images` did not exist when lib/seed/jobs.json was written, so every row
+// needs a default rather than a cast masking `undefined` — an absent array
+// there would fail the seed↔db parity check the moment a DB job has photos.
+const seedJobs = (rawJobs as Job[]).map((job) => ({ ...job, images: job.images ?? [] }));
 const seedCategories = rawCategories as Category[];
 const seedCities = rawCities as City[];
 

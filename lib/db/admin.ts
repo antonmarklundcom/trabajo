@@ -21,6 +21,7 @@ import {
   categories,
   cities,
   companies,
+  jobImages,
   jobs,
   jobStatusEnum,
   savedJobs,
@@ -29,6 +30,7 @@ import {
 import type { Role } from '../auth';
 import { normalizePhone } from '../leads';
 import { slugify, uniqueSlug } from '../slug';
+import { deleteImage } from '../image-storage';
 
 async function getDb() {
   return (await import('./index')).db;
@@ -261,12 +263,110 @@ export async function updateJob(id: number, input: JobInput, actorUserId: number
 
 export async function deleteJob(id: number, actorUserId: number) {
   const db = await getDb();
-  // No FK constraint ties saved_jobs to jobs (schema.ts convention — every
-  // cross-table cleanup is done here in code, never by the schema), so a hard
-  // delete must clean up bookmarks itself or leave a dangling reference behind.
+  // No FK constraint ties saved_jobs or job_images to jobs (schema.ts
+  // convention — every cross-table cleanup is done here in code, never by the
+  // schema), so a hard delete must clean up both itself or leave a dangling
+  // reference behind. Images are objects in storage as well as rows: the
+  // bytes are removed before their rows, same ordering as every other image
+  // delete in this app (PLAN-IMAGES.md §5).
+  const orphanedImages = await db
+    .select({ imageKey: jobImages.imageKey })
+    .from(jobImages)
+    .where(eq(jobImages.jobId, id));
+  for (const { imageKey } of orphanedImages) {
+    await deleteImage(imageKey);
+  }
+  await db.delete(jobImages).where(eq(jobImages.jobId, id));
   await db.delete(savedJobs).where(eq(savedJobs.jobId, id));
   await db.delete(jobs).where(eq(jobs.id, id));
   await logActivity(actorUserId, 'job', id, 'delete');
+}
+
+// ---------------------------------------------------------------------------
+// Job images — admin can edit any job's photos, same 1–3 rule as /empresa
+// (PLAN-IMAGES.md §5). No company scoping here: admin oversight of jobs has
+// none anywhere else in this file either, and job_images has no company_id of
+// its own to scope by.
+// ---------------------------------------------------------------------------
+
+export const MAX_JOB_IMAGES = 3;
+
+export type AdminJobImage = {
+  id: number;
+  imageKey: string;
+  width: number;
+  height: number;
+  sortOrder: number;
+};
+
+const jobImageColumns = {
+  id: jobImages.id,
+  imageKey: jobImages.imageKey,
+  width: jobImages.width,
+  height: jobImages.height,
+  sortOrder: jobImages.sortOrder,
+};
+
+export async function listAdminJobImages(jobId: number): Promise<AdminJobImage[]> {
+  const db = await getDb();
+  return db
+    .select(jobImageColumns)
+    .from(jobImages)
+    .where(eq(jobImages.jobId, jobId))
+    .orderBy(asc(jobImages.sortOrder), asc(jobImages.id));
+}
+
+export type NewJobImage = { key: string; width: number; height: number };
+
+export type AddJobImageResult =
+  | { ok: true; id: number }
+  | { ok: false; reason: 'not_found' | 'limit_reached' };
+
+export async function addAdminJobImage(
+  jobId: number,
+  actorUserId: number,
+  image: NewJobImage,
+): Promise<AddJobImageResult> {
+  const job = await getAdminJob(jobId);
+  if (!job) return { ok: false, reason: 'not_found' };
+
+  const existing = await listAdminJobImages(jobId);
+  if (existing.length >= MAX_JOB_IMAGES) return { ok: false, reason: 'limit_reached' };
+
+  const db = await getDb();
+  const [result] = await db.insert(jobImages).values({
+    jobId,
+    imageKey: image.key,
+    width: image.width,
+    height: image.height,
+    sortOrder: existing.length,
+    createdAt: new Date(),
+  });
+
+  await logActivity(actorUserId, 'job', jobId, 'add_image');
+  return { ok: true, id: result.insertId };
+}
+
+/** Object first, then the row — see deleteJob() above and PLAN-IMAGES.md §5. */
+export async function deleteAdminJobImage(
+  jobId: number,
+  actorUserId: number,
+  imageId: number,
+): Promise<boolean> {
+  const db = await getDb();
+  const rows = await db
+    .select({ id: jobImages.id, imageKey: jobImages.imageKey })
+    .from(jobImages)
+    .where(and(eq(jobImages.id, imageId), eq(jobImages.jobId, jobId)))
+    .limit(1);
+  const row = rows[0];
+  if (!row) return false;
+
+  await deleteImage(row.imageKey);
+
+  await db.delete(jobImages).where(eq(jobImages.id, imageId));
+  await logActivity(actorUserId, 'job', jobId, 'delete_image');
+  return true;
 }
 
 // ---------------------------------------------------------------------------

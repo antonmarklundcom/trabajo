@@ -31,6 +31,8 @@ export type Job = {
   featuredUntil: string | null;
   postedAt: string;
   updatedAt: string;
+  /** Public URLs, already resolved — 0 to 3 (PLAN-IMAGES.md §5). */
+  images: string[];
 };
 
 export type Category = {
