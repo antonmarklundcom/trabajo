@@ -103,3 +103,50 @@ Ingen av dessa rör tenant-gränser, kandidatdata eller destruktiva flöden, så
 ingen Opus-batch krävs enligt samma modell-tiering-regel som tidigare faser
 (`PLAN.md` §4, `PLAN-PHASE2.md` §6) — men Opus bör ändå sätta scope och
 godkänna öppna frågor innan Sonnet börjar bygga.
+
+## 4. Opus medium-effort dubbelkoll efter batch J + K
+
+Ingen av dessa PR:ar kräver en Opus-*författad* batch, men efter att Sonnet
+har byggt och mergat 15 (batch J) och 16/17 (batch K) är följande värt en
+Opus-granskning på medium effort — inte en fullständig audit, men punkter där
+Sonnet historiskt kan slira eller där en liten miss växer till ett större
+problem:
+
+**Efter batch J (sparade jobb):**
+1. **Scoping-läckage** — verifiera att `saved_jobs`-queryn faktiskt filtrerar
+   på `candidate_id` från sessionen, inte ett värde som kan skickas från
+   klienten (samma klass av bugg som scoping-verktyget i `PLAN-PHASE2.md` PR 3
+   skyddar mot för `employer.ts`).
+2. **Cascade-beteende** — om ett jobb raderas/arkiveras, blir raden i
+   `saved_jobs` en hängande referens eller CASCADE:as den bort korrekt? Kolla
+   att UI:t inte kraschar på ett borttaget jobb.
+3. **`lib/data.ts`-regeln** — kontrollera att den nya frågevägen fortfarande
+   går via `lib/data.ts` och inte direkt mot `lib/db/*` från en
+   sida/komponent (AGENTS.md-regeln, lätt att missa i en ny flik).
+4. **Ingen ny räckvidd för "bulk"** — säkerställ att "sparade jobb"-listan
+   inte av misstag exponerar en export- eller admin-vy över alla kandidaters
+   sparade jobb (skulle bryta "no bulk export"-regeln).
+
+**Efter batch K (blogg):**
+5. **`noindex`/sitemap-hygien** — att blogglistan/artiklarna faktiskt kommer
+   med i `sitemap.ts` och att inget av det oavsiktligt ärver `noindex` från
+   `/admin`- eller `/empresa`-trädets layout-inställningar (lätt copy-paste-fel
+   om layouten återanvänds).
+6. **Slug-kollisioner** — kontrollera att blogg-slugs inte kan krocka med
+   befintliga route-segment (`/empleos`, `/planes`, jobbslugs etc.) eller med
+   varandra; AGENTS.md-regeln om att slugs är "live SEO URLs" gäller här också
+   så fort en artikel publicerats och indexerats.
+7. **XSS i Markdown/rich text** — om Väg B (databasdrivet, rich text) valdes:
+   verifiera att artikel-body saneras vid rendering (dangerouslySetInnerHTML
+   eller motsvarande) så en skribent inte kan injicera script — särskilt
+   relevant om fler än ägaren kan skriva innehåll.
+8. **Bilduppladdning återanvänder verkligen CV-drivrutinen säkert** — om Väg B
+   återanvänder storage-drivern från PR 7, dubbelkolla att magic-byte-
+   valideringen är meningsfull för bilder (inte bara kopierad rakt av för
+   PDF/CV-fallet) och att artikelbilder hamnar i ett separat, publikt
+   tillgängligt utrymme — till skillnad från CV:n som medvetet aldrig får en
+   publik URL.
+9. **Modell-tiering-regeln höll** — en sista koll att inget av det byggda
+   faktiskt korsade in i kandidat-/arbetsgivardata (t.ex. en "populära bland
+   sökande"-widget på bloggen som i onödan läcker ansökningsstatistik) — om
+   något sådant smugit sig in bör det has flaggats som Opus-yta i efterhand.
