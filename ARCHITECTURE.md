@@ -165,14 +165,93 @@ Put it in a single exported helper in `lib/db/queries.ts`. A page that forgets
 it leaks unapproved drafts — that is the single highest-risk bug in this
 migration, and it belongs in the parity tests.
 
-### `applications` *(Phase E — assumption, see PLAN.md open questions)*
-`id` · `job_id` → `jobs.id` · `name` · `phone` · `email` NULL ·
-`message` text NULL · `source_page` NULL · `status`
-enum(`new`,`reviewed`,`contacted`,`discarded`) default `new` · `created_at`
+### `applications`
+`id` · `job_id` → `jobs.id` · `candidate_id` NULL → `candidates.id` ·
+`consent_id` NULL → `consents.id` · `cv_id` NULL → `candidate_cvs.id` ·
+`name` NULL · `phone` NULL · `email` NULL · `message` text NULL ·
+`source_page` NULL · `status`
+enum(`new`,`reviewed`,`contacted`,`discarded`,`hired`) default `new` ·
+`redacted_at` NULL · `status_changed_at` NULL · `status_changed_by` NULL ·
+`created_at`
 
-Index `(job_id, created_at)`. This is **not** a seeker account system — there
-are no seeker logins and no CV database (both explicitly out of scope). It is
-one row per application so admin can see who applied to what.
+Indexes `(job_id, created_at)`, `(candidate_id, created_at)`. `candidate_id`
+stays NULL forever for the anonymous lead-form path — a visitor who never
+makes an account must keep being able to apply. The personal fields (`name`,
+`phone`, `email`, `message`) are nullable because redaction empties them in
+place: `redacted_at` is set when a candidate withdraws consent or deletes
+their account, and the row survives as a non-personal husk so the employer's
+history and the admin statistics stay coherent.
+
+### `candidates`
+`id` · `email` UNIQUE · `password_hash` (bcrypt, cost 12) · `name` · `phone` ·
+`city_id` NULL → `cities.id` · `headline` NULL (self-written, never
+platform-generated) · `is_active` bool default true · `email_verified_at` NULL ·
+`last_login_at` NULL · `created_at` · `updated_at`
+
+Deliberately not a fourth `users.role` — a separate table makes "candidate
+reaches `/admin`" structurally impossible instead of conditionally absent.
+
+### `candidate_cvs`
+`id` · `candidate_id` → `candidates.id` · `storage_key` (opaque
+`cv/{candidateId}/{uuid}.{ext}`, never the user's filename) ·
+`original_filename` · `mime_type` · `size_bytes` · `is_current` bool default
+true · `uploaded_at` · `deleted_at` NULL
+
+Index `(candidate_id, is_current)`. One row per upload so replacing a CV does
+not orphan applications that reference the previous file. `deleted_at` is
+purge bookkeeping only — the bytes are gone from storage before this is ever
+set, it is not a soft delete.
+
+### `candidate_experiences`
+`id` · `candidate_id` → `candidates.id` · `company_name` (free text, never
+joined to `companies`) · `title` · `start_month` date · `end_month` date NULL ·
+`is_current` bool default false · `description` text NULL · `sort_order` int
+default 0
+
+Index `(candidate_id, sort_order)`.
+
+### `consents`
+`id` · `subject_type` enum(`candidate`,`employer_user`) · `subject_id` ·
+`purpose` enum(`profile_storage`,`application_share`,`terms_acceptance`) ·
+`granted` bool · `policy_version` · `related_company_id` NULL ·
+`related_job_id` NULL · `ip` · `user_agent` · `created_at`
+
+Indexes `(subject_type, subject_id, purpose)`, `(related_company_id)`.
+Append-only: never `UPDATE`d, never `DELETE`d while the data it authorises
+exists. Withdrawal is a new row with `granted = false`; the current state of a
+consent is the latest row for a (subject, purpose, company) triple.
+
+### `data_access_logs`
+`id` · `actor_user_id` → `users.id` · `actor_role` · `action`
+enum(`list_candidates`,`view_candidate`,`view_cv`,`view_application`,`export`) ·
+`subject_type` · `subject_id` · `reason` NULL (mandatory for drill-down
+actions, enforced in code) · `ip` · `created_at`
+
+Indexes `(subject_type, subject_id, created_at)`, `(actor_user_id,
+created_at)`. Written inside `lib/db/candidates-admin.ts` before the read
+returns, never from the UI layer. Not written for an employer reading their
+own applications — that access is consented and not logged.
+
+### `deletion_requests`
+`id` · `candidate_id` (int, no FK — deliberately survives the candidate row) ·
+`email_hash` (sha256 of the lowercased email) · `requested_by`
+enum(`candidate`,`admin`) · `actor_user_id` NULL · `requested_at` ·
+`executed_at` NULL · `outcome` text NULL
+
+Holds no personal data by construction; the audit trail of ARCO cancellations.
+
+### `employer_invitations`
+`id` · `company_id` → `companies.id` · `email` · `token_hash` UNIQUE (sha256 of
+a 32-byte random token; the raw token exists only in the invite link) ·
+`created_by` → `users.id` · `expires_at` · `accepted_at` NULL · `created_at`
+
+Index `(company_id, created_at)`. There is no self-serve employer signup —
+every account is admin-created.
+
+None of the Phase 2 tables use MySQL `FOREIGN KEY` constraints, matching the
+original seven — every scoping/ownership check lives in the query, and the
+ARCO purge deliberately keeps `consents` and `deletion_requests` rows pointing
+at a candidate id that no longer exists.
 
 ### `activity_log`
 `id` · `actor_user_id` NULL · `entity_type` · `entity_id` · `action` ·
@@ -207,6 +286,24 @@ requireRole(session, ['admin', 'editor']);
   `sitemap.ts` and `robots.ts`.
 - Rate-limit the login route and `/api/v1/leads` (honeypot already planned in
   the old Phase 4).
+
+**Three audiences, three separate cookies, three separate session lookups —
+not one role system:**
+
+| Audience | Table | Cookie | Route tree | Guard |
+|---|---|---|---|---|
+| admin / editor | `users` | `trabajo_session` | `/admin/*` | `requireSessionWithRole(['admin','editor'])` |
+| employer | `users` (role `employer`, `company_id` set) | `trabajo_session` (same cookie) | `/empresa/*` | `requireCompanyScope()` in `lib/auth.ts` |
+| candidate | `candidates` | `trabajo_postulante` (own cookie) | `/postulante/*` | `requireCandidate()` in `lib/auth-candidate.ts` |
+
+`requireCompanyScope()` returns `{ user, companyId }` or throws: it rejects a
+non-`employer` role and rejects an `employer` whose `company_id` is NULL — a
+misconfigured account fails closed rather than seeing everything.
+
+The candidate session has its own rate limiter and its own bcrypt cost-12
+hashing in `lib/auth-candidate.ts`. A candidate session can never satisfy a
+`users`-based guard because it resolves against a different table entirely —
+there is no "candidate escalates to admin" code path to reason about.
 
 Next 16 caveat: cookie and request APIs in this version may be async and may
 differ from what you remember. **Read the docs in `node_modules/next/dist/docs/`
@@ -320,6 +417,26 @@ Verified against `node_modules/next/dist/docs/` for Next 16.2.9:
 /admin/postulaciones          Applications inbox (Phase E)
 /admin/usuarios               User CRUD (admin role only)
 /api/admin/*                  Mutations — all role-checked server-side
+
+/empresa                      Employer dashboard
+/empresa/login                Employer login (shares authenticate() + rate limiter)
+/empresa/activar              Invitation acceptance: set password + terms consent
+/empresa/empleos              Company's own job list
+/empresa/postulaciones        Applications to the company's jobs
+/api/empresa/*                Mutations and reads — requireCompanyScope() first
+/api/empresa/cv/[applicationId]  Authorized CV download, keyed on the application
+
+/postulante                   Candidate dashboard
+/postulante/login              Candidate login
+/postulante/registro           Candidate signup (blocking profile_storage consent)
+/postulante/perfil             Profile + experience + CV upload
+/postulante/mis-postulaciones  Application history, consent withdrawal
+/api/postulante/*              Mutations and reads — requireCandidate() first
+/api/postulante/cv/[id]        Authorized CV download, owned by the candidate
 ```
+
+Both `/empresa/*` and `/postulante/*` are `noindex`, excluded from
+`sitemap.ts` and `robots.ts` (same discipline as `/admin/*`), and gated behind
+`EMPLOYER_DASHBOARD_ENABLED` and `CANDIDATE_ACCOUNTS_ENABLED` respectively.
 
 Public routes are unchanged.
