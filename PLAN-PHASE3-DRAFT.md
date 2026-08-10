@@ -498,3 +498,89 @@ kommer att läsa i stället för det här dokumentet.
 Artikelinnehåll (det är PR 17), kategorisidor, RSS, nyhetsbrev, författarsidor,
 kommentarer, bilduppladdning, admin-UI. Bygg inget av det "medan du ändå är
 inne i filen".
+
+---
+
+## 8. Efterkontroll batch K — resultat (Opus, medium effort, 2026-08-10)
+
+Genomgång av §4 punkt 5–9 efter att PR 16 (blogg Väg A) och PR 18 (delad
+bildpipeline) mergats. Två fynd, båda åtgärdade i samma PR som den här
+sektionen. Resten är rent.
+
+### 8.1 Punkt 7, XSS i Markdown: kommentaren i `lib/blog.ts` var faktafel.
+
+Filen påstod att `marked` var konfigurerad med *"raw HTML passthrough OFF (the
+default — no `html: true`)"*. Det stämmer inte om biblioteket: `marked` har
+ingen `html`-option, det släpper igenom rå HTML **som standard**, och
+`sanitize`-optionen togs bort i v5. Verifierat, inte antaget:
+
+```
+marked.parse('Hola <script>alert(1)</script>')
+→ "<p>Hola <script>alert(1)</script></p>"
+```
+
+Den strängen går sedan till `dangerouslySetInnerHTML` i
+`app/blog/[slug]/page.tsx`.
+
+**Var det en sårbarhet? Nej — men det var inte det skyddet filen sa att det
+var.** Innehållet är Markdown commitat i repot, så den som kan publicera en
+artikel kan redan publicera godtycklig React; en sanitizer skulle försvara mot
+en angripare som per definition redan vunnit. Det argumentet står kvar och är
+korrekt. Problemet var att den *hygien* filen utlovade — "stoppar en
+inklistrad kodsnutt från en annan sajt från att smuggla in en trackingpixel" —
+var precis det som inte fungerade, och att §5 uttryckligen håller dörren öppen
+för Väg B, där artikeltexten ligger i databasen och någon annan än ägaren kan
+skriva den. Den migreringen hade ärvt en passthrough ingen trodde var på.
+
+**Åtgärd:** `renderer.html` skriver om rå HTML till escapad text. Escapa,
+inte kasta bort — inget som en skribent skrivit försvinner tyst, en
+inklistrad `<div>` syns som text, vilket är hur skribenten upptäcker misstaget.
+
+### 8.2 Punkt 6, slug-hygien: `getBlogPost()` byggde en filsökväg av en oskyddad slug.
+
+Kollisioner mellan artiklar är omöjliga (filnamnet *är* sluggen) och kollisioner
+med `/empleos` etc. är omöjliga (allt ligger under `/blog/`). Men sluggen blev
+en sökväg utan validering:
+
+```
+getBlogPost('../../AGENTS') → path.join(content/blog, '../../AGENTS.md')
+                            → /AGENTS.md, exists: true   (verifierat)
+```
+
+`generateStaticParams` täcker de kända sluggarna, men `dynamicParams` är på som
+standard, så en okänd URL renderas ändå vid request. `.md`-suffixet begränsar
+skadan till markdown-filer, och en fil utan giltig frontmatter ger 500 i stället
+för utlämnat innehåll — men det är en *begränsning*, inte ett skydd.
+
+**Åtgärd:** `SLUG_PATTERN` (`a-z0-9` + bindestreck) prövas innan någon sökväg
+byggs, i samma stil som `STORAGE_KEY_PATTERN` i `lib/storage.ts`. `readPostFile()`
+kastar dessutom på ett filnamn som inte kan ge en giltig SEO-URL — högljutt, inte
+tyst överhoppat, eftersom filnamnet är den live-URL AGENTS.md-regeln handlar om.
+
+### 8.3 Punkt 5, `noindex`/sitemap: rent.
+
+`/blog` och varje artikel ligger i `app/sitemap.ts`, `robots.ts` disallow:ar bara
+`/api/`, `/admin/`, `/empresa/`, `/postulante/`, och artikelsidan sätter
+`robots: { index: true, follow: true }` explicit. Ingen layout-ärvd `noindex`
+har smugit sig in från `/admin`-trädet.
+
+### 8.4 Punkt 8, bildpipelinen: rent, och starkare än vad punkten bad om.
+
+`lib/image-storage.ts` (PR 18) accepterar på magic bytes (inte Content-Type,
+inte filnamn), **omkodar allt till WebP med sharp** så en polyglot-fil inte
+överlever rundturen, mintar egna nycklar `img/{namespace}/{uuid}.webp`, och
+håller publika bilder i ett eget utrymme skilt från CV:erna — som fortsatt aldrig
+får en publik URL. SVG är avvisat för att det är XML med `<script>` i.
+Ingenting att åtgärda.
+
+### 8.5 Punkt 9, modell-tiering: rent.
+
+Bloggens enda datauttag är relaterade jobb via `getJobs()` i `lib/data.ts` —
+den publika katalogen. Ingen widget läser kandidat-, ansöknings- eller
+arbetsgivardata, så ingenting i batch K korsade in i Opus-yta i efterhand.
+
+### 8.6 Sidofynd: `cascade:verify` fanns men kördes aldrig i CI.
+
+PR 15b byggde `scripts/verify-cascades.ts` och la in npm-scriptet, men inget
+CI-steg — så kontrollen körde bara när någon råkade komma ihåg den. Tillagd i
+`.github/workflows/ci.yml` tillsammans med den nya `blog:verify`.

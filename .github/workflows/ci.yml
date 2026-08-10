@@ -59,3 +59,17 @@ jobs:
       # search or a bulk export appearing in that module (§5.2).
       - name: Verify candidate access construction
         run: npm run access:verify
+
+      # The no-FK convention's other half: a module that hard-deletes a parent
+      # must delete its dependents first. Written in PR 15b, but never wired
+      # into CI, so it only ran when someone remembered to run it.
+      - name: Verify cascade cleanups
+        run: npm run cascade:verify
+
+      # PLAN-PHASE3-DRAFT.md §4 points 6 and 7 (batch K review): article bodies
+      # reach dangerouslySetInnerHTML, and `marked` passes raw HTML through by
+      # default — so "is it still escaped?" is a question about a dependency's
+      # default that a version bump can change. Also asserts a blog slug cannot
+      # escape content/blog/.
+      - name: Verify blog rendering and slugs
+        run: npm run blog:verify
