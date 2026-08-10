@@ -2,12 +2,13 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import LogoUploader from '@/components/LogoUploader';
 
 export type CompanyFormInitial = {
   id?: number;
   name: string;
   slug: string;
-  logoUrl: string;
+  logoSrc: string | null;
   whatsapp: string;
   website: string;
   description: string;
@@ -16,7 +17,7 @@ export type CompanyFormInitial = {
 const EMPTY: CompanyFormInitial = {
   name: '',
   slug: '',
-  logoUrl: '',
+  logoSrc: null,
   whatsapp: '',
   website: '',
   description: '',
@@ -40,7 +41,6 @@ export default function CompanyForm({ initial }: { initial?: CompanyFormInitial 
     const payload = {
       name: values.name,
       slug: values.slug || undefined,
-      logoUrl: values.logoUrl || null,
       whatsapp: values.whatsapp || null,
       website: values.website || null,
       description: values.description || null,
@@ -112,15 +112,17 @@ export default function CompanyForm({ initial }: { initial?: CompanyFormInitial 
         </Field>
       </div>
 
-      <Field label="URL del logo">
-        <input
-          type="url"
-          value={values.logoUrl}
-          onChange={(e) => setField('logoUrl', e.target.value)}
-          placeholder="https://..."
-          className={inputCls()}
+      {values.id ? (
+        <LogoUploader
+          companyName={values.name}
+          logoSrc={values.logoSrc}
+          uploadUrl={`/api/admin/empresas/${values.id}/logo`}
         />
-      </Field>
+      ) : (
+        <p className="text-sm text-[#8A8378]">
+          Podrás subir el logo después de guardar la empresa.
+        </p>
+      )}
 
       <Field label="Descripción">
         <textarea

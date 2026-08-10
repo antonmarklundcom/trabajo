@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { requireCompanyScope } from '@/lib/auth';
 import { getEmployerCompany } from '@/lib/db/employer';
+import { companyLogoSrc } from '@/lib/company-logo';
 import CompanyProfileForm, {
   type CompanyProfileFormInitial,
 } from '@/components/empresa/CompanyProfileForm';
@@ -16,7 +17,7 @@ export default async function EmpresaPerfilPage() {
 
   const initial: CompanyProfileFormInitial = {
     name: company?.name ?? '',
-    logoUrl: company?.logoUrl ?? '',
+    logoSrc: company ? companyLogoSrc(company.logoKey, company.logoUrl) : null,
     whatsapp: company?.whatsapp ?? '',
     website: company?.website ?? '',
     description: company?.description ?? '',

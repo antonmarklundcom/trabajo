@@ -3,6 +3,7 @@ import { unstable_cache } from 'next/cache';
 import { db } from './index';
 import { categories, cities, companies, jobs } from './schema';
 import { CACHE_TAGS, PUBLIC_CACHE_TTL_SECONDS } from '../cache-tags';
+import { companyLogoSrc } from '../company-logo';
 import type { Job, Category, City, JobFilters } from '../types';
 
 const PAGE_SIZE = 20;
@@ -33,7 +34,8 @@ const jobSelection = {
   slug: jobs.slug,
   title: jobs.title,
   company: companies.name,
-  companyLogo: companies.logoUrl,
+  companyLogoKey: companies.logoKey,
+  companyLogoUrl: companies.logoUrl,
   categorySlug: categories.slug,
   citySlug: cities.slug,
   contractType: jobs.contractType,
@@ -53,7 +55,8 @@ type JobRow = {
   slug: string;
   title: string;
   company: string;
-  companyLogo: string | null;
+  companyLogoKey: string | null;
+  companyLogoUrl: string | null;
   categorySlug: string;
   citySlug: string;
   contractType: Job['contractType'];
@@ -74,7 +77,7 @@ function toJob(row: JobRow): Job {
     slug: row.slug,
     title: row.title,
     company: row.company,
-    companyLogo: row.companyLogo,
+    companyLogo: companyLogoSrc(row.companyLogoKey, row.companyLogoUrl),
     categorySlug: row.categorySlug,
     citySlug: row.citySlug,
     contractType: row.contractType,

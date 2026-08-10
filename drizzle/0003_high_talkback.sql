@@ -1,0 +1,1 @@
+ALTER TABLE `companies` ADD `logo_key` varchar(255);
