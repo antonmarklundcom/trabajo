@@ -9,6 +9,7 @@ import {
   json,
   mysqlEnum,
   index,
+  uniqueIndex,
 } from 'drizzle-orm/mysql-core';
 
 // Convention note (unchanged from the original seven tables): relationships are
@@ -412,6 +413,32 @@ export const deletionRequests = mysqlTable('deletion_requests', {
   executedAt: datetime('executed_at'),
   outcome: text('outcome'),
 });
+
+// ---------------------------------------------------------------------------
+// saved_jobs
+//
+// A candidate bookmarking a job to read/compare later — separate from
+// `applications` (PLAN-PHASE3-DRAFT.md §1). No FK constraints, same as every
+// other table here: cross-table cleanup (a hard-deleted job) is done in code,
+// in `deleteJob()`, not by the schema.
+// ---------------------------------------------------------------------------
+
+export const savedJobs = mysqlTable(
+  'saved_jobs',
+  {
+    id: int('id').autoincrement().primaryKey(),
+    candidateId: int('candidate_id').notNull(),
+    jobId: int('job_id').notNull(),
+    createdAt: datetime('created_at').notNull(),
+  },
+  (table) => [
+    // Also the idempotency guard for "save": a second save hits this
+    // constraint, which the write path treats as success, not an error.
+    uniqueIndex('candidate_job_unique_idx').on(table.candidateId, table.jobId),
+    // "Mis guardados" for a logged-in candidate.
+    index('candidate_created_idx').on(table.candidateId, table.createdAt),
+  ],
+);
 
 // ---------------------------------------------------------------------------
 // employer_invitations
