@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { getJobs, getCategories, getCities } from '@/lib/data';
+import { getBlogPosts } from '@/lib/blog';
 
 // Left at an hour on purpose: a new listing reaches the sitemap immediately
 // because every admin mutation revalidates '/sitemap.xml' (lib/cache.ts), so
@@ -25,10 +26,11 @@ async function getAllJobs() {
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://trabajo.com.py';
 
-  const [jobs, categories, cities] = await Promise.all([
+  const [jobs, categories, cities, posts] = await Promise.all([
     getAllJobs(),
     getCategories(),
     getCities(),
+    getBlogPosts(),
   ]);
 
   // Category/city pairs that actually have a published job — the taxonomy
@@ -45,6 +47,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${siteUrl}/publicar`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
     { url: `${siteUrl}/planes`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.6 },
     { url: `${siteUrl}/contacto`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.5 },
+    { url: `${siteUrl}/blog`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.6 },
     { url: `${siteUrl}/privacidad`, lastModified: new Date(), changeFrequency: 'yearly', priority: 0.3 },
     { url: `${siteUrl}/terminos`, lastModified: new Date(), changeFrequency: 'yearly', priority: 0.3 },
   ];
@@ -81,5 +84,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
   }
 
-  return [...staticPages, ...jobPages, ...categoryPages, ...landingPages];
+  const blogPages: MetadataRoute.Sitemap = posts.map((post) => ({
+    url: `${siteUrl}/blog/${post.slug}`,
+    lastModified: new Date(post.updatedAt),
+    changeFrequency: 'monthly' as const,
+    priority: 0.5,
+  }));
+
+  return [...staticPages, ...jobPages, ...categoryPages, ...landingPages, ...blogPages];
 }
