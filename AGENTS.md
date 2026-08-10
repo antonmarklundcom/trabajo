@@ -12,6 +12,7 @@ Read before writing code:
 |---|---|
 | `PLAN.md` | The WordPress → MySQL rebuild: 12 steps, gates, model tiering, open questions (all merged) |
 | `PLAN-PHASE2.md` | Next body of work: employer dashboard + job seeker profiles — schema, consent/ARCO model, 14 PRs with model per PR |
+| `PLAN-IMAGES.md` | The shared public image pipeline: backend decision, validation rules, key scheme, what PR 19–21 inherit |
 | `ARCHITECTURE.md` | Target backend design: the data seam, DB schema, auth, job lifecycle, caching |
 | `MIGRATION.md` | WordPress → MySQL cutover runbook and rollback |
 | `DEPLOY.md` | Hostinger + MySQL operations and their known traps |
@@ -60,6 +61,17 @@ Non-negotiables:
 - **No public URL for a CV.** All three download paths (`/api/admin/cv/[id]`,
   `/api/empresa/cv/[applicationId]`, `/api/postulante/cv/[id]`) are authorized
   route handlers, and `CV_STORAGE_DIR` lives outside the build root.
+- **Public images go through `lib/image-storage.ts`, and what we store is never
+  what was uploaded.** Every image is validated by magic bytes (JPG/PNG/WebP —
+  never SVG), re-encoded to WebP with the original bytes discarded, and
+  addressed by a minted `img/{logos|blog|jobs}/{uuid}.webp` key that is never
+  derived from user input. The database stores the **key**, never the URL, which
+  is what keeps `IMAGE_STORAGE_DRIVER` switchable (`PLAN-IMAGES.md` §2.1). No
+  page, component or route touches `IMAGE_STORAGE_DIR` or the bucket directly.
+- **The image store is public by construction and holds nothing private.**
+  `/img/[...key]` has no session check because an image on an approved posting
+  is public content. It never shares a directory or bucket with CVs, and no
+  private file may be put in it "since both are just files".
 - **Consent is append-only.** Withdrawal is a new row, never an UPDATE on
   `consents`.
 - **Deletion of candidate data is a hard DELETE.** `candidateCvs.deletedAt` is

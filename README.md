@@ -122,6 +122,24 @@ Los CVs nunca tienen URL pública: se descargan por
 `/api/postulante/cv/[id]`, `/api/empresa/cv/[applicationId]` o
 `/api/admin/cv/[id]`, cada uno con su propia autorización.
 
+### Almacenamiento de imágenes públicas
+
+Requerido cuando alguna función que sube imágenes esté activa (logos de
+empresa, imágenes del blog, imágenes de avisos). `IMAGE_STORAGE_DRIVER=disk`
+(recomendado — `IMAGE_STORAGE_DIR`, ruta absoluta fuera del build root) o
+`IMAGE_STORAGE_DRIVER=r2` (bucket público, `IMAGE_R2_PUBLIC_BASE_URL`). No hay
+valor por defecto. La decisión y sus razones están en `PLAN-IMAGES.md` §2; las
+variables de cada driver, en `.env.example`.
+
+Es el almacenamiento **público**: todo lo que entra ahí se sirve sin sesión, a
+propósito. No comparte directorio ni bucket con los CVs.
+
+Toda imagen subida se valida por magic bytes (JPG, PNG, WebP — nunca SVG), se
+reconvierte a WebP y se guarda con una clave generada
+(`img/{logos|blog|jobs}/{uuid}.webp`); los bytes originales se descartan. Con
+el driver `disk` se sirven desde `/img/...`. La base de datos guarda la
+**clave**, nunca la URL.
+
 ### Analítica (opcional)
 
 ```env
