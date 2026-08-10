@@ -99,9 +99,18 @@ export async function listSavedJobs(
 ): Promise<{ savedJobs: SavedJob[]; total: number }> {
   const db = await getDb();
 
+  // Counted through the same two joins as the page query below, not off
+  // `saved_jobs` alone. There are no FK constraints in this schema (see
+  // schema.ts), so a bookmark whose job row is gone is a state the database
+  // permits; counting it while the joined page query drops it would print
+  // "5 empleos guardados" above four rows and hand the last page an empty
+  // list. The joins are the definition of a listable saved job, so the count
+  // has to use them too.
   const [{ total }] = await db
     .select({ total: count() })
     .from(savedJobs)
+    .innerJoin(jobs, eq(savedJobs.jobId, jobs.id))
+    .innerJoin(companies, eq(jobs.companyId, companies.id))
     .where(eq(savedJobs.candidateId, candidateId));
 
   const rows = await db
