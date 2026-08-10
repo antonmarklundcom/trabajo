@@ -28,3 +28,30 @@ Non-negotiables:
 - **UI copy is Spanish (Paraguay)** — including the admin panel. Docs and code
   comments are English.
 - **Slugs are live SEO URLs.** Renaming one needs a 301, not just an edit.
+- **Employer reads go through `lib/db/employer.ts`, and every function there
+  takes `companyId` as its first argument.** No admin bypass branch in that
+  file, ever.
+- **Row-level admin reads of candidate data go through
+  `lib/db/candidates-admin.ts`, which logs to `data_access_logs` before it
+  returns.** No candidate data read from anywhere else, with three deliberate
+  exceptions and no others: `lib/db/stats.ts` may read candidate tables through
+  `count()` aggregates only (no data subject, so nothing to log);
+  `lib/db/employer.ts` reads the candidate profile and CV attached to that
+  company's own applications; and `lib/db/retention.ts` +
+  `lib/db/candidate-arco.ts` operate on candidate rows as part of the purge and
+  ARCO paths.
+- **The access log records the portal team only.** Employer access to a
+  candidate's data on their own listing is deliberately not logged, and
+  `/privacidad` §6 is worded to match. Do not "complete" the log without
+  changing that copy first.
+- **No public URL for a CV.** All three download paths (`/api/admin/cv/[id]`,
+  `/api/empresa/cv/[applicationId]`, `/api/postulante/cv/[id]`) are authorized
+  route handlers, and `CV_STORAGE_DIR` lives outside the build root.
+- **Consent is append-only.** Withdrawal is a new row, never an UPDATE on
+  `consents`.
+- **Deletion of candidate data is a hard DELETE.** `candidateCvs.deletedAt` is
+  purge bookkeeping written after the bytes are already gone, and
+  `candidates.isActive` is an account flag used in the auth lookup — neither is
+  a soft delete, and no new soft-delete flag may be added.
+- **No search, ranking, scoring, matching or bulk export of candidates.**
+  Phase 4, gated on legal review (`PLAN-PHASE2.md` §6 "Phase 4 — NOT NOW").
