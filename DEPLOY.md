@@ -227,6 +227,38 @@ existing `candidate_cvs.storage_key` values point into whatever store was live
 when they were written, and the app has no migration path between drivers.
 
 
+## Public image storage
+
+Company logos, blog images and job-posting images go through
+`lib/image-storage.ts` (`PLAN-IMAGES.md`). `IMAGE_STORAGE_DRIVER` picks the
+backend and has no default, so a deploy that forgets it fails on the first
+upload rather than writing somewhere wrong.
+
+**Driver `disk` (the choice — `PLAN-IMAGES.md` §2).** `IMAGE_STORAGE_DIR` must
+be an absolute path **outside the build root**, exactly like `CV_STORAGE_DIR`
+and for exactly the same reason: `public_html/.builds/last-source/` is replaced
+on every deploy, so a directory inside the app — including `public/` — is
+deleted by the next merge to `main`, with every uploaded image in it. Something
+like `/home/<user>/image-storage` survives. This is also why images are served
+by a route handler (`/img/...`) instead of as static files: there is no static
+directory that lives through a deploy.
+
+Losing this directory is less serious than losing `CV_STORAGE_DIR` — an
+employer can re-upload a logo — but it is still every image on the site, so it
+belongs in whatever backup routine `CV_STORAGE_DIR` gets.
+
+**Driver `r2`.** A **public-read** bucket, which is the opposite of the CV
+bucket's ACL and therefore a separate bucket, plus a custom domain on
+Cloudflare DNS in `IMAGE_R2_PUBLIC_BASE_URL` (the `r2.dev` development domain
+is rate-limited and not a production answer). Uploads and deletes are still
+SigV4-signed with a token scoped to that one bucket; reads are anonymous.
+
+Switching from `disk` to `r2` is an env var plus copying the directory into the
+bucket with the `img/...` paths preserved as object keys — the database stores
+the key, not the URL, so no rows change. Changing the directory or bucket
+*under live data* is not safe: existing keys point into whatever store was live
+when they were written.
+
 ## Slots
 
 10 Node.js apps per Hostinger account. trabajo occupies one; the custom backend

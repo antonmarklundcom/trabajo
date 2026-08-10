@@ -39,6 +39,13 @@ jobs:
       - name: Verify CV storage layer
         run: npm run storage:verify
 
+      # The same properties for the public image pipeline (PLAN-IMAGES.md §1),
+      # where the failure mode is the inverse: not a leaked file but a hosted
+      # one. Covers magic-byte detection, the WebP re-encode, decompression and
+      # frame-count bombs, and key traversal. No bucket needed either.
+      - name: Verify image storage pipeline
+        run: npm run image-storage:verify
+
       # Same reasoning, for the retention sweep's cutoff arithmetic
       # (PLAN-PHASE2.md §4.3): pure functions, no database, and a wrong answer
       # here deletes data earlier than the privacy policy allows without looking

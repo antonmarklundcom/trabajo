@@ -219,7 +219,13 @@ async function resolveDiskPath(root: string, key: string): Promise<string> {
 // R2 driver (S3-compatible, SigV4)
 // ---------------------------------------------------------------------------
 
-type R2Config = {
+/**
+ * Everything the signer needs. Exported because lib/image-storage.ts drives its
+ * own bucket through signedS3Fetch() below rather than reimplementing SigV4 —
+ * one hand-rolled signer in this repo is one that can be reviewed and pinned to
+ * the AWS test vector; two is two.
+ */
+export type S3Config = {
   endpoint: string; // https://<account>.r2.cloudflarestorage.com
   bucket: string;
   accessKeyId: string;
@@ -227,7 +233,7 @@ type R2Config = {
   region: string;
 };
 
-function r2Config(): R2Config {
+function r2Config(): S3Config {
   const explicit = process.env.CV_R2_ENDPOINT?.trim();
   const endpoint = explicit
     ? explicit.replace(/\/+$/, '')
@@ -253,7 +259,7 @@ export function createR2Driver(): StorageDriver {
 
     async put(key, body, contentType) {
       assertStorageKey(key);
-      const response = await signedFetch(config, 'PUT', key, {
+      const response = await signedS3Fetch(config, 'PUT', key, {
         body,
         headers: { 'content-type': contentType },
       });
@@ -270,7 +276,7 @@ export function createR2Driver(): StorageDriver {
 
     async getStream(key) {
       assertStorageKey(key);
-      const response = await signedFetch(config, 'GET', key, {});
+      const response = await signedS3Fetch(config, 'GET', key, {});
       if (!response.ok || !response.body) {
         await drain(response);
         throw new StorageError(`R2 could not serve the CV object (HTTP ${response.status}).`);
@@ -284,7 +290,7 @@ export function createR2Driver(): StorageDriver {
 
     async delete(key) {
       assertStorageKey(key);
-      const response = await signedFetch(config, 'DELETE', key, {});
+      const response = await signedS3Fetch(config, 'DELETE', key, {});
       await drain(response);
       // S3 semantics: 204 whether or not the object existed, which is exactly
       // the postcondition we need. 404 is accepted for the same reason. Any
@@ -348,14 +354,14 @@ function amzDates(now: Date): { amzDate: string; dateStamp: string } {
   return { amzDate, dateStamp: amzDate.slice(0, 8) };
 }
 
-function signingKey(config: R2Config, dateStamp: string): Buffer {
+function signingKey(config: S3Config, dateStamp: string): Buffer {
   return hmac(
     hmac(hmac(hmac(`AWS4${config.secretAccessKey}`, dateStamp), config.region), SERVICE),
     'aws4_request',
   );
 }
 
-function credentialScope(config: R2Config, dateStamp: string): string {
+function credentialScope(config: S3Config, dateStamp: string): string {
   return `${dateStamp}/${config.region}/${SERVICE}/aws4_request`;
 }
 
@@ -363,8 +369,8 @@ function stringToSign(amzDate: string, scope: string, canonicalRequest: string):
   return [ALGORITHM, amzDate, scope, sha256Hex(canonicalRequest)].join('\n');
 }
 
-async function signedFetch(
-  config: R2Config,
+export async function signedS3Fetch(
+  config: S3Config,
   method: 'GET' | 'PUT' | 'DELETE',
   key: string,
   init: { body?: Uint8Array; headers?: Record<string, string> },
@@ -423,7 +429,7 @@ async function signedFetch(
  * expiry, so it cannot be extended by editing the link.
  */
 function presignGet(
-  config: R2Config,
+  config: S3Config,
   key: string,
   options: SignedUrlOptions,
   now = new Date(),
