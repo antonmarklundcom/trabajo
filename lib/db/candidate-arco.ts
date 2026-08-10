@@ -283,6 +283,7 @@ export type DeletionCounts = {
   cvObjectsDeleted: number;
   cvRowsDeleted: number;
   experiencesDeleted: number;
+  savedJobsDeleted: number;
   applicationsRedacted: number;
   consentsKept: number;
 };
@@ -310,7 +311,7 @@ export type DeleteAccountOptions = {
  *      alternative — reporting success while the bytes are still in a bucket —
  *      is the one answer an ARCO cancellation must never give. The DB rows are
  *      then still the only record of where those objects live.
- *   3. `DELETE` candidate_cvs + candidate_experiences.
+ *   3. `DELETE` candidate_cvs + candidate_experiences + saved_jobs.
  *   4. REDACT the applications rows: NULL the personal columns, set
  *      `redacted_at`. The row survives carrying only job_id/status/timestamps,
  *      so the employer's history and the admin statistics stay coherent
@@ -390,8 +391,13 @@ export async function deleteCandidateAccount(
     .delete(candidateExperiences)
     .where(eq(candidateExperiences.candidateId, candidateId));
   // No FK ties saved_jobs to candidates either (schema.ts convention), so this
-  // hard delete must clean up bookmarks itself.
-  await db.delete(savedJobs).where(eq(savedJobs.candidateId, candidateId));
+  // hard delete must clean up bookmarks itself. Counted like every other table
+  // this function destroys: `deletion_requests.outcome` is the evidence of what
+  // a cancellation actually removed, and a table that is silently purged is a
+  // table nobody can later prove was purged.
+  const [savedJobsDelete] = await db
+    .delete(savedJobs)
+    .where(eq(savedJobs.candidateId, candidateId));
 
   // --- 4. Redact the applications, keep the husk --------------------------
   // Two statements so that an application the candidate had already withdrawn
@@ -442,6 +448,7 @@ export async function deleteCandidateAccount(
     cvObjectsDeleted: cvRows.length,
     cvRowsDeleted: cvDelete.affectedRows,
     experiencesDeleted: experienceDelete.affectedRows,
+    savedJobsDeleted: savedJobsDelete.affectedRows,
     applicationsRedacted: freshRedaction.affectedRows + alreadyRedacted.affectedRows,
     consentsKept: consentRows.length,
   };
@@ -453,7 +460,8 @@ export async function deleteCandidateAccount(
       executedAt: new Date(),
       outcome:
         `OK: ${counts.cvObjectsDeleted} CV object(s) deleted, ${counts.cvRowsDeleted} cv row(s), ` +
-        `${counts.experiencesDeleted} experience row(s), ${counts.applicationsRedacted} application(s) redacted, ` +
+        `${counts.experiencesDeleted} experience row(s), ${counts.savedJobsDeleted} saved job(s), ` +
+        `${counts.applicationsRedacted} application(s) redacted, ` +
         `${counts.consentsKept} consent row(s) kept.` +
         (options.note ? ` ${options.note}` : ''),
     })

@@ -19,8 +19,21 @@ Read before writing code:
 
 Non-negotiables:
 
-- **`lib/data.ts` is the only data entry point.** No page, component or API
-  route may read `lib/seed/*.json` or the database directly.
+- **`lib/data.ts` is the only data entry point for the public job catalog.** No
+  page, component or API route may read `lib/seed/*.json` or the database
+  directly for jobs, categories or cities — that seam is what makes
+  `DATA_SOURCE=seed|db` switchable (`ARCHITECTURE.md` §3). Per-account data —
+  candidate, employer, admin — has no seed representation and nothing to switch,
+  so it goes straight to its scoped module (`lib/db/candidate-*.ts`,
+  `lib/db/employer.ts`, `lib/db/candidates-admin.ts`) from a page that has
+  already established the session. That is the rule, not an exception to it.
+- **No foreign key constraints in `lib/db/schema.ts`, ever.** Plain int columns
+  plus indexes; ownership is enforced in the query layer and cross-table cleanup
+  is done in code, because the ARCO purge deliberately keeps some orphaned
+  references and half-constrained referential integrity is worse than none. A
+  new table that points at another one must be registered in
+  `scripts/verify-cascades.ts` (`npm run cascade:verify`), which proves every
+  hard delete of a parent row purges its dependents first.
 - **Public reads go through the single visibility predicate** in
   `lib/db/queries.ts`. Forgetting it leaks unapproved jobs.
 - **Authorization is checked server-side in every mutating handler.** Hiding a
