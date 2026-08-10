@@ -12,6 +12,7 @@ Read before writing code:
 |---|---|
 | `PLAN.md` | The WordPress → MySQL rebuild: 12 steps, gates, model tiering, open questions (all merged) |
 | `PLAN-PHASE2.md` | Next body of work: employer dashboard + job seeker profiles — schema, consent/ARCO model, 14 PRs with model per PR |
+| `PLAN-PHASE3-DRAFT.md` | Saved jobs (built) + blog: Väg A build brief (§7, built as PR 16) and the Väg A→B decision (§9) once Väg B was triggered |
 | `PLAN-IMAGES.md` | The shared public image pipeline: backend decision, validation rules, key scheme, what PR 19–21 inherit |
 | `ARCHITECTURE.md` | Target backend design: the data seam, DB schema, auth, job lifecycle, caching |
 | `MIGRATION.md` | WordPress → MySQL cutover runbook and rollback |
@@ -72,6 +73,15 @@ Non-negotiables:
   `/img/[...key]` has no session check because an image on an approved posting
   is public content. It never shares a directory or bucket with CVs, and no
   private file may be put in it "since both are just files".
+- **`blog_posts.bodyHtml` is sanitized exactly once, in
+  `lib/blog-sanitize.ts`, at write time.** `lib/db/blog-admin.ts` is the only
+  caller; `lib/blog.ts` renders the stored value as-is. This is required
+  because the trust boundary that let Väg A skip a sanitizer — content is
+  Markdown reviewed in a git diff — does not hold for the database-backed
+  editor: a POST body is not a git diff (`PLAN-PHASE3-DRAFT.md` §8.1, §5).
+  `blogPosts.imageKeys` is re-derived server-side from the sanitized HTML on
+  every save, never trusted from the client, so `deleteBlogPost()` cleans up
+  exactly the images a post actually owns.
 - **Consent is append-only.** Withdrawal is a new row, never an UPDATE on
   `consents`.
 - **Deletion of candidate data is a hard DELETE.** `candidateCvs.deletedAt` is

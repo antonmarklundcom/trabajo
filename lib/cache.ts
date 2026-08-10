@@ -82,3 +82,28 @@ export function invalidatePublicContent(): void {
     revalidatePath(path, type);
   }
 }
+
+/**
+ * Public routes whose rendered output is derived from blog_posts. Separate
+ * from PUBLIC_PATHS/invalidatePublicContent() on purpose: a blog save has no
+ * reason to also re-run every job query, and vice versa.
+ */
+const BLOG_PUBLIC_PATHS: ReadonlyArray<readonly [path: string, type?: 'page' | 'layout']> = [
+  ['/blog'],
+  ['/blog/[slug]', 'page'],
+  ['/sitemap.xml'],
+];
+
+/**
+ * Call from every mutating handler under app/api/admin/blog/* — creating,
+ * editing, publishing, unpublishing or deleting a post. Same reasoning as
+ * invalidatePublicContent(): tags expire the cached query results, paths
+ * cover the rendered route entries, and a mutation needs both.
+ */
+export function invalidateBlogContent(): void {
+  revalidateTag(CACHE_TAGS.blog, { expire: 0 });
+
+  for (const [path, type] of BLOG_PUBLIC_PATHS) {
+    revalidatePath(path, type);
+  }
+}

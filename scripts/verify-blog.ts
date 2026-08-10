@@ -1,21 +1,18 @@
-// Asserts the two properties of lib/blog.ts that are easy to believe and wrong
-// (PLAN-PHASE3-DRAFT.md §4 points 6 and 7, the batch K review).
+// Asserts lib/blog-sanitize.ts's security properties by running them, same
+// spirit as scripts/verify-scoping.ts and scripts/verify-storage.ts.
 //
-// Both exist because the intuition about them does not match the library:
+// Väg A's verify-blog.ts (content/blog/*.md, marked's raw-HTML passthrough,
+// filesystem slug traversal) is retired along with content/blog/ itself —
+// PR 20 replaced the filesystem read path with blogPosts in the database, so
+// those properties no longer apply. What replaces them: PLAN-PHASE3-DRAFT.md
+// §8.1 found that Väg A's "no sanitizer needed" argument (content is
+// git-reviewed Markdown) does not carry to Väg B (content is a POST body from
+// an authenticated admin session), which is why lib/blog-sanitize.ts exists.
+// This is the mechanical check that it actually does what its header claims.
 //
-//   1. `marked` passes raw HTML through VERBATIM by default and has had no
-//      `sanitize` option since v5. lib/blog.ts overrides the `html` renderer to
-//      escape it, and the article body goes to dangerouslySetInnerHTML — so
-//      "is raw HTML still escaped?" is a question about a dependency's default,
-//      which is exactly the kind of thing a minor version bump changes under
-//      you. Asserted here rather than remembered.
-//   2. A slug becomes a filesystem path. `../../AGENTS` must not read a file.
-//
-// Every article in content/blog/ is also parsed, so a broken frontmatter block
-// fails CI instead of failing the page for a visitor.
-//
-// No database, no env, no network.
-import { getBlogPost, getBlogPosts, getBlogSlugs, renderMarkdown } from '../lib/blog';
+// No database, no env, no network — sanitizeBlogHtml/extractInlineImageKeys
+// are pure functions.
+import { sanitizeBlogHtml, extractInlineImageKeys } from '../lib/blog-sanitize';
 
 let failures = 0;
 
@@ -25,70 +22,70 @@ function check(name: string, ok: boolean, detail?: string): void {
   if (!ok && detail) console.log(`        ${detail}`);
 }
 
-async function main() {
+function main() {
   // -------------------------------------------------------------------------
-  // 1. Raw HTML is escaped, never executable.
+  // 1. Script/style/event-handler/iframe content never survives.
   // -------------------------------------------------------------------------
-  // Through lib/blog.ts's own renderer, never a re-imported copy of `marked`:
-  // under tsx's CJS transform a dynamic import of the library resolves to a
-  // SECOND instance that never saw marked.use(), which would make this test
-  // pass green while the app kept passing raw HTML through. Found the hard way.
-  const html = renderMarkdown(
-    'Hola <script>alert(1)</script> y <img src=x onerror=alert(2)>\n\n<div onclick="evil()">bloque</div>',
+  const dangerous = sanitizeBlogHtml(
+    '<p>Hola</p><script>alert(1)</script>' +
+      '<img src=x onerror="alert(2)">' +
+      '<a href="javascript:alert(3)">click</a>' +
+      '<iframe src="https://evil.example"></iframe>' +
+      '<div style="background:url(javascript:alert(4))">bloque</div>' +
+      '<p onclick="evil()">párrafo</p>',
   );
+  check('no <script> survives', !/<script/i.test(dangerous), dangerous);
+  check('no <iframe> survives', !/<iframe/i.test(dangerous), dangerous);
+  check('no <div> survives (not in ALLOWED_TAGS)', !/<div/i.test(dangerous), dangerous);
+  check('no style attribute survives', !/style\s*=/i.test(dangerous), dangerous);
+  check('no javascript: URI survives', !/javascript:/i.test(dangerous), dangerous);
+  check('no event handler attribute survives', !/\son\w+\s*=/i.test(dangerous), dangerous);
+  check('the safe <p>Hola</p> survives', dangerous.includes('<p>Hola</p>'));
 
-  check('no <script> tag survives markdown rendering', !/<script/i.test(html), html);
-  check('no <img> tag survives markdown rendering', !/<img/i.test(html), html);
-  // Inside a REAL tag. A bare /\son\w+=/ also matches `onclick=&quot;` sitting
-  // harmlessly in escaped text, which is the outcome we want, not a failure.
-  check('no event handler survives inside a tag', !/<[a-z][^>]*\son\w+\s*=/i.test(html), html);
-  check('no raw <div> survives', !/<div/i.test(html), html);
+  // -------------------------------------------------------------------------
+  // 2. What the Tiptap toolbar can actually produce is allowed through.
+  // -------------------------------------------------------------------------
+  const legit = sanitizeBlogHtml(
+    '<h2>Título</h2><p><strong>negrita</strong> y <em>cursiva</em></p>' +
+      '<ul><li>uno</li><li>dos</li></ul>' +
+      '<blockquote>cita</blockquote>' +
+      '<a href="https://example.com" target="_blank" rel="noopener noreferrer">enlace</a>' +
+      '<img src="/img/blog/0f9e1a2b-3c4d-5e6f-7a8b-9c0d1e2f3a4b.webp" alt="foto" width="800" height="450">',
+  );
+  check('h2 survives', legit.includes('<h2>Título</h2>'));
+  check('strong/em survive', legit.includes('<strong>negrita</strong>') && legit.includes('<em>cursiva</em>'));
+  check('list survives', legit.includes('<li>uno</li>'));
+  check('blockquote survives', legit.includes('<blockquote>cita</blockquote>'));
+  check('link href survives', legit.includes('href="https://example.com"'));
+  check('image src/alt/width/height survive', legit.includes('src="/img/blog/'));
+
+  // -------------------------------------------------------------------------
+  // 3. Image-key extraction only trusts our own minted keys.
+  // -------------------------------------------------------------------------
+  const withImages = sanitizeBlogHtml(
+    '<img src="/img/blog/0f9e1a2b-3c4d-5e6f-7a8b-9c0d1e2f3a4b.webp" alt="">' +
+      '<img src="/img/blog/0f9e1a2b-3c4d-5e6f-7a8b-9c0d1e2f3a4b.webp" alt="dup">' + // duplicate
+      '<img src="https://cdn.example.com/img/blog/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.webp" alt="">' + // absolute (R2-shaped)
+      '<img src="/img/logos/11111111-2222-3333-4444-555555555555.webp" alt="">' + // wrong namespace for a blog post
+      '<img src="https://evil.example/steal.png" alt="">', // not one of ours at all
+  );
+  const keys = extractInlineImageKeys(withImages);
+  check('exactly the two distinct legitimate keys are extracted', keys.length === 2, JSON.stringify(keys));
   check(
-    'the escaped text is still visible to the author',
-    html.includes('&lt;script&gt;'),
-    'Raw HTML should be escaped, not dropped — a silently vanished paste is a bug report.',
+    'the relative blog key is extracted',
+    keys.includes('img/blog/0f9e1a2b-3c4d-5e6f-7a8b-9c0d1e2f3a4b.webp'),
+    JSON.stringify(keys),
   );
-  check('real markdown still renders', renderMarkdown('**negrita** y `code`').includes('<strong>'));
-
-  // -------------------------------------------------------------------------
-  // 2. A slug cannot leave content/blog/.
-  // -------------------------------------------------------------------------
-  const traversals = [
-    '../../AGENTS',
-    '../../package',
-    '../../../etc/passwd',
-    './../README',
-    'sub/dir',
-    'UPPERCASE',
-    '',
-    '.',
-  ];
-  for (const slug of traversals) {
-    const post = await getBlogPost(slug);
-    check(`getBlogPost(${JSON.stringify(slug)}) returns null`, post === null);
-  }
-
-  // -------------------------------------------------------------------------
-  // 3. Every committed article parses, and its slug is a usable SEO URL.
-  // -------------------------------------------------------------------------
-  const posts = await getBlogPosts();
-  const slugs = await getBlogSlugs();
-  console.log(`\n${posts.length} published article(s) in content/blog/\n`);
-
-  const seen = new Set<string>();
-  for (const post of posts) {
-    check(`${post.slug}: slug is lowercase/digits/hyphens`, /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(post.slug));
-    check(`${post.slug}: slug is unique`, !seen.has(post.slug));
-    seen.add(post.slug);
-    check(`${post.slug}: description fits a meta tag (<=160)`, post.description.length <= 160);
-
-    const loaded = await getBlogPost(post.slug);
-    check(`${post.slug}: loads by slug`, loaded !== null);
-    check(`${post.slug}: body rendered to HTML`, Boolean(loaded && loaded.html.trim().length > 0));
-    check(`${post.slug}: rendered body has no <script>`, !/<script/i.test(loaded?.html ?? ''));
-  }
-
-  check('getBlogSlugs() matches getBlogPosts()', slugs.length === posts.length);
+  check(
+    'the absolute (R2-shaped) key is extracted by its path suffix',
+    keys.includes('img/blog/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.webp'),
+    JSON.stringify(keys),
+  );
+  check(
+    'a foreign URL contributes no key',
+    !keys.some((k) => k.includes('evil')),
+    JSON.stringify(keys),
+  );
 
   console.log('');
   if (failures > 0) {
@@ -99,7 +96,4 @@ async function main() {
   process.exit(0);
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+main();

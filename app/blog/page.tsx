@@ -66,8 +66,17 @@ export default async function BlogIndexPage() {
           <ul className="mt-10 flex flex-col gap-6">
             {posts.map((post) => (
               <li key={post.slug}>
-                <article className="bg-white rounded-[10px] border border-[#E7E1D6] p-6 hover:shadow-[0_4px_12px_-2px_rgba(30,27,23,.12)] transition-shadow">
+                <article className="bg-white rounded-[10px] border border-[#E7E1D6] overflow-hidden hover:shadow-[0_4px_12px_-2px_rgba(30,27,23,.12)] transition-shadow">
                   <Link href={`/blog/${post.slug}`} className="block">
+                    {post.coverImageUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={post.coverImageUrl}
+                        alt=""
+                        className="w-full aspect-[21/9] object-cover"
+                      />
+                    )}
+                    <div className="p-6">
                     <div className="flex items-center gap-3">
                       <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-[#F5F1EA] text-[#57514A] border border-[#E7E1D6]">
                         {CATEGORY_LABELS[post.category]}
@@ -78,6 +87,7 @@ export default async function BlogIndexPage() {
                     </div>
                     <h2 className="mt-2 text-xl font-bold text-[#1E1B17]">{post.title}</h2>
                     <p className="mt-2 text-[#57514A]">{post.description}</p>
+                    </div>
                   </Link>
                 </article>
               </li>

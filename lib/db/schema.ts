@@ -464,3 +464,59 @@ export const employerInvitations = mysqlTable(
   },
   (table) => [index('company_created_idx').on(table.companyId, table.createdAt)],
 );
+
+// ---------------------------------------------------------------------------
+// blog_posts (PR 20 — Väg B, replaces the Väg A content/blog/*.md files)
+//
+// bodyHtml is sanitized HTML (lib/blog.ts's sanitizeBlogHtml()), not Markdown
+// — the admin editor (Tiptap) produces HTML directly, and the sanitizer is the
+// single point where "trusted rendering" is earned, run once at write time so
+// the read path can dangerouslySetInnerHTML the stored value without a second
+// pass. See lib/blog.ts's header comment for why a sanitizer is required here
+// when PLAN-PHASE3-DRAFT.md §8.1 judged one unnecessary for Väg A.
+//
+// imageKeys is every image-storage key this post owns (featuredImageKey plus
+// every inline <img> the editor inserted into bodyHtml), extracted server-side
+// on every save rather than trusted from the client. deleteBlogPost() in
+// lib/db/blog-admin.ts walks this list and calls deleteImage() on each before
+// the row is removed — PLAN-IMAGES.md §6 explicitly leaves orphan cleanup to
+// each consumer ("no orphan sweeper... the fix is that consumer"), and this is
+// that.
+// ---------------------------------------------------------------------------
+
+export const blogCategoryEnum = ['noticias', 'analisis-laboral', 'consejos-cv'] as const;
+
+export const blogPosts = mysqlTable(
+  'blog_posts',
+  {
+    id: int('id').autoincrement().primaryKey(),
+    // The live SEO URL (AGENTS.md) — was the filename under Väg A, is this
+    // column under Väg B. Same discipline: changing it on a published post
+    // needs a 301, and the admin UI warns the same way JobForm does.
+    slug: varchar('slug', { length: 200 }).notNull().unique(),
+    title: varchar('title', { length: 255 }).notNull(),
+    description: varchar('description', { length: 160 }).notNull(),
+    category: mysqlEnum('category', blogCategoryEnum).notNull(),
+    bodyHtml: text('body_html').notNull(),
+    // img/blog/{uuid}.webp — a key (lib/image-storage.ts), never a URL. See
+    // PLAN-IMAGES.md §2.1.
+    featuredImageKey: varchar('featured_image_key', { length: 255 }),
+    // Every image-storage key this row is responsible for deleting. See the
+    // table comment above.
+    imageKeys: json('image_keys').notNull().default([]),
+    relatedCategory: varchar('related_category', { length: 255 }),
+    relatedCity: varchar('related_city', { length: 255 }),
+    published: boolean('published').notNull().default(false),
+    // Set once, the first time a post is published — not touched again, so
+    // "published order" survives edits. Null while never-published.
+    publishedAt: datetime('published_at'),
+    createdBy: int('created_by'),
+    updatedBy: int('updated_by'),
+    createdAt: datetime('created_at').notNull(),
+    updatedAt: datetime('updated_at').notNull(),
+  },
+  (table) => [
+    index('published_at_idx').on(table.published, table.publishedAt),
+    index('category_idx').on(table.category),
+  ],
+);

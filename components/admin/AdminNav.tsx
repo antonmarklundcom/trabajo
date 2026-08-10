@@ -12,6 +12,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/admin/empleos', label: 'Empleos', roles: ['admin', 'editor'] },
   { href: '/admin/postulaciones', label: 'Postulaciones', roles: ['admin', 'editor'] },
   { href: '/admin/empresas', label: 'Empresas', roles: ['admin', 'editor'] },
+  { href: '/admin/blog', label: 'Blog', roles: ['admin', 'editor'] },
   { href: '/admin/estadisticas', label: 'Estadísticas', roles: ['admin', 'editor'] },
   // Candidate data is admin-only, a deliberate narrowing of today's
   // admin/editor parity (PLAN-PHASE2.md §2.4): the curation team needs jobs,

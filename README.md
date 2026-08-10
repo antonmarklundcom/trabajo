@@ -261,7 +261,18 @@ primario).
 /api/postulante/cv/[id]       Descarga/borrado del propio CV
 /api/empresa/cv/[applicationId]  CV de una postulación a un empleo propio
 /api/admin/cv/[id]            CV para el operador — exige motivo y queda registrado
+
+/blog                          Listado de artículos (base de datos, requiere DATA_SOURCE=db)
+/blog/[slug]                   Artículo + JSON-LD BlogPosting
+/admin/blog                    CRUD de artículos (editor Tiptap, requiere sesión admin/editor)
+/api/admin/blog/*              Mutaciones — todas verifican rol server-side
+/api/admin/blog/images         Subida de imágenes del editor (namespace `blog`, ver §Almacenamiento de imágenes)
+/img/[...key]                  Sirve las imágenes públicas (driver disk)
 ```
+
+El blog no tiene modo seed: `getBlogPosts()`/`getBlogPost()` devuelven vacío
+sin `DATABASE_URL` (así el resto del sitio sigue compilando en modo seed), pero
+`/blog` en producción siempre requiere `DATA_SOURCE=db`.
 
 Las rutas `/empresa/*` y `/postulante/*` están detrás de
 `EMPLOYER_DASHBOARD_ENABLED` / `CANDIDATE_ACCOUNTS_ENABLED`: con la flag

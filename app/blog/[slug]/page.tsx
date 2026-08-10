@@ -98,7 +98,12 @@ export default async function BlogPostPage({ params }: { params: Params }) {
           <span className="text-[#1E1B17] font-medium truncate max-w-xs">{post.title}</span>
         </nav>
 
-        <article className="bg-white rounded-[10px] border border-[#E7E1D6] p-6 sm:p-8">
+        <article className="bg-white rounded-[10px] border border-[#E7E1D6] overflow-hidden">
+          {post.coverImageUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={post.coverImageUrl} alt="" className="w-full aspect-[21/9] object-cover" />
+          )}
+          <div className="p-6 sm:p-8">
           <div className="flex items-center gap-3">
             <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-[#F5F1EA] text-[#57514A] border border-[#E7E1D6]">
               {CATEGORY_LABELS[post.category]}
@@ -115,6 +120,7 @@ export default async function BlogPostPage({ params }: { params: Params }) {
             className="prose-blog mt-6"
             dangerouslySetInnerHTML={{ __html: post.html }}
           />
+          </div>
         </article>
 
         <div className="mt-6 bg-white rounded-[10px] border border-[#E7E1D6] p-6">

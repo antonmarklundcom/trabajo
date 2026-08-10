@@ -3,8 +3,8 @@
 > Status: **beslutad**. Skrivet av Sonnet som utkast, granskat och avgjort av
 > Opus 2026-08-10. §1 (sparade jobb) är byggt och mergat som PR 15 (`1e49e5d`,
 > PR #37); efterkontrollen och rättningarna ligger i PR 15b (§6). §2 (bloggen)
-> är beslutad men obyggd —
-> bygg-briefen ligger i §7.
+> byggdes som Väg A (PR 16, bygg-brief i §7) och migrerades samma dag till
+> Väg B (PR 20) när §5.1:s första villkor uppfylldes — se §9.
 >
 > §2:s öppna frågor besvaras i §5, §1:s i §6. De ursprungliga
 > formuleringarna står kvar oredigerade, så att beslutet går att läsa mot det
@@ -584,3 +584,75 @@ arbetsgivardata, så ingenting i batch K korsade in i Opus-yta i efterhand.
 PR 15b byggde `scripts/verify-cascades.ts` och la in npm-scriptet, men inget
 CI-steg — så kontrollen körde bara när någon råkade komma ihåg den. Tillagd i
 `.github/workflows/ci.yml` tillsammans med den nya `blog:verify`.
+
+---
+
+## 9. Väg A → Väg B (PR 20, Sonnet, byggd samma dag som beslutet)
+
+§5.1 satte tre villkor för när Väg B blir aktuell, "inte tidigare". Det första
+villkoret uppfylldes samma dag som §5 skrevs: ägaren bad uttryckligen om ett
+adminpanel-flöde som liknar WordPress, uttryckligen för att kunna publicera
+**utan** en Claude-session och utan att gå via Git/PR för varje artikel. Det
+är precis villkor 1 ("någon som inte arbetar genom en Claude-session ska kunna
+publicera utan att be någon annan") — så migreringen skedde, i enlighet med
+§5.1:s egen slutsats att bytet är billigt eftersom bara läskällan byts.
+
+**Vad som byggdes, kort:**
+
+- `blog_posts`-tabell (schema.ts) — inget FK, ingen post i
+  `verify-cascades.ts` behövs eftersom tabellen inte är beroende av eller har
+  beroenden till någon annan rad; den äger bara image-storage-nycklar, vilket
+  är en annan sorts resurs (se nedan).
+- `lib/blog.ts` bytte läskälla från `content/blog/*.md` (fs) till
+  `blogPosts` (DB), med **samma exporterade funktionssignaturer**
+  (`getBlogPosts`/`getBlogPost`/`getBlogSlugs`) som §5.1 förutspådde — så
+  `app/blog/page.tsx` och `app/blog/[slug]/page.tsx` behövde inga ändringar
+  utöver att rendera det nya `coverImageUrl`-fältet.
+- `content/blog/` (README + exempelartikeln) är borttaget. `scripts/
+  verify-blog.ts` skrevs om från grunden: Väg A:s test (marked-passthrough,
+  filsystems-traversal) gäller inte längre en databas-läsväg, så det ersattes
+  av tester mot den nya sanitizern (se nedan).
+- `lib/blog-sanitize.ts` — se AGENTS.md:s nya non-negotiable. Detta är svaret
+  på §5.4:s öppna tråd och på §8.1:s uttryckliga varning: Väg A:s "ingen
+  sanitizer behövs"-argument (innehållet är en git-granskad `.md`-fil) håller
+  inte när innehållet är en POST-body från en admin-session. DOMPurify med en
+  sluten tag/attribut-allowlist (det Tiptap-verktygsfältet faktiskt kan
+  producera), kört en gång vid skrivning, inte vid varje läsning.
+- `/admin/blog` — lista, ny, redigera. Samma mönster som `/admin/empleos`
+  (slug-bekräftelse vid ändring av publicerad artikels slug, samma
+  aktivitetslogg).
+- Bilder: `storeImage('blog', bytes)` från PR 18:s pipeline, både för
+  utvald bild och bilder infogade i Tiptap-redigeraren. `blogPosts.imageKeys`
+  räknas ut på nytt server-side vid varje sparning (aldrig litat på klienten)
+  så att `deleteBlogPost()` och en redigering som tar bort en bild faktiskt
+  städar rätt objekt — samma "objekt före rad"-ordning som PLAN-IMAGES.md §5
+  kräver för CV:er och loggor.
+- Cache: ny `CACHE_TAGS.blog`-tagg och `invalidateBlogContent()` i
+  `lib/cache.ts`, separat från jobbens `invalidatePublicContent()` — en
+  bloggpost ska inte trigga en omkörning av varje jobbfråga och tvärtom.
+
+**Byggsäkerhet utan databas.** `lib/blog.ts` har, till skillnad från
+jobbens `lib/data.ts`-söm, inget `DATA_SOURCE=seed`-läge att falla tillbaka
+på — bloggen har aldrig haft en seed-representation. Men
+`app/blog/[slug]/page.tsx`:s `generateStaticParams()` anropar
+`getBlogSlugs()` **ovillkorligen vid build**, så ett saknat `DATABASE_URL`
+(detta repos default lokala/CI-läge) hade annars fällt hela `next build`,
+inte bara bloggen. `lib/blog.ts` har därför en `hasDatabase()`-koll som gör
+"ingen databas konfigurerad alls" till "bloggen har noll publicerade
+artiklar" istället för ett build-fel — inte en permanent genväg, bara det
+enda sättet att hålla `npm run build` grönt i det här repots faktiska
+CI-miljö tills en riktig databas finns med.
+
+**Kvarstående, inte åtgärdat:** ingen bild-crop/beskärning i
+`FeaturedImagePicker`/`PostEditor` (samma "ingen cropper"-linje som
+PLAN-IMAGES.md §6 drar för PR 19), och ingen redigeringshistorik/versionering
+av artiklar. Ingen av dessa var en förutsättning i det som efterfrågades.
+
+**Opus-dubbelkoll rekommenderad, inte blockerande:** sanitizer-allowlisten i
+`lib/blog-sanitize.ts` och `imageKeys`-omräkningen i `lib/db/blog-admin.ts`
+är precis den sorts säkerhetsrelevanta yta §4/§8 mönstret finns för. Byggd av
+Sonnet med skriftlig motivering (denna sektion + filhuvudena) i stället för
+att vänta på ett separat Opus-fönster, eftersom §8.1 redan hade satt
+precedensen för exakt den här bedömningen — men en medium-effort granskning
+efter merge, i samma stil som §4/§6/§8, är fortfarande värd att göra innan
+fler skribenter än ägaren får tillgång till panelen.

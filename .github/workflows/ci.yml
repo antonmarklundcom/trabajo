@@ -66,10 +66,11 @@ jobs:
       - name: Verify cascade cleanups
         run: npm run cascade:verify
 
-      # PLAN-PHASE3-DRAFT.md §4 points 6 and 7 (batch K review): article bodies
-      # reach dangerouslySetInnerHTML, and `marked` passes raw HTML through by
-      # default — so "is it still escaped?" is a question about a dependency's
-      # default that a version bump can change. Also asserts a blog slug cannot
-      # escape content/blog/.
-      - name: Verify blog rendering and slugs
+      # PLAN-PHASE3-DRAFT.md §8.1 / PR 20: blog_posts.bodyHtml is now written
+      # by an authenticated admin session (Tiptap → POST), not committed
+      # Markdown, so lib/blog-sanitize.ts is the actual security boundary.
+      # Pure functions, no database — asserts script/style/event-handler/
+      # iframe content never survives sanitizeBlogHtml(), and that image-key
+      # extraction only trusts our own minted `blog` namespace keys.
+      - name: Verify blog HTML sanitization
         run: npm run blog:verify
