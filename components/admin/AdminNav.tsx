@@ -19,6 +19,7 @@ const NAV_ITEMS: NavItem[] = [
   // lib/db/candidates-admin.ts re-check the role themselves (AGENTS.md).
   { href: '/admin/postulantes', label: 'Postulantes', roles: ['admin'] },
   { href: '/admin/registros-de-acceso', label: 'Registros de acceso', roles: ['admin'] },
+  { href: '/admin/retencion', label: 'Retención de datos', roles: ['admin'] },
   { href: '/admin/usuarios', label: 'Usuarios', roles: ['admin'] },
 ];
 
