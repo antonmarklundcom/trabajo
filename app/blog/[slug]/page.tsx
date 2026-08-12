@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getBlogPost, getBlogSlugs, type BlogCategory } from '@/lib/blog';
+import { getBlogPost, getBlogPostForPreview, getBlogSlugs, type BlogCategory } from '@/lib/blog';
 import { getJobs } from '@/lib/data';
 import JobCard from '@/components/JobCard';
 import CopyLinkButton from '@/components/blog/CopyLinkButton';
@@ -15,19 +15,37 @@ const CATEGORY_LABELS: Record<BlogCategory, string> = {
 };
 
 export async function generateStaticParams() {
+  // getBlogSlugs() (lib/blog.ts) already tolerates a missing DATABASE_URL
+  // during `next build` — dynamicParams defaults to true, so an empty list
+  // here just means every article renders on first request instead of being
+  // prebuilt.
   const slugs = await getBlogSlugs();
   return slugs.map((slug) => ({ slug }));
 }
 
+/**
+ * Published for anyone, or a draft for an authenticated admin/editor
+ * previewing at its real URL — getBlogPostForPreview() returns null for
+ * everyone else, which the caller treats identically to "slug doesn't
+ * exist" (deny by default, AGENTS.md).
+ */
+async function resolvePost(slug: string) {
+  return (await getBlogPost(slug)) ?? (await getBlogPostForPreview(slug));
+}
+
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { slug } = await params;
-  const post = await getBlogPost(slug);
+  const post = await resolvePost(slug);
   if (!post) return { title: 'Artículo no encontrado' };
+
+  const isDraft = post.status === 'draft';
 
   return {
     title: post.title,
     description: post.description,
-    robots: { index: true, follow: true },
+    // A draft must never be indexed even though an editor can preview it —
+    // the preview and the crawler-facing signal are two different questions.
+    robots: isDraft ? { index: false, follow: false } : { index: true, follow: true },
     openGraph: {
       title: post.title,
       description: post.description,
@@ -40,9 +58,10 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 
 export default async function BlogPostPage({ params }: { params: Params }) {
   const { slug } = await params;
-  const post = await getBlogPost(slug);
+  const post = await resolvePost(slug);
   if (!post) notFound();
 
+  const isDraft = post.status === 'draft';
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://trabajo.com.py';
   const postUrl = `${siteUrl}/blog/${post.slug}`;
 
@@ -80,16 +99,26 @@ export default async function BlogPostPage({ params }: { params: Params }) {
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
-      />
+      {!isDraft && (
+        <>
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          />
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+          />
+        </>
+      )}
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {isDraft && (
+          <div className="mb-6 rounded-[10px] border border-[#C0362A]/30 bg-[#FBECE9] px-4 py-3 text-sm text-[#9E2A20] font-medium">
+            Vista previa de borrador — este artículo todavía no está publicado ni indexado.
+          </div>
+        )}
+
         <nav className="flex items-center gap-2 text-sm text-[#57514A] mb-6" aria-label="Ruta">
           <Link href="/" className="hover:text-[#C0362A] transition-colors">Inicio</Link>
           <span aria-hidden="true">›</span>
@@ -99,6 +128,16 @@ export default async function BlogPostPage({ params }: { params: Params }) {
         </nav>
 
         <article className="bg-white rounded-[10px] border border-[#E7E1D6] p-6 sm:p-8">
+          {post.coverUrl && (
+            // eslint-disable-next-line @next/next/no-img-element -- PLAN-IMAGES.md §6: one stored size, no next/image loader
+            <img
+              src={post.coverUrl}
+              alt={post.coverAlt ?? ''}
+              width={post.coverWidth ?? undefined}
+              height={post.coverHeight ?? undefined}
+              className="w-full aspect-video object-cover rounded-[10px] mb-6"
+            />
+          )}
           <div className="flex items-center gap-3">
             <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-[#F5F1EA] text-[#57514A] border border-[#E7E1D6]">
               {CATEGORY_LABELS[post.category]}
@@ -173,7 +212,7 @@ export default async function BlogPostPage({ params }: { params: Params }) {
 }
 
 function formatDate(iso: string): string {
-  return new Date(`${iso}T00:00:00`).toLocaleDateString('es-PY', {
+  return new Date(iso).toLocaleDateString('es-PY', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',

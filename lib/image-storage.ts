@@ -42,17 +42,16 @@ import { signedS3Fetch, type S3Config } from './storage';
 
 /**
  * The only prefixes that exist, fixed at the type level: `logos` (PR 19,
- * company logos) and `jobs` (PR 21, job-posting images). A namespace is not
+ * company logos), `blog` (blog cover images, admin/editor upload only — see
+ * storeBlogCover()) and `jobs` (PR 21, job-posting images). A namespace is not
  * user input — a caller names the one it owns as a literal, which is what keeps
  * the key un-derivable from a request.
  *
- * `blog` is RESERVED AND HAS NO CALLER. It was minted for an article-image
- * upload that will not be built: the blog is Väg A, committed Markdown with no
- * admin UI and no upload route, so cover images are committed to the repo under
- * public/blog-covers/ instead (PLAN-PHASE3-DRAFT.md §9, PLAN-IMAGES.md §7).
- * Kept rather than removed so that a Väg B migration — article bodies in the
- * database, a real upload surface — does not have to re-open this union, its
- * key pattern and verify-image-storage.ts. Do not read this entry as a plan.
+ * `blog` was reserved but unused while the blog was Väg A (committed
+ * Markdown, cover images shipped as static files in public/blog-covers/ —
+ * PLAN-PHASE3-DRAFT.md §9, PLAN-IMAGES.md §7). The Väg B admin CRUD gives it
+ * its first real caller: storeBlogCover() in this file, reached only from
+ * app/api/admin/blog/[id]/portada/route.ts.
  */
 export const IMAGE_NAMESPACES = ['logos', 'blog', 'jobs'] as const;
 export type ImageNamespace = (typeof IMAGE_NAMESPACES)[number];
@@ -266,6 +265,54 @@ export const IMAGE_REJECTION_MESSAGES: Record<ImageRejection, string> = {
 };
 
 /**
+ * The gates every upload must pass before a pixel is decoded, shared by
+ * processImage() and processBlogCoverImage() so the two callers cannot drift
+ * apart on what counts as an acceptable input. Returns the opened sharp
+ * pipeline on success — the caller decides how to resize/crop from there.
+ */
+async function openValidatedImage(
+  input: Uint8Array,
+): Promise<{ ok: true; pipeline: import('sharp').Sharp } | { ok: false; reason: ImageRejection }> {
+  if (input.byteLength === 0) return { ok: false, reason: 'empty' };
+  if (input.byteLength > MAX_IMAGE_UPLOAD_BYTES) return { ok: false, reason: 'too_large' };
+  if (detectImageFileType(input) === null) return { ok: false, reason: 'unsupported_type' };
+
+  // Loaded lazily: sharp is a native module of some weight, and nothing that
+  // only needs imagePublicUrl() should pay for it at import time.
+  const { default: sharp } = await import('sharp');
+
+  const pipeline = sharp(input, {
+    // Belt to the metadata check below: even if a header lies or a format we
+    // did not anticipate reports its size differently, libvips itself refuses
+    // to allocate past this.
+    limitInputPixels: MAX_IMAGE_INPUT_PIXELS,
+    // Read the first frame only. Combined with the `pages` check below, an
+    // animation is refused rather than silently flattened.
+    animated: false,
+  });
+
+  try {
+    const metadata = await pipeline.metadata();
+    const width = metadata.width ?? 0;
+    const height = metadata.height ?? 0;
+    if (width <= 0 || height <= 0) return { ok: false, reason: 'decode_failed' };
+    if (width * height > MAX_IMAGE_INPUT_PIXELS) return { ok: false, reason: 'too_many_pixels' };
+    if ((metadata.pages ?? 1) > 1) return { ok: false, reason: 'animated' };
+  } catch {
+    // A header sharp cannot read is not an image, whatever its first bytes said.
+    return { ok: false, reason: 'decode_failed' };
+  }
+
+  return { ok: true, pipeline };
+}
+
+function verifyWebpOutput(bytes: Uint8Array): void {
+  if (detectImageFileType(bytes)?.format !== 'webp') {
+    throw new ImageStorageError('Encoder did not produce WebP.');
+  }
+}
+
+/**
  * Uploaded bytes in, WebP bytes out — or a reason we refused.
  *
  * The order of the gates is the point. Cheap and certain first (magic bytes),
@@ -283,43 +330,14 @@ export async function processImage(
   namespace: ImageNamespace,
   input: Uint8Array,
 ): Promise<ImageProcessResult> {
-  if (input.byteLength === 0) return { ok: false, reason: 'empty' };
-  if (input.byteLength > MAX_IMAGE_UPLOAD_BYTES) return { ok: false, reason: 'too_large' };
-  if (detectImageFileType(input) === null) return { ok: false, reason: 'unsupported_type' };
-
   const maxDimension = IMAGE_NAMESPACE_MAX_DIMENSION[namespace];
   if (!maxDimension) throw new ImageStorageError('Unknown image namespace.');
 
-  // Loaded lazily: sharp is a native module of some weight, and nothing that
-  // only needs imagePublicUrl() should pay for it at import time.
-  const { default: sharp } = await import('sharp');
-
-  const pipeline = sharp(input, {
-    // Belt to the metadata check below: even if a header lies or a format we
-    // did not anticipate reports its size differently, libvips itself refuses
-    // to allocate past this.
-    limitInputPixels: MAX_IMAGE_INPUT_PIXELS,
-    // Read the first frame only. Combined with the `pages` check below, an
-    // animation is refused rather than silently flattened.
-    animated: false,
-  });
-
-  let width: number;
-  let height: number;
-  try {
-    const metadata = await pipeline.metadata();
-    width = metadata.width ?? 0;
-    height = metadata.height ?? 0;
-    if (width <= 0 || height <= 0) return { ok: false, reason: 'decode_failed' };
-    if (width * height > MAX_IMAGE_INPUT_PIXELS) return { ok: false, reason: 'too_many_pixels' };
-    if ((metadata.pages ?? 1) > 1) return { ok: false, reason: 'animated' };
-  } catch {
-    // A header sharp cannot read is not an image, whatever its first bytes said.
-    return { ok: false, reason: 'decode_failed' };
-  }
+  const opened = await openValidatedImage(input);
+  if (!opened.ok) return opened;
 
   try {
-    const { data, info } = await pipeline
+    const { data, info } = await opened.pipeline
       // Applies the EXIF orientation and then drops the tag, so a portrait
       // photo does not come back sideways once the metadata is gone.
       .rotate()
@@ -331,10 +349,39 @@ export async function processImage(
       .toBuffer({ resolveWithObject: true });
 
     const bytes = new Uint8Array(data);
-    if (detectImageFileType(bytes)?.format !== 'webp') {
-      throw new ImageStorageError('Encoder did not produce WebP.');
-    }
+    verifyWebpOutput(bytes);
+    return { ok: true, bytes, width: info.width, height: info.height };
+  } catch (err) {
+    if (err instanceof ImageStorageError) throw err;
+    return { ok: false, reason: 'decode_failed' };
+  }
+}
 
+/**
+ * Blog cover images only: same validation gates as processImage(), but
+ * cropped (fit "cover", not "inside") to a fixed 1600x900 — 16:9 — so the
+ * article page can hardcode width/height and never reflow while the image
+ * loads. withoutEnlargement is deliberately NOT set here: unlike a logo or a
+ * job photo (already at their natural size), a cover must fill the fixed
+ * frame the page renders, so a smaller upload is enlarged rather than left
+ * short of it.
+ */
+const BLOG_COVER_WIDTH = 1600;
+const BLOG_COVER_HEIGHT = 900;
+
+export async function processBlogCoverImage(input: Uint8Array): Promise<ImageProcessResult> {
+  const opened = await openValidatedImage(input);
+  if (!opened.ok) return opened;
+
+  try {
+    const { data, info } = await opened.pipeline
+      .rotate()
+      .resize({ width: BLOG_COVER_WIDTH, height: BLOG_COVER_HEIGHT, fit: 'cover' })
+      .webp({ quality: WEBP_QUALITY })
+      .toBuffer({ resolveWithObject: true });
+
+    const bytes = new Uint8Array(data);
+    verifyWebpOutput(bytes);
     return { ok: true, bytes, width: info.width, height: info.height };
   } catch (err) {
     if (err instanceof ImageStorageError) throw err;
@@ -614,6 +661,23 @@ export async function storeImage(
   if (!processed.ok) return processed;
 
   const key = buildImageKey(namespace);
+  await getImageStorage().put(key, processed.bytes);
+
+  return {
+    ok: true,
+    key,
+    width: processed.width,
+    height: processed.height,
+    byteLength: processed.bytes.byteLength,
+  };
+}
+
+/** Same contract as storeImage(), but through processBlogCoverImage()'s 16:9 crop. */
+export async function storeBlogCover(input: Uint8Array): Promise<StoreImageResult> {
+  const processed = await processBlogCoverImage(input);
+  if (!processed.ok) return processed;
+
+  const key = buildImageKey('blog');
   await getImageStorage().put(key, processed.bytes);
 
   return {

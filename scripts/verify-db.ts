@@ -34,6 +34,7 @@ async function main() {
     ['deletion_requests', schema.deletionRequests],
     ['employer_invitations', schema.employerInvitations],
     ['saved_jobs', schema.savedJobs],
+    ['blog_posts', schema.blogPosts],
   ] as const;
 
   const width = Math.max(...tables.map(([name]) => name.length));

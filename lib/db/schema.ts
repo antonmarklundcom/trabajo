@@ -493,3 +493,61 @@ export const employerInvitations = mysqlTable(
   },
   (table) => [index('company_created_idx').on(table.companyId, table.createdAt)],
 );
+
+// ===========================================================================
+// blog_posts — the Väg B upgrade (PLAN-PHASE3-DRAFT.md §5.1 listed this as
+// conditional on the owner deciding Väg A was not enough; that decision was
+// made 2026-08-12 because the owner wants to publish from the admin panel
+// directly, without going through Git). Replaces content/blog/*.md as the
+// storage for article content — lib/blog.ts is still the only public read
+// path, it just reads this table instead of the filesystem now.
+// ---------------------------------------------------------------------------
+
+export const blogCategoryEnum = ['noticias', 'analisis-laboral', 'consejos-cv'] as const;
+
+export const blogStatusEnum = ['draft', 'published'] as const;
+
+export const blogPosts = mysqlTable(
+  'blog_posts',
+  {
+    id: int('id').autoincrement().primaryKey(),
+    // Live SEO URL once published (AGENTS.md) — enforced immutable in
+    // lib/db/blog.ts's updateBlogPost() once status is or was 'published',
+    // not just disabled on the input.
+    slug: varchar('slug', { length: 200 }).notNull().unique(),
+    title: varchar('title', { length: 255 }).notNull(),
+    description: varchar('description', { length: 160 }).notNull(),
+    category: mysqlEnum('category', blogCategoryEnum).notNull(),
+    // Markdown source. Rendered to HTML on read by lib/blog.ts's
+    // renderMarkdown(), same escaping renderer as the old file-based path —
+    // raw HTML in the body is escaped, never executed.
+    body: text('body').notNull(),
+    // img/blog/{uuid}.webp, minted by lib/image-storage.ts. Never a URL.
+    coverImageKey: varchar('cover_image_key', { length: 255 }),
+    // Required whenever coverImageKey is set — enforced server-side in
+    // lib/db/blog.ts, not just by the form (AGENTS.md).
+    coverAlt: varchar('cover_alt', { length: 255 }),
+    // Fixed at 1600x900 (16:9) by the blog-specific processing step in
+    // lib/image-storage.ts, so pages can hardcode width/height and avoid
+    // layout shift. Both null together with coverImageKey when there is no
+    // cover.
+    coverWidth: int('cover_width'),
+    coverHeight: int('cover_height'),
+    status: mysqlEnum('status', blogStatusEnum).notNull().default('draft'),
+    // An existing job category/city slug, for the "Empleos relacionados"
+    // block — same fields the old frontmatter carried.
+    relatedCategory: varchar('related_category', { length: 100 }),
+    relatedCity: varchar('related_city', { length: 100 }),
+    // Set once, the first time status becomes 'published', and never moved
+    // afterward — re-publishing after an edit does not bump it. Sitemap and
+    // JSON-LD dateModified come from updatedAt instead.
+    publishedAt: datetime('published_at'),
+    createdBy: int('created_by'),
+    updatedBy: int('updated_by'),
+    createdAt: datetime('created_at').notNull(),
+    updatedAt: datetime('updated_at').notNull(),
+  },
+  (table) => [
+    index('status_published_at_idx').on(table.status, table.publishedAt),
+  ],
+);

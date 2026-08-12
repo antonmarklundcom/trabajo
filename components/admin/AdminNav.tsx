@@ -10,6 +10,7 @@ type NavItem = { href: string; label: string; roles: readonly Role[] };
 const NAV_ITEMS: NavItem[] = [
   { href: '/admin', label: 'Panel', roles: ['admin', 'editor'] },
   { href: '/admin/empleos', label: 'Empleos', roles: ['admin', 'editor'] },
+  { href: '/admin/blog', label: 'Blog', roles: ['admin', 'editor'] },
   { href: '/admin/postulaciones', label: 'Postulaciones', roles: ['admin', 'editor'] },
   { href: '/admin/empresas', label: 'Empresas', roles: ['admin', 'editor'] },
   { href: '/admin/estadisticas', label: 'Estadísticas', roles: ['admin', 'editor'] },

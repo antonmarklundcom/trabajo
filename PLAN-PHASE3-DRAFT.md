@@ -887,3 +887,43 @@ någon form av admin-UI, och varje anrop till `lib/image-storage.ts`. Bygg inget
 av det "medan du ändå är inne i filen" — flera av dem är uttryckligen
 förkastade i §9.4 och en av dem skulle återinföra motsägelsen den här sektionen
 finns för att lösa.
+
+## 11. Väg B aktiverat: admin-CRUD för bloggen (owner, 2026-08-12)
+
+§5.1 valde Väg A ("inte Väg B, och inte 'A nu, B snart'") men lämnade en
+villkorad rad i §3-tabellen för en framtida uppgradering om Väg A visade sig
+otillräcklig. Den träffen inträffade: ägaren vill publicera artiklar direkt
+från adminpanelen, utan att gå via Git för varje ändring. Det är inte ett
+tekniskt argument mot §5.1:s resonemang (Väg A var och är enklare, mindre
+attackyta, ingen ny auth-yta) — det är en produktprioritering ägaren gjorde
+med full kännedom om avvägningen.
+
+Vad som byggdes:
+
+- `blog_posts`-tabell i `lib/db/schema.ts`, inget FK (samma konvention som
+  resten av schemat).
+- `lib/db/blog.ts`: admin-läsningar/skrivningar, samma mönster som
+  `lib/db/admin.ts` för jobb.
+- `lib/blog.ts` läser nu `blog_posts` via `lib/db/blog.ts` istället för
+  `content/blog/*.md` — den publika signaturen (`getBlogPosts`,
+  `getBlogSlugs`, `getBlogPost`, `renderMarkdown`) är oförändrad, plus
+  `getBlogPostForPreview()` för utkasts-förhandsvisning (admin/editor, deny
+  by default för alla andra).
+- `/admin/blog` (lista, filtrera på status), `/admin/blog/nuevo`,
+  `/admin/blog/[id]` — samma layout och formmönster som `/admin/empleos`.
+  Gate: `requireSessionWithRole(['admin','editor'])`, samma som jobb.
+- Slug är låst efter första publicering (§12.5 i uppdragets brief,
+  ägarbekräftat) — hårt stopp i API-routen, inte bara ett avstängt fält.
+- Omslagsbilder går genom `lib/image-storage.ts`s `blog`-namespace, som var
+  reserverat men olevererat sedan §9.3 — se `PLAN-IMAGES.md` för detaljer om
+  16:9-beskärningen som är specifik för bloggen.
+- `scripts/migrate-blog-content-to-db.ts` flyttade de tre befintliga
+  artiklarna från `content/blog/*.md` till `blog_posts`, med sina riktiga
+  historiska datum bevarade. `content/blog/` är kvar som historisk referens;
+  `lib/blog.ts` läser den inte längre.
+
+Vad som INTE ändrades: innehållsreglerna (§7.1, ingen siffra utan källa, ingen
+juridisk rådgivning i jag-form), no-FK-konventionen, och att bloggen
+fortfarande bara läser `blog_posts` — ingen kandidatdata, ingen sök/matchning
+(AGENTS.md förbjuder det oavsett yta).
+finns för att lösa.

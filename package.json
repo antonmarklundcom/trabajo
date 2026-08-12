@@ -10,6 +10,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx --env-file-if-exists=.env scripts/db-migrate.ts",
     "db:seed": "tsx --env-file-if-exists=.env scripts/seed-import.ts",
+    "blog:migrate": "tsx --conditions=react-server --env-file-if-exists=.env scripts/migrate-blog-content-to-db.ts",
     "db:verify": "tsx --env-file-if-exists=.env scripts/verify-db.ts",
     "db:parity": "DATA_SOURCE=db tsx --env-file-if-exists=.env scripts/parity-check.ts",
     "db:purge": "tsx --conditions=react-server --env-file-if-exists=.env scripts/db-purge.ts",

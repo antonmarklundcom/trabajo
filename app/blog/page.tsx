@@ -2,6 +2,13 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getBlogPosts, type BlogCategory } from '@/lib/blog';
 
+// Cached reads are invalidated on demand by every admin blog mutation
+// (lib/cache.ts's invalidateBlogContent()); this timer is only the safety
+// net, same reasoning as app/trabajo/[categoria]/page.tsx's.
+export const revalidate = 300;
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://trabajo.com.py';
+
 export const metadata: Metadata = {
   title: 'Blog',
   description:
@@ -17,14 +24,13 @@ const CATEGORY_LABELS: Record<BlogCategory, string> = {
 
 export default async function BlogIndexPage() {
   const posts = await getBlogPosts();
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://trabajo.com.py';
 
   const breadcrumbJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Inicio', item: siteUrl },
-      { '@type': 'ListItem', position: 2, name: 'Blog', item: `${siteUrl}/blog` },
+      { '@type': 'ListItem', position: 1, name: 'Inicio', item: SITE_URL },
+      { '@type': 'ListItem', position: 2, name: 'Blog', item: `${SITE_URL}/blog` },
     ],
   };
 
@@ -36,7 +42,7 @@ export default async function BlogIndexPage() {
     itemListElement: posts.map((post, i) => ({
       '@type': 'ListItem',
       position: i + 1,
-      url: `${siteUrl}/blog/${post.slug}`,
+      url: `${SITE_URL}/blog/${post.slug}`,
       name: post.title,
     })),
   } : null;
@@ -90,7 +96,7 @@ export default async function BlogIndexPage() {
 }
 
 function formatDate(iso: string): string {
-  return new Date(`${iso}T00:00:00`).toLocaleDateString('es-PY', {
+  return new Date(iso).toLocaleDateString('es-PY', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',

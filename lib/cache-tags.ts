@@ -40,4 +40,6 @@ export const CACHE_TAGS = {
   jobs: 'public-jobs',
   /** Categories and cities, including their published-job counts. */
   taxonomies: 'public-taxonomies',
+  /** Every public blog read: the index list and each article. */
+  blog: 'public-blog',
 } as const;

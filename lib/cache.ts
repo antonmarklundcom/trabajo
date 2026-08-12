@@ -82,3 +82,25 @@ export function invalidatePublicContent(): void {
     revalidatePath(path, type);
   }
 }
+
+/** Public routes whose rendered output is derived from blog_posts. */
+const BLOG_PATHS: ReadonlyArray<readonly [path: string, type?: 'page' | 'layout']> = [
+  ['/blog'],
+  ['/blog/[slug]', 'page'],
+  ['/sitemap.xml'],
+];
+
+/**
+ * Call from a Route Handler after ANY write to blog_posts — create, edit,
+ * publish, unpublish or delete. A published article that does not appear
+ * until the next revalidate is a bug, same reasoning as
+ * invalidatePublicContent() above; kept as a separate function (and tag)
+ * because a blog write has no reason to bust the jobs cache and vice versa.
+ */
+export function invalidateBlogContent(): void {
+  revalidateTag(CACHE_TAGS.blog, { expire: 0 });
+
+  for (const [path, type] of BLOG_PATHS) {
+    revalidatePath(path, type);
+  }
+}
