@@ -22,7 +22,8 @@
     "retention:verify": "tsx scripts/verify-retention.ts",
     "access:verify": "tsx scripts/verify-candidate-access.ts",
     "cascade:verify": "tsx scripts/verify-cascades.ts",
-    "blog:verify": "tsx --conditions=react-server scripts/verify-blog.ts",
+    "blog:verify": "tsx --conditions=react-server --env-file-if-exists=.env scripts/verify-blog.ts",
+    "blog:import": "tsx --conditions=react-server --env-file-if-exists=.env scripts/blog-import.ts",
     "jobs:verify": "tsx scripts/verify-jobs.ts"
   },
   "dependencies": {

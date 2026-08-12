@@ -34,6 +34,9 @@ async function main() {
     ['deletion_requests', schema.deletionRequests],
     ['employer_invitations', schema.employerInvitations],
     ['saved_jobs', schema.savedJobs],
+    // Phase 3 blog (PLAN-PHASE3-DRAFT.md §11), same reasoning as above.
+    ['blog_posts', schema.blogPosts],
+    ['blog_post_redirects', schema.blogPostRedirects],
   ] as const;
 
   const width = Math.max(...tables.map(([name]) => name.length));

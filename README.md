@@ -237,6 +237,8 @@ primario).
 /empleos/[slug]               Detalle de empleo + JSON-LD JobPosting
 /trabajo/[categoria]          Landing SEO por categoría
 /trabajo/[categoria]/[ciudad] Landing SEO por categoría + ciudad
+/blog                         Listado de artículos (desde blog_posts)
+/blog/[slug]                  Artículo + JSON-LD BlogPosting; slugs retirados redirigen 301
 /publicar                     Formulario lead para empleadores
 /planes                       Planes y precios
 /contacto                     Contacto
@@ -255,6 +257,7 @@ primario).
 /admin/empresas                CRUD de empresas
 /admin/usuarios                CRUD de usuarios (solo admin)
 /admin/postulaciones          Bandeja de postulaciones por empleo
+/admin/blog                   CRUD de artículos: Markdown, portada, borrador/publicado
 /api/admin/*                  Mutaciones — todas verifican rol server-side
 
 /api/postulante/cv            Subida de CV del postulante (magic bytes, 5 MB)

@@ -41,7 +41,11 @@ Non-negotiables:
   button is UX, not security.
 - **UI copy is Spanish (Paraguay)** — including the admin panel. Docs and code
   comments are English.
-- **Slugs are live SEO URLs.** Renaming one needs a 301, not just an edit.
+- **Slugs are live SEO URLs.** Renaming one needs a 301, not just an edit. Blog
+  slugs are the one case where the app issues it itself: renaming a published
+  article mints a `blog_post_redirects` row inside the same write. Job and
+  company slugs have no such table, so there the editor is warned and the
+  redirect is still a manual step.
 - **Employer reads go through `lib/db/employer.ts`, and every function there
   takes `companyId` as its first argument.** No admin bypass branch in that
   file, ever.
@@ -77,6 +81,18 @@ Non-negotiables:
   `/img/[...key]` has no session check because an image on an approved posting
   is public content. It never shares a directory or bucket with CVs, and no
   private file may be put in it "since both are just files".
+- **Blog content is read through `lib/blog.ts` and nowhere else, and every
+  public read there goes through `publishedPredicate()` in `lib/db/blog.ts`.**
+  Same discipline `lib/data.ts` has over the job catalog, for the same reason:
+  the draft-vs-published rule and the Markdown escaping are properties of the
+  read, so there is one place where both are true. A page that imports
+  `lib/db/blog.ts` directly is one forgotten WHERE clause from publishing a
+  draft. `scripts/verify-blog.ts` asserts both halves.
+- **Article bodies are stored as Markdown and rendered by `renderMarkdown()`,
+  which escapes raw HTML.** Never store rendered HTML, and do not add a
+  WYSIWYG editor that would: the body now arrives over HTTP from an admin
+  session, so the escape is the boundary between "an editor writes an article"
+  and "an editor writes JavaScript that runs in every visitor's browser".
 - **Consent is append-only.** Withdrawal is a new row, never an UPDATE on
   `consents`.
 - **Deletion of candidate data is a hard DELETE.** `candidateCvs.deletedAt` is

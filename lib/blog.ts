@@ -1,44 +1,54 @@
 import 'server-only';
-import fs from 'node:fs';
-import path from 'node:path';
-import { z } from 'zod';
+import { unstable_cache } from 'next/cache';
 import { marked } from 'marked';
+import { CACHE_TAGS, PUBLIC_CACHE_TTL_SECONDS } from './cache-tags';
+import {
+  queryPublishedPost,
+  queryPublishedPosts,
+  queryRedirectTarget,
+  type BlogPostRow,
+} from './db/blog';
+import { imagePublicUrl } from './image-storage';
 
-// The only module that touches node:fs for blog content (AGENTS.md: lib/data.ts
-// is the sole entry point for the public job catalog seam; per-account and
-// per-content data that has no seed representation goes straight to its own
-// scoped read path — this is that path for the blog, kept isolated the same
-// way so nothing else reaches into content/blog/).
-
-const BLOG_DIR = path.join(process.cwd(), 'content', 'blog');
+// The only read path for blog content, exactly as it was when the content was
+// Markdown files on disk (PLAN-PHASE3-DRAFT.md §7.2). No page, component or
+// route may reach past it into lib/db/blog.ts, for the same reason it could not
+// call node:fs before: the published-vs-draft rule and the Markdown rendering
+// rules are properties of the read, and there must be one place where both are
+// true.
+//
+// What changed on 2026-08-12 (§11) is only what sits behind this file. Väg A
+// read content/blog/*.md; Väg B reads blog_posts. The exported signatures are
+// unchanged, which is what §5.1 predicted when it said the migration was "en
+// ändring i en fil" — this file, plus the cover-image fields the database can
+// carry and frontmatter could not.
 
 /**
- * The only shape a blog slug may have. Same idea as STORAGE_KEY_PATTERN in
- * lib/storage.ts: the slug becomes a filesystem path, so the safe set is
- * declared once and asserted, rather than being an assumption about what the
- * router hands over. `[slug]` is one path segment today, but that is a property
- * of the route tree — and this function is a filesystem read that must not
- * depend on a caller elsewhere staying correct.
+ * The only shape a blog slug may have. It no longer becomes a filesystem path,
+ * so this is no longer a traversal guard — but it is still the definition of a
+ * URL this site is willing to mint, applied to admin input before a row is
+ * written and to router input before a query is run. Rejecting early also keeps
+ * a junk URL from reaching the database at all.
  */
-const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 // Raw HTML in an article is ESCAPED, not passed through and not dropped.
 //
 // This needs stating precisely, because the obvious assumption is wrong:
 // `marked` passes raw HTML through verbatim by default and has had no
 // `sanitize` option since v5. Without the renderer override below, a `<script>`
-// in a .md file reaches post.html and then dangerouslySetInnerHTML — verified,
-// not assumed (scripts/verify-blog.ts asserts it on every push).
+// in an article body reaches post.html and then dangerouslySetInnerHTML —
+// verified, not assumed (scripts/verify-blog.ts asserts it on every push).
 //
-// Today that is not an exploit: content is committed to this repo, so whoever
-// can publish an article can already publish arbitrary React, and a sanitizer
-// would be defending against an attacker who has by definition already won.
-// The reason to escape anyway is twofold. It stops a code block pasted from
-// another site smuggling in a tracking pixel unnoticed — the hygiene this file
-// always claimed and did not have. And PLAN-PHASE3-DRAFT.md §5 keeps the door
-// open to Väg B, where article bodies live in the database and a non-owner can
-// write them; that change must not silently inherit an HTML passthrough nobody
-// realised was on.
+// Under Väg A the argument for escaping was hygiene rather than security:
+// content was committed to this repo, so whoever could publish an article could
+// already publish arbitrary React. That argument is GONE. Bodies now arrive
+// through POST /api/admin/blog from a browser session, and §8.1 named this
+// exact migration as the thing that must not silently inherit an HTML
+// passthrough nobody realised was on. The author is still trusted — admin and
+// editor accounts are staff — but "trusted" and "may inject script tags into
+// every visitor's page" are different permissions, and a stolen editor session
+// should not be able to spend one on the other.
 //
 // Escaping rather than dropping: nothing an author wrote disappears silently.
 // A pasted `<div>` shows up as visible text, which is how the author finds out.
@@ -70,119 +80,129 @@ export function renderMarkdown(body: string): string {
   return marked.parse(body, { async: false });
 }
 
-const CATEGORIES = ['noticias', 'analisis-laboral', 'consejos-cv'] as const;
+export const BLOG_CATEGORIES = ['noticias', 'analisis-laboral', 'consejos-cv'] as const;
+export type BlogCategory = (typeof BLOG_CATEGORIES)[number];
 
-const frontmatterSchema = z.object({
-  title: z.string().min(1),
-  description: z.string().min(1).max(160),
-  category: z.enum(CATEGORIES),
-  publishedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'publishedAt debe ser YYYY-MM-DD'),
-  updatedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'updatedAt debe ser YYYY-MM-DD'),
-  published: z.enum(['true', 'false']).transform((v) => v === 'true'),
-  relatedCategory: z.string().optional(),
-  relatedCity: z.string().optional(),
-});
-
-export type BlogCategory = (typeof CATEGORIES)[number];
+export const BLOG_CATEGORY_LABELS: Record<BlogCategory, string> = {
+  noticias: 'Noticias',
+  'analisis-laboral': 'Análisis laboral',
+  'consejos-cv': 'Consejos de CV',
+};
 
 export type BlogPostMeta = {
   slug: string;
   title: string;
   description: string;
   category: BlogCategory;
+  /** Editorial date, YYYY-MM-DD. Never null on a post this module returns. */
   publishedAt: string;
+  /** ISO timestamp of the last edit — `dateModified` and the sitemap. */
   updatedAt: string;
-  published: boolean;
   relatedCategory?: string;
   relatedCity?: string;
+  /** Absolute-path URL of the cover image, or undefined when there is none. */
+  coverUrl?: string;
+  coverAlt?: string;
 };
 
 export type BlogPost = BlogPostMeta & { html: string };
 
-function parseFrontmatter(raw: string): { data: Record<string, string>; body: string } {
-  const match = raw.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
-  if (!match) {
-    throw new Error('Frontmatter faltante o mal formado (se espera bloque --- ... ---)');
-  }
-  const [, block, body] = match;
-  const data: Record<string, string> = {};
-  for (const line of block.split('\n')) {
-    if (!line.trim()) continue;
-    const idx = line.indexOf(':');
-    if (idx === -1) {
-      throw new Error(`Línea de frontmatter inválida: "${line}"`);
-    }
-    const key = line.slice(0, idx).trim();
-    const value = line.slice(idx + 1).trim();
-    data[key] = value;
-  }
-  return { data, body };
+/** `/img/blog/{uuid}.webp`. One function, so a storage move is one edit. */
+export function blogCoverUrl(coverImageKey: string): string {
+  return imagePublicUrl(coverImageKey);
 }
 
-function readPostFile(filename: string): BlogPost {
-  const slug = filename.replace(/\.md$/, '');
-  // Loud rather than skipped: the filename IS the live SEO URL (AGENTS.md), so
-  // a file that cannot produce a valid one is a mistake to fix before it ships,
-  // not an article to quietly leave out of the list and the sitemap.
-  if (!SLUG_PATTERN.test(slug)) {
-    throw new Error(
-      `Nombre de archivo inválido en content/blog/: "${filename}". ` +
-        'El slug debe ser minúsculas, números y guiones (a-z0-9-).',
-    );
-  }
-  const raw = fs.readFileSync(path.join(BLOG_DIR, filename), 'utf8');
-  const { data, body } = parseFrontmatter(raw);
-  const meta = frontmatterSchema.parse(data);
-  const html = renderMarkdown(body);
-  return { slug, ...meta, html };
-}
-
-function readAllPosts(): BlogPost[] {
-  if (!fs.existsSync(BLOG_DIR)) return [];
-  return fs
-    .readdirSync(BLOG_DIR)
-    .filter((f) => f.endsWith('.md') && f.toLowerCase() !== 'readme.md')
-    .map(readPostFile);
-}
-
-function toMeta(post: BlogPost): BlogPostMeta {
+function toMeta(row: BlogPostRow): BlogPostMeta {
   return {
-    slug: post.slug,
-    title: post.title,
-    description: post.description,
-    category: post.category,
-    publishedAt: post.publishedAt,
-    updatedAt: post.updatedAt,
-    published: post.published,
-    relatedCategory: post.relatedCategory,
-    relatedCity: post.relatedCity,
+    slug: row.slug,
+    title: row.title,
+    description: row.description,
+    category: row.category,
+    publishedAt: row.publishedAt ?? '',
+    updatedAt: row.updatedAt.toISOString(),
+    relatedCategory: row.relatedCategorySlug ?? undefined,
+    relatedCity: row.relatedCitySlug ?? undefined,
+    coverUrl: row.coverImageKey ? blogCoverUrl(row.coverImageKey) : undefined,
+    coverAlt: row.coverAlt ?? undefined,
   };
 }
 
+// ---------------------------------------------------------------------------
+// Caching — same arrangement and the same reasons as lib/db/queries.ts
+// ---------------------------------------------------------------------------
+
+const cacheOptions = { revalidate: PUBLIC_CACHE_TTL_SECONDS, tags: [CACHE_TAGS.blog] };
+
+const cachedPosts = unstable_cache(() => queryPublishedPosts(), ['db', 'blog', 'list'], cacheOptions);
+const cachedPost = unstable_cache(
+  (slug: string) => queryPublishedPost(slug),
+  ['db', 'blog', 'detail'],
+  cacheOptions,
+);
+const cachedRedirect = unstable_cache(
+  (slug: string) => queryRedirectTarget(slug),
+  ['db', 'blog', 'redirect'],
+  cacheOptions,
+);
+
+/**
+ * `unstable_cache` needs Next's incrementalCache, which does not exist under a
+ * plain tsx script (scripts/verify-blog.ts). Falling back to the raw query is
+ * safe for the same reason it is in lib/db/queries.ts: the wrapper memoizes a
+ * result, it never changes one.
+ */
+async function cachedOrRaw<T>(cached: () => Promise<T>, raw: () => Promise<T>): Promise<T> {
+  try {
+    return await cached();
+  } catch (err) {
+    if (err instanceof Error && err.message.includes('incrementalCache missing')) {
+      return raw();
+    }
+    throw err;
+  }
+}
+
+/**
+ * No database configured means no blog, not a crashed build.
+ *
+ * `next build` renders the public tree with DATABASE_URL unset in CI (see
+ * .github/workflows/ci.yml, which builds without a database on purpose), and
+ * lib/db/index.ts throws the moment it is imported without one. Under Väg A
+ * this file read the filesystem and the question never arose; now the blog is
+ * a database read on a route that is pre-rendered, so the empty answer has to
+ * be a deliberate one. In production the variable is always set — an empty
+ * /blog there would mean the database is down, which every other page would be
+ * reporting too.
+ */
+function hasDatabase(): boolean {
+  return Boolean(process.env.DATABASE_URL);
+}
+
 export async function getBlogPosts(): Promise<BlogPostMeta[]> {
-  return readAllPosts()
-    .filter((p) => p.published)
-    .map(toMeta)
-    .sort((a, b) => (a.publishedAt < b.publishedAt ? 1 : -1));
+  if (!hasDatabase()) return [];
+  const rows = await cachedOrRaw(() => cachedPosts(), () => queryPublishedPosts());
+  return rows.map(toMeta);
 }
 
 export async function getBlogSlugs(): Promise<string[]> {
-  return readAllPosts()
-    .filter((p) => p.published)
-    .map((p) => p.slug);
+  return (await getBlogPosts()).map((post) => post.slug);
 }
 
 export async function getBlogPost(slug: string): Promise<BlogPost | null> {
-  // Before any path is built. `../../AGENTS` is a slug the router will happily
-  // hand over for an unknown URL (generateStaticParams covers the known ones;
-  // dynamicParams still renders the rest on demand), and path.join() would
-  // resolve it straight out of content/blog/. The `.md` suffix bounds the
-  // damage to markdown files, which is a bound, not a defence.
   if (!SLUG_PATTERN.test(slug)) return null;
+  if (!hasDatabase()) return null;
+  const row = await cachedOrRaw(() => cachedPost(slug), () => queryPublishedPost(slug));
+  if (!row) return null;
+  return { ...toMeta(row), html: renderMarkdown(row.body) };
+}
 
-  const filename = `${slug}.md`;
-  if (!fs.existsSync(path.join(BLOG_DIR, filename))) return null;
-  const post = readPostFile(filename);
-  if (!post.published) return null;
-  return post;
+/**
+ * The slug a retired URL should 301 to, or null. Called by the article route
+ * only after getBlogPost() has come back empty — a live post always wins over a
+ * redirect, so a slug can never be both.
+ */
+export async function getBlogRedirect(slug: string): Promise<string | null> {
+  if (!SLUG_PATTERN.test(slug)) return null;
+  if (!hasDatabase()) return null;
+  return cachedOrRaw(() => cachedRedirect(slug), () => queryRedirectTarget(slug));
 }

@@ -13,6 +13,16 @@
 > **Tillägg 2026-08-12:** §9 löser upp motsägelsen mellan `PLAN-IMAGES.md`:s
 > "PR 20 (blog images)" och Väg A-beslutet i §5.1; §10 är bygg-briefen för PR 20
 > som den omdefinieras där. `PLAN-IMAGES.md` är rättad att matcha.
+>
+> **Tillägg 2026-08-12, senare samma dag:** ägaren utlöste villkor 1 i §5.1 och
+> **Väg B är byggd** — artiklarna ligger i `blog_posts` och skrivs från
+> `/admin/blog`. §11 är beslutet och bygglistan. Läs §11 innan §9–§10: de två
+> senare beskriver committade omslagsbilder, vilket är den lösning Väg A behövde
+> och som Väg B ersätter med en riktig uppladdning genom `lib/image-storage.ts`.
+> **PR 20 som §10 beskriver byggdes aldrig och ska inte byggas** — dess
+> förutsättning (ingen admin-yta att hänga en uppladdning på) gäller inte
+> längre. §9.2:s resonemang om *varför* committade bytes inte behövde
+> pipelinen står kvar som korrekt för den värld det skrevs i.
 
 ## 1. Sparade jobb (favoriter) för postulantes
 
@@ -110,8 +120,8 @@ dataskydds- eller tenant-gränsyta enligt samma regel som `PLAN.md` §4 /
 | 15b | Efterkontroll batch J: no-FK-beslutet + `cascade:verify` | Opus | Byggd, väntar på merge (se §6) |
 | 16 | Blogg Väg A: `lib/blog.ts`, `/blog`, `/blog/[slug]`, sitemap, OG, JSON-LD | Sonnet | **Mergat** (batch K, se §8) |
 | 17 | Blogg: de tre första artiklarna som innehåll (bara `content/blog/*.md`) | Sonnet | Efter 16 |
-| 20 | Blogg-omslagsbilder som commitade assets (ingen uppladdning, ingen `lib/image-storage.ts`) | Sonnet | Beslut i §9, brief i §10 |
-| (villkorad, ej numrerad) | Blogg Väg B-uppgradering: DB + admin-CRUD, om Väg A inte räcker | Sonnet | Villkorad, se §5.1 |
+| 20 | Blogg-omslagsbilder som commitade assets (ingen uppladdning, ingen `lib/image-storage.ts`) | Sonnet | **Förfallen** — ersatt av 22, se §11 |
+| 22 | Blogg Väg B: `blog_posts`, `/admin/blog`, 301-tabell, omslagsuppladdning genom bildpipelinen | Opus | **Byggd**, se §11 |
 
 > Numreringsnot (2026-08-12): raden ovan hette tidigare "(ev. 18)", vilket
 > krockade med PR 18 i `PLAN-IMAGES.md` (den delade bildpipelinen, byggd och
@@ -887,3 +897,81 @@ någon form av admin-UI, och varje anrop till `lib/image-storage.ts`. Bygg inget
 av det "medan du ändå är inne i filen" — flera av dem är uttryckligen
 förkastade i §9.4 och en av dem skulle återinföra motsägelsen den här sektionen
 finns för att lösa.
+
+---
+
+## 11. Beslut: Väg B byggs nu (ägaren, 2026-08-12)
+
+### 11.1 Vad som ändrades, och varför det inte är en omprövning
+
+§5.1 valde Väg A och skrev ut tre villkor för när Väg B blir aktuell — "först
+när ett av dessa är sant, inte tidigare". Villkor 1 lyder: *någon som inte är
+ägaren, och inte arbetar genom en Claude-session, ska kunna publicera utan att
+be någon annan.*
+
+Ägaren begärde 2026-08-12 en blogg som administreras från `/admin` med
+"perfect SEO". Det är villkor 1, uttalat av den enda person som kan avgöra om
+det är sant: hela §5.1:s argument mot Väg B var att den skulle bygga *"ett CMS
+för en skribent som inte finns"*. När den som äger sajten säger att hen vill
+skriva därifrån finns skribenten, och argumentet upphör att gälla — det var
+aldrig ett tekniskt argument.
+
+Det här är alltså inte att §5.1 var fel eller att beslutet har rivits upp.
+§5.1:s ordning höll exakt som den var tänkt: A byggdes först, den var billig,
+den visade formen, och migreringen A→B blev — som §5.1 lovade — ett byte av
+läskälla bakom `lib/blog.ts` med samma slugs, samma routes och samma rendering.
+Att dokumentet skrev ut villkoren i förväg är vad som gjorde det här till ett
+femton-minuters beslut i stället för en ny utredning.
+
+### 11.2 Vad som byggdes
+
+| Yta | Fil(er) |
+|---|---|
+| Tabeller | `blog_posts`, `blog_post_redirects` i `lib/db/schema.ts`, migration `0005_third_firebrand.sql` |
+| Datalager | `lib/db/blog.ts` — publika läsningar bakom **en** `publishedPredicate()`, admin-CRUD under en tydlig avdelare i samma fil |
+| Läs-söm | `lib/blog.ts` — samma exporter som under Väg A, nu mot databasen; `renderMarkdown()` oförändrad |
+| Admin-UI | `/admin/blog`, `/admin/blog/nuevo`, `/admin/blog/[id]` + `components/admin/BlogPostForm.tsx`, `BlogCoverUploader.tsx`, `BlogDeleteButton.tsx` |
+| API | `POST /api/admin/blog`, `PATCH|DELETE /api/admin/blog/[id]`, `POST|PATCH|DELETE /api/admin/blog/[id]/portada`, `POST /api/admin/blog/preview` |
+| Omslagsbilder | `lib/blog-cover.ts` → `storeImage('blog', …)`. Det är `blog`-namespacet som `PLAN-IMAGES.md` §9.3 reserverade för precis den här dagen |
+| Import | `scripts/blog-import.ts` (`npm run blog:import`), idempotent på slug |
+| CI | `scripts/verify-blog.ts` omskriven; `scripts/verify-cascades.ts` och `scripts/verify-db.ts` utökade |
+
+### 11.3 Fyra beslut inuti bygget som inte stod i §5
+
+1. **Slug-byte på en publicerad artikel mintar en 301 i samma skrivning**
+   (`blog_post_redirects`). `AGENTS.md` har alltid sagt att en slug-ändring
+   kräver en 301; under Väg A gick det inte att uppfylla utan att en människa
+   kom ihåg det, eftersom slugen var ett filnamn. Nu är gamla värdet känt
+   precis i det ögonblick det ersätts, vilket är det enda ögonblick redirecten
+   kan skapas automatiskt. Jobb- och företagsslugs har ingen sådan tabell och
+   fortsätter varna i stället.
+2. **Alt-text är en obligatorisk query-parameter på uppladdningen**, inte ett
+   fält i artikelformuläret. "Omslagsbild utan alt-text" blir då ett tillstånd
+   API:et inte kan producera — samma val som §10.1 gjorde för committade
+   bilder, av samma skäl.
+3. **`published: false` blev `status: 'draft'`, inte en soft delete.** Ett
+   utkast är en rad som `publishedPredicate()` inte släpper igenom, och det är
+   den enda mekanismen. Ingen ny flagga, ingen andra väg in.
+4. **Kategorisidor byggdes fortfarande inte.** §5.3:s tröskel — minst fem
+   publicerade artiklar över minst två kategorier — är inte nådd (tre
+   artiklar). Att bloggen nu har ett admin-UI ändrar ingenting i det
+   resonemanget: tunna sidor är tunna oavsett hur innehållet skrevs.
+
+### 11.4 Kvar att göra, i ordning
+
+1. **Cutover-steget:** kör `npm run db:migrate` mot produktion,
+   sedan `npm run blog:import -- --write`. Före importen är `/blog` tomt —
+   `.md`-filerna läses inte längre. De två stegen hör ihop och ska köras i
+   samma sittning.
+2. Efterkontroll i §4:s anda efter merge (särskilt punkt 5, `noindex`/sitemap,
+   nu när artikel-URL:erna genereras från en tabell).
+
+### 11.5 Vad som *inte* följer av det här beslutet
+
+- Ingen kommentarsfunktion, ingen prenumeration, inget RSS, inga
+  författarsidor. §5.4 gäller ordagrant.
+- Ingen andra skribentroll. `admin` och `editor` skriver blogg, precis som de
+  redan skriver jobbannonser; `employer` gör det inte, och en fjärde roll för
+  "skribent" är inte en yta det här bygget öppnar.
+- Ingen bild i artikel-body. Frontmatter-fältet blev en kolumn, inte ett
+  bildbibliotek — §9.4 gäller fortfarande, av samma skäl.

@@ -1,60 +1,53 @@
-# content/blog/
+# content/blog/ — historical
 
-Each article is a `.md` file in this directory. The filename (without `.md`)
-is the slug, so it's also the live URL (`/blog/<slug>`) — renaming a
-published file is a URL change and needs a 301, not just a rename
-(AGENTS.md: slugs are live SEO URLs).
+**These files are no longer read by the site.** As of 2026-08-12 articles live
+in the `blog_posts` table and are written from `/admin/blog`
+(`PLAN-PHASE3-DRAFT.md` §11). The `.md` files here are kept as the record of
+what `scripts/blog-import.ts` imported, under the same slugs; nothing renders
+from them and editing one changes nothing.
 
-## Frontmatter
+Deleting them is safe once the import has run against production. They are kept
+for now because a one-time import is easier to re-run — or to check — while its
+input still exists.
 
-A flat `key: value` block at the top of the file, delimited by `---`. No
-lists, no nesting — every value is a single line of text.
+## Writing an article now
 
-```
----
-title: Cómo escribir un CV en Paraguay
-description: Guía práctica de una página, con lo que los empleadores paraguayos realmente miran.
-category: consejos-cv
-publishedAt: 2026-08-14
-updatedAt: 2026-08-14
-published: true
-relatedCategory: administracion
-relatedCity: asuncion
----
-```
+`/admin/blog` → **+ Nuevo artículo**. Fields, and what each one is for:
 
-| Field | Required | Format | Notes |
-|---|---|---|---|
-| `title` | yes | text | Article title and page `<title>` |
-| `description` | yes | text, max 160 chars | Meta description, OG description, and listing summary |
-| `category` | yes | `noticias` \| `analisis-laboral` \| `consejos-cv` | Closed list — any other value fails the build |
-| `publishedAt` | yes | `YYYY-MM-DD` | Sets the listing order and `datePublished` |
-| `updatedAt` | yes | `YYYY-MM-DD` | Sitemap `lastModified` and `dateModified` |
-| `published` | yes | `true` \| `false` | `false` means the article does not exist: no listing entry, no route, no sitemap entry |
-| `relatedCategory` | no | an existing job category slug | With `relatedCity`, drives the "Empleos relacionados" block via `lib/data.ts` |
-| `relatedCity` | no | an existing job city slug | See above |
+| Field | Notes |
+|---|---|
+| Título | The `<h1>` and the SERP title. |
+| Slug | Optional; generated from the title. Editing it on a **published** article creates a 301 from the old URL automatically — no manual redirect step. |
+| Descripción | The `<meta name="description">` and the share text. 50–160 characters, enforced. The form shows a Google preview as you type. |
+| Categoría | `noticias`, `analisis-laboral` or `consejos-cv`. Closed list. |
+| Estado | `Borrador` is invisible everywhere — no route, not in the list, not in the sitemap. `Publicado` is live immediately. |
+| Fecha de publicación | The editorial date. Left empty, it is today. |
+| Empleos relacionados | A category and/or city; up to five published jobs are shown at the foot of the article. This is internal linking — it is most of the SEO value the blog has. |
+| Contenido | Markdown. `##` heading, `**bold**`, `[text](/empleos)`, `-` lists, tables. Pasted HTML renders as visible text; it is never executed. |
+| Portada | Optional. JPG/PNG/WebP up to 4 MB, converted to WebP for you. Alt text is required before the file picker opens. |
 
-Invalid frontmatter (missing field, bad category, bad date format) throws at
-build time — an article never silently gets skipped.
+**Vista previa** renders the body through the same function the public page
+uses, so what you see is what ships.
 
-## Body
+## Content rules (unchanged from Väg A — `PLAN-PHASE3-DRAFT.md` §5.2)
 
-Standard Markdown (GFM) via `marked`. See the comment in `lib/blog.ts` for
-why raw HTML passthrough is off and no sanitizer is used.
+These predate the admin panel and survive it, because they are about what the
+site can be trusted on, not about how the text gets saved:
 
-## Content rules
+- **No number without a source.** Salary statistics, unemployment figures,
+  "X % of Paraguayan employers…" — either with a link to the source (DGEEC/INE,
+  MTESS, IPS) in the text, or the claim is cut. An unsourced salary figure is
+  what makes this kind of site lose credibility, and it is also the thing people
+  forward.
+- **No legal advice in the first person.** "Según el Código del Trabajo art. X
+  corresponde Y", with the reference — never "tenés derecho a exigir Z". The
+  portal is not a law firm and must not read like one.
+- **No candidate data, ever.** No "popular among applicants" widget, no "X
+  people applied to this job", no application statistics. The blog reads the
+  public job catalog through `lib/data.ts` and nothing else.
 
-Articles here are AI-drafted and edited/approved by the site owner — not
-reviewed by an editorial desk. Two rules follow from that:
+## Deleting an article
 
-- **No figure without a source.** Salary stats, unemployment rates, "X% of
-  Paraguayan employers…" — either link the source (DGEEC/INE, MTESS, IPS) in
-  the text, or cut the claim.
-- **No legal advice in the first person.** "According to Código del Trabajo
-  art. X, Y applies" with a citation — never "you are entitled to claim Z".
-  The portal is not a law firm and should not read like one.
-
-## Publishing an article
-
-1. Add the `.md` file here with `published: true`.
-2. Open a PR. There is no database or admin panel — content ships via Git.
+Deleting removes the row, its cover image and its redirects. If the URL was
+indexed, that turns a live page into a 404 — usually you want `Borrador`
+instead, which unpublishes without destroying the text.

@@ -14,8 +14,16 @@
 > **cover images committed to the repo**, which touches nothing in this file;
 > the decision is `PLAN-PHASE3-DRAFT.md` §9 and its build brief is §10. The
 > `blog` namespace stays in the code, reserved and unused, per §9.3 — every
-> mention of it below is marked accordingly. **PR 19 and PR 21 are this
-> pipeline's only consumers.**
+> mention of it below is marked accordingly.
+>
+> **Superseded later the same day.** The owner triggered condition 1 of
+> `PLAN-PHASE3-DRAFT.md` §5.1 and the blog was rebuilt as Väg B: article bodies
+> in `blog_posts`, written from `/admin/blog`, with the cover image uploaded
+> through `POST /api/admin/blog/[id]/portada` → `lib/blog-cover.ts` →
+> `storeImage('blog', …)`. The reserved namespace has its caller. **This
+> pipeline now has three consumers: PR 19 (logos), PR 21 (job images) and the
+> blog covers** — nothing in the design below changed to accommodate the third,
+> which is what §9.3 predicted when it declined to remove the reservation.
 
 ---
 
@@ -218,11 +226,15 @@ origin".
 Images that are **committed to this repo** are not that, and must not be routed
 through it:
 
-- `public/logos/*.svg` (the category icons) and `public/blog-covers/*.webp`
-  (blog cover images, `PLAN-PHASE3-DRAFT.md` §10) are authored in a pull
-  request by whoever can already deploy arbitrary code. There is no attacker to
-  stop and no validation that would add a guarantee the commit does not already
-  give.
+- `public/logos/*.svg` (the category icons) are authored in a pull request by
+  whoever can already deploy arbitrary code. There is no attacker to stop and no
+  validation that would add a guarantee the commit does not already give.
+  (`public/blog-covers/*.webp` was the other example here until 2026-08-12, when
+  the blog moved to Väg B — `PLAN-PHASE3-DRAFT.md` §11. Blog covers are now
+  uploaded at runtime from `/admin/blog` and therefore go through this pipeline
+  after all, which is the test below working rather than an exception to it:
+  what changed was *when the bytes are produced*, and the answer changed the
+  storage. The directory was never created.)
 - They are also better off in git: versioned, reviewed, deployed with the code,
   and immune to the `IMAGE_STORAGE_DIR`-outside-the-build-root trap in §2, which
   only exists because uploaded files have to survive a deploy on their own.

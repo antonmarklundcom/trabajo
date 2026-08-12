@@ -97,6 +97,25 @@ All three run in CI on every push.
 match the seed files, so a broken upsert key shows up as a failure rather than
 as silently duplicated jobs.
 
+### `npm run blog:import` — the one-time Väg A → Väg B cutover
+
+Articles used to be Markdown files in `content/blog/`; since 2026-08-12 they are
+rows in `blog_posts`, written from `/admin/blog`
+(`PLAN-PHASE3-DRAFT.md` §11). The files are no longer read, so between deploying
+that change and running the import, **`/blog` is empty**. The two steps belong
+in one sitting:
+
+```bash
+npm run db:migrate                 # creates blog_posts + blog_post_redirects
+npm run blog:import                # dry run — prints what it would insert
+npm run blog:import -- --write     # inserts
+```
+
+Idempotent by slug: an article already in the table is skipped, never updated —
+re-running it after someone has edited a post in `/admin` cannot revert that
+edit. Slugs are preserved exactly, so no URL changes and nothing needs
+reindexing.
+
 ### `npm run db:purge` — the retention sweep
 
 Hostinger gives us no cron, so data retention (`PLAN-PHASE2.md` §4.3) is a

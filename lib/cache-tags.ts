@@ -40,4 +40,11 @@ export const CACHE_TAGS = {
   jobs: 'public-jobs',
   /** Categories and cities, including their published-job counts. */
   taxonomies: 'public-taxonomies',
+  /**
+   * Every public blog read: the list, an article, and the retired-slug
+   * redirects. Separate from `jobs` because the two invalidate on completely
+   * different writes — publishing an article must not expire every job list,
+   * and the blog is small enough that its own tag costs nothing.
+   */
+  blog: 'public-blog',
 } as const;

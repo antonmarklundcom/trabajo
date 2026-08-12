@@ -82,3 +82,31 @@ export function invalidatePublicContent(): void {
     revalidatePath(path, type);
   }
 }
+
+/**
+ * Blog routes. Kept apart from PUBLIC_PATHS because the blog and the job
+ * catalog have no write in common: an article edit cannot change a job listing
+ * and a job edit cannot change an article. The sitemap appears in both lists —
+ * it is the one page derived from both.
+ */
+const BLOG_PATHS: ReadonlyArray<readonly [path: string, type?: 'page' | 'layout']> = [
+  ['/blog'],
+  ['/blog/[slug]', 'page'],
+  ['/sitemap.xml'],
+];
+
+/**
+ * Call from a Route Handler after ANY blog mutation — create, edit, publish,
+ * unpublish, delete, cover upload or removal.
+ *
+ * Invalidating on a draft's edit too, unconditionally: `status` is caller-
+ * supplied, an edit can flip it either way, and expiring a cache entry for a
+ * post nobody can see costs one query nobody will run.
+ */
+export function invalidateBlogContent(): void {
+  revalidateTag(CACHE_TAGS.blog, { expire: 0 });
+
+  for (const [path, type] of BLOG_PATHS) {
+    revalidatePath(path, type);
+  }
+}
