@@ -73,3 +73,13 @@ jobs:
       # escape content/blog/.
       - name: Verify blog rendering and slugs
         run: npm run blog:verify
+
+      # The same question for the other half of the site that reaches
+      # dangerouslySetInnerHTML, where the author is untrusted rather than a
+      # committer: a job description is employer-submitted text once
+      # PLAN-PHASE2.md's employer dashboard ships, and components/
+      # MarkdownContent.tsx renders it with hand-rolled regexes. Asserts the
+      # escape survives, that it still runs BEFORE the markdown transforms, and
+      # that escaped text stays visible instead of being dropped.
+      - name: Verify job description rendering
+        run: npm run jobs:verify
