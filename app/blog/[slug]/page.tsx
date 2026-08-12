@@ -1,18 +1,24 @@
 import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import Link from 'next/link';
-import { getBlogPost, getBlogSlugs, type BlogCategory } from '@/lib/blog';
+import {
+  getBlogPost,
+  getBlogRedirect,
+  getBlogSlugs,
+  BLOG_CATEGORY_LABELS,
+} from '@/lib/blog';
 import { getJobs } from '@/lib/data';
 import JobCard from '@/components/JobCard';
 import CopyLinkButton from '@/components/blog/CopyLinkButton';
 
 type Params = Promise<{ slug: string }>;
 
-const CATEGORY_LABELS: Record<BlogCategory, string> = {
-  noticias: 'Noticias',
-  'analisis-laboral': 'Análisis laboral',
-  'consejos-cv': 'Consejos de CV',
-};
+// Same reasoning as /blog: invalidateBlogContent() handles admin edits, this
+// timer covers writes made outside a request (the cutover import). It also
+// bounds how long an on-demand render is reused — generateStaticParams returns
+// nothing during a database-less build, so in practice every article is
+// rendered on demand rather than prerendered.
+export const revalidate = 300;
 
 export async function generateStaticParams() {
   const slugs = await getBlogSlugs();
@@ -24,16 +30,31 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const post = await getBlogPost(slug);
   if (!post) return { title: 'Artículo no encontrado' };
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://trabajo.com.py';
+  const postUrl = `${siteUrl}/blog/${post.slug}`;
+  // Absolute, because a crawler that reached this page through a retired slug
+  // has to be told which URL is the real one.
+  const coverUrl = post.coverUrl ? `${siteUrl}${post.coverUrl}` : undefined;
+
   return {
     title: post.title,
     description: post.description,
     robots: { index: true, follow: true },
+    alternates: { canonical: postUrl },
     openGraph: {
       title: post.title,
       description: post.description,
       type: 'article',
+      url: postUrl,
       publishedTime: post.publishedAt,
       modifiedTime: post.updatedAt,
+      ...(coverUrl ? { images: [{ url: coverUrl, alt: post.coverAlt ?? post.title }] } : {}),
+    },
+    twitter: {
+      card: coverUrl ? 'summary_large_image' : 'summary',
+      title: post.title,
+      description: post.description,
+      ...(coverUrl ? { images: [coverUrl] } : {}),
     },
   };
 }
@@ -41,7 +62,16 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 export default async function BlogPostPage({ params }: { params: Params }) {
   const { slug } = await params;
   const post = await getBlogPost(slug);
-  if (!post) notFound();
+
+  if (!post) {
+    // Only after the live lookup missed: a published post always wins over a
+    // retired slug, so the two can never both answer. 308 via permanentRedirect
+    // — Next's permanent redirect — which crawlers treat as a 301 does for
+    // consolidating the old URL's authority into the new one.
+    const target = await getBlogRedirect(slug);
+    if (target) permanentRedirect(`/blog/${target}`);
+    notFound();
+  }
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://trabajo.com.py';
   const postUrl = `${siteUrl}/blog/${post.slug}`;
@@ -65,7 +95,13 @@ export default async function BlogPostPage({ params }: { params: Params }) {
     datePublished: post.publishedAt,
     dateModified: post.updatedAt,
     url: postUrl,
+    mainEntityOfPage: { '@type': 'WebPage', '@id': postUrl },
     author: { '@type': 'Organization', name: 'trabajo.com.py' },
+    publisher: { '@type': 'Organization', name: 'trabajo.com.py' },
+    // Omitted entirely when there is no cover — an `image: null` is worse than
+    // no field, because it asserts the article has no image rather than saying
+    // nothing about one.
+    ...(post.coverUrl ? { image: [`${siteUrl}${post.coverUrl}`] } : {}),
   };
 
   const breadcrumbJsonLd = {
@@ -99,9 +135,22 @@ export default async function BlogPostPage({ params }: { params: Params }) {
         </nav>
 
         <article className="bg-white rounded-[10px] border border-[#E7E1D6] p-6 sm:p-8">
+          {post.coverUrl && (
+            // Plain <img>, not next/image: PLAN-IMAGES.md §6 declined loader
+            // integration and nothing here needs it. No `loading="lazy"` — this
+            // is the page's LCP element.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={post.coverUrl}
+              alt={post.coverAlt ?? ''}
+              fetchPriority="high"
+              className="w-full aspect-video object-cover rounded-[10px] border border-[#E7E1D6] mb-6"
+            />
+          )}
+
           <div className="flex items-center gap-3">
             <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-[#F5F1EA] text-[#57514A] border border-[#E7E1D6]">
-              {CATEGORY_LABELS[post.category]}
+              {BLOG_CATEGORY_LABELS[post.category]}
             </span>
             <time dateTime={post.publishedAt} className="text-xs text-[#8A8378] uppercase tracking-wide font-medium">
               {formatDate(post.publishedAt)}

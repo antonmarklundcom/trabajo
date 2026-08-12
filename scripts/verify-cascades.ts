@@ -55,6 +55,10 @@ const DEPENDENCIES: Dependency[] = [
   // A job-posting photo with no job is an orphaned WebP nobody can reach —
   // deleting the job must delete its images first (PLAN-IMAGES.md §5).
   { child: 'jobImages', parents: ['jobs'] },
+  // A 301 into a deleted article is worse than a 404: it sends the crawler on
+  // a hop that then dead-ends. Deleting the post must retire its redirects
+  // first (PLAN-PHASE3-DRAFT.md §11).
+  { child: 'blogPostRedirects', parents: ['blogPosts'] },
 ];
 
 /**

@@ -18,19 +18,24 @@ export default function JobCard({ job }: Props) {
       }`}
     >
       <Link href={`/empleos/${job.slug}`} className="block p-5">
-        {featured && (
-          <span className="absolute top-4 right-4 inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full bg-[#B0812C] text-white">
-            <StarIcon />
-            Destacado
-          </span>
-        )}
-
         <div className="flex items-start gap-4">
           <CompanyAvatar company={job.company} logo={job.companyLogo} size={52} />
 
           {/* Content */}
           <div className="flex-1 min-w-0">
-            <h2 className="text-[17px] font-bold text-[#1E1B17] leading-snug line-clamp-2 break-words pr-16">
+            {/* In normal flow, not absolutely positioned over the card. It used
+                to sit `absolute top-4 right-4` with the title reserving `pr-16`
+                for it — 64px of clearance for a ~130px badge, so any title that
+                wrapped to a second line ran underneath it on a phone. A reserved
+                gutter is a guess about the width of a translated, uppercase
+                string; a flow element cannot be guessed wrong. */}
+            {featured && (
+              <span className="mb-1.5 inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full bg-[#B0812C] text-white">
+                <StarIcon />
+                Destacado
+              </span>
+            )}
+            <h2 className="text-[17px] font-bold text-[#1E1B17] leading-snug line-clamp-2 break-words">
               {job.title}
             </h2>
             <p className="mt-0.5 text-sm text-[#57514A] truncate">{job.company}</p>

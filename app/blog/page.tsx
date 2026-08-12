@@ -1,18 +1,22 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { getBlogPosts, type BlogCategory } from '@/lib/blog';
+import { getBlogPosts, BLOG_CATEGORY_LABELS } from '@/lib/blog';
+
+// Five minutes, matching PUBLIC_CACHE_TTL_SECONDS in lib/cache-tags.ts.
+//
+// Freshness after an edit in /admin does NOT come from this timer — it comes
+// from invalidateBlogContent(). The timer covers the writes that happen OUTSIDE
+// a request and therefore have no revalidation hook to fire: `npm run
+// blog:import` at cutover, and any future one-off script. Without it this page
+// prerenders at build time (with no database, so: empty) and would keep serving
+// that until someone happened to edit an article.
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: 'Blog',
   description:
     'Consejos de carrera, análisis del mercado laboral y novedades del portal de empleos de Paraguay.',
   robots: { index: true, follow: true },
-};
-
-const CATEGORY_LABELS: Record<BlogCategory, string> = {
-  noticias: 'Noticias',
-  'analisis-laboral': 'Análisis laboral',
-  'consejos-cv': 'Consejos de CV',
 };
 
 export default async function BlogIndexPage() {
@@ -70,7 +74,7 @@ export default async function BlogIndexPage() {
                   <Link href={`/blog/${post.slug}`} className="block">
                     <div className="flex items-center gap-3">
                       <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-[#F5F1EA] text-[#57514A] border border-[#E7E1D6]">
-                        {CATEGORY_LABELS[post.category]}
+                        {BLOG_CATEGORY_LABELS[post.category]}
                       </span>
                       <time dateTime={post.publishedAt} className="text-xs text-[#8A8378] uppercase tracking-wide font-medium">
                         {formatDate(post.publishedAt)}

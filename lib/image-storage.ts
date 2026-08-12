@@ -46,13 +46,12 @@ import { signedS3Fetch, type S3Config } from './storage';
  * user input — a caller names the one it owns as a literal, which is what keeps
  * the key un-derivable from a request.
  *
- * `blog` is RESERVED AND HAS NO CALLER. It was minted for an article-image
- * upload that will not be built: the blog is Väg A, committed Markdown with no
- * admin UI and no upload route, so cover images are committed to the repo under
- * public/blog-covers/ instead (PLAN-PHASE3-DRAFT.md §9, PLAN-IMAGES.md §7).
- * Kept rather than removed so that a Väg B migration — article bodies in the
- * database, a real upload surface — does not have to re-open this union, its
- * key pattern and verify-image-storage.ts. Do not read this entry as a plan.
+ * `blog` was reserved with no caller from 2026-08-10 to 2026-08-12, against the
+ * possibility of a Väg B blog. That is now what the blog is: article bodies
+ * live in blog_posts and the cover image is uploaded from /admin/blog through
+ * lib/blog-cover.ts (PLAN-PHASE3-DRAFT.md §11). The reservation was kept
+ * precisely so this could happen without re-opening the union, its key pattern
+ * and verify-image-storage.ts — which is what it cost, and it cost nothing.
  */
 export const IMAGE_NAMESPACES = ['logos', 'blog', 'jobs'] as const;
 export type ImageNamespace = (typeof IMAGE_NAMESPACES)[number];

@@ -493,3 +493,96 @@ export const employerInvitations = mysqlTable(
   },
   (table) => [index('company_created_idx').on(table.companyId, table.createdAt)],
 );
+
+// ===========================================================================
+// Phase 3 — blog (Väg B: bodies in the database, written from /admin/blog)
+//
+// PLAN-PHASE3-DRAFT.md §5.1 shipped the blog as Väg A — Markdown committed to
+// the repo — and named the three conditions under which Väg B becomes the
+// right answer. The first of them ("someone publishes without going through a
+// Claude session") was invoked by the owner on 2026-08-12; §11 records the
+// decision and what it costs. These two tables are the whole of the migration
+// the §5.1 note promised would be cheap: the slugs, the routes and the
+// rendering are unchanged, only the read source moved.
+// ===========================================================================
+
+// The same closed list Väg A validated in frontmatter, for the same reason
+// (§5.3): a wrong value must be impossible, not a quiet fifth category. It is
+// an enum here rather than a zod union so the database refuses one too.
+export const blogCategoryEnum = ['noticias', 'analisis-laboral', 'consejos-cv'] as const;
+
+// Two states, not the five a job has. A blog post has no moderation queue —
+// the only person who can write one is the person who approves it — so
+// `pending` and `rejected` would be states nothing can ever put a row into.
+export const blogStatusEnum = ['draft', 'published'] as const;
+
+export const blogPosts = mysqlTable(
+  'blog_posts',
+  {
+    id: int('id').autoincrement().primaryKey(),
+    // A live SEO URL (AGENTS.md). Changing it on a published post mints a
+    // blog_post_redirects row rather than silently breaking the old link.
+    slug: varchar('slug', { length: 200 }).notNull().unique(),
+    title: varchar('title', { length: 255 }).notNull(),
+    // <meta name="description"> and the OG description. Capped at 160 in the
+    // zod schema, where the reason (it is what Google truncates) can be told
+    // to the writer; the column is wider so a future limit change is not a
+    // migration.
+    description: varchar('description', { length: 300 }).notNull(),
+    // Markdown, exactly as the author typed it. Rendered to HTML on read by
+    // renderMarkdown() in lib/blog.ts — never stored as HTML, so the escaping
+    // rules in that file apply to every row including ones written before the
+    // rules changed.
+    body: text('body').notNull(),
+    category: mysqlEnum('category', blogCategoryEnum).notNull(),
+    status: mysqlEnum('status', blogStatusEnum).notNull().default('draft'),
+    // img/blog/{uuid}.webp, minted by lib/image-storage.ts. The KEY, never a
+    // URL (PLAN-IMAGES.md §2.1) — this is the namespace §9.3 reserved for
+    // exactly this build.
+    coverImageKey: varchar('cover_image_key', { length: 255 }),
+    // Required by the write path whenever coverImageKey is set. Nullable here
+    // because the column has to hold "no cover, no alt" too.
+    coverAlt: varchar('cover_alt', { length: 200 }),
+    // Optional internal-linking targets for the "Empleos relacionados" block.
+    // Slugs of an existing category/city — read through lib/data.ts, never
+    // joined here, because the blog must not grow its own path into the job
+    // catalog (AGENTS.md).
+    relatedCategorySlug: varchar('related_category_slug', { length: 100 }),
+    relatedCitySlug: varchar('related_city_slug', { length: 100 }),
+    // The editorial date, not a timestamp: it is what `datePublished` and the
+    // article header show, and the author sets it. Null while a draft has
+    // never been published.
+    publishedAt: date('published_at', { mode: 'string' }),
+    authorUserId: int('author_user_id'),
+    createdAt: datetime('created_at').notNull(),
+    updatedAt: datetime('updated_at').notNull(),
+  },
+  (table) => [
+    // The public list: published rows, newest first.
+    index('status_published_idx').on(table.status, table.publishedAt),
+  ],
+);
+
+// ---------------------------------------------------------------------------
+// blog_post_redirects
+//
+// One row per slug a published post used to have. AGENTS.md: "Slugs are live
+// SEO URLs. Renaming one needs a 301, not just an edit." Väg A could not honour
+// that without a human remembering; with the slug in a column the redirect is
+// mintable at the moment of the rename, which is the only moment the old value
+// is still known.
+// ---------------------------------------------------------------------------
+
+export const blogPostRedirects = mysqlTable(
+  'blog_post_redirects',
+  {
+    id: int('id').autoincrement().primaryKey(),
+    // Unique across the table: a slug can only ever point at one destination,
+    // and re-using a retired slug for a new post has to fail loudly rather
+    // than create a redirect loop.
+    fromSlug: varchar('from_slug', { length: 200 }).notNull().unique(),
+    postId: int('post_id').notNull(),
+    createdAt: datetime('created_at').notNull(),
+  },
+  (table) => [index('post_idx').on(table.postId)],
+);
