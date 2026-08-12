@@ -68,6 +68,11 @@ Non-negotiables:
   derived from user input. The database stores the **key**, never the URL, which
   is what keeps `IMAGE_STORAGE_DRIVER` switchable (`PLAN-IMAGES.md` §2.1). No
   page, component or route touches `IMAGE_STORAGE_DIR` or the bucket directly.
+  This rule is about **uploads** — bytes an outside party hands us at runtime.
+  Images committed to the repo and served from `public/` (the category icons,
+  blog cover images) are not uploads and do not go through it, for the reasons
+  in `PLAN-IMAGES.md` §7; their size and format rules are asserted in CI
+  instead. Nothing is ever written into `public/` at runtime.
 - **The image store is public by construction and holds nothing private.**
   `/img/[...key]` has no session check because an image on an approved posting
   is public content. It never shares a directory or bucket with CVs, and no

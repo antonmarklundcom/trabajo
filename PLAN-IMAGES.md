@@ -2,10 +2,20 @@
 
 > **Written 2026-08-10 by Opus 5, alongside PR 18 (`lib/image-storage.ts`).**
 > This document records the decisions PR 18 made so PR 19 (company logo
-> upload), PR 20 (blog images) and PR 21 (job-posting images) can build on them
-> without re-deriving or re-litigating any of it. Read `AGENTS.md` first;
-> `PLAN-PHASE2.md` §3 is the CV equivalent of this document and the pattern
-> being mirrored.
+> upload) and PR 21 (job-posting images) can build on them without re-deriving
+> or re-litigating any of it. Read `AGENTS.md` first; `PLAN-PHASE2.md` §3 is
+> the CV equivalent of this document and the pattern being mirrored.
+>
+> **Corrected 2026-08-12.** As written, this document also listed **PR 20 (blog
+> images)** as a third consumer. It is not one, and cannot be: the blog was
+> decided as Väg A — committed Markdown, no table, no admin UI, no upload, no
+> new auth surface (`PLAN-PHASE3-DRAFT.md` §5.1) — so there is no authorized
+> upload route for this pipeline to sit behind. PR 20 has been redefined as
+> **cover images committed to the repo**, which touches nothing in this file;
+> the decision is `PLAN-PHASE3-DRAFT.md` §9 and its build brief is §10. The
+> `blog` namespace stays in the code, reserved and unused, per §9.3 — every
+> mention of it below is marked accordingly. **PR 19 and PR 21 are this
+> pipeline's only consumers.**
 
 ---
 
@@ -17,8 +27,9 @@ returns a public URL for it. Two drivers sit behind that (`disk` and `r2`,
 chosen by `IMAGE_STORAGE_DRIVER`), one public route serves the disk driver
 (`app/img/[...key]/route.ts`), and `scripts/verify-image-storage.ts`
 (`npm run image-storage:verify`) asserts the security properties by running
-them. PR 18 ships **no UI**: no logo form, no blog CMS, no job images. Those
-are PR 19–21 and they are the only reason this exists.
+them. PR 18 ships **no UI**: no logo form, no job images. Those are PR 19 and
+PR 21 (both built and merged, #42 and #43), and they are the only reason this
+exists.
 
 ## 1. The threat model is inverted from CVs, and that is the whole design
 
@@ -34,7 +45,7 @@ next to our cookies:
 | Decompression bomb (43000×43000 PNG, ~70 bytes on the wire) | `MAX_IMAGE_INPUT_PIXELS` (40 MP) checked from the header before decode, and passed to libvips as `limitInputPixels` |
 | Frame-count bomb (a 60-frame animation, kilobytes on the wire) | Animations are refused outright — `metadata().pages > 1` |
 | Path traversal into another key, or out of the storage root | `IMAGE_STORAGE_KEY_PATTERN` asserted on every driver method, plus a resolved-path-under-root check on disk |
-| Disk/bucket fill | 4 MB streamed cap per upload, plus per-feature limits that belong to PR 19–21 (how many images a job may have is theirs to enforce) |
+| Disk/bucket fill | 4 MB streamed cap per upload, plus per-feature limits that belong to PR 19 and PR 21 (how many images a job may have is theirs to enforce) |
 | EXIF leaking the photographer's GPS coordinates | Re-encoding strips EXIF/XMP/ICC — sharp keeps metadata only when asked to |
 
 The verify script has a section per row.
@@ -51,9 +62,12 @@ transfer, because the two things it rested on do not apply here:
 
 1. **Durability of irreplaceable data.** A lost CV is a candidate's document we
    cannot reproduce and, under Ley N° 7593/2025, arguably a data-integrity
-   failure. A lost logo is an employer re-uploading their logo. Blog images live
-   next to Markdown the owner authored and can be re-added. The whole weight
-   behind "not a directory nobody backs up" is absent.
+   failure. A lost logo is an employer re-uploading their logo. The whole weight
+   behind "not a directory nobody backs up" is absent. (This argument originally
+   also covered blog images "living next to Markdown the owner authored". That
+   turned out to be the tell: content that lives next to committed Markdown does
+   not belong in an upload store at all — see `PLAN-PHASE3-DRAFT.md` §9.2, where
+   it is committed to git instead, versioned and deployed with the article.)
 2. **Privacy of the store.** R2 for CVs means a *private* bucket with presigned
    reads. Images need the opposite — a public-read bucket — so this is a
    different bucket with a different ACL either way. Picking R2 here would not
@@ -76,7 +90,7 @@ rather than static files: there is no static directory that survives.
 
 ### 2.1 Switching to R2 later costs an env var and a file copy
 
-This is the part PR 19–21 must not work around. **The database stores the KEY,
+This is the part PR 19 and PR 21 must not work around. **The database stores the KEY,
 never the URL** (`img/logos/{uuid}.webp`), and the URL is computed at render
 time by `imagePublicUrl()`. So the migration, if image volume or an infra move
 ever justifies it, is:
@@ -109,12 +123,11 @@ non-issue: the second request for a given image does not reach us.
 |---|---|---|
 | Accepted input | JPEG, PNG, WebP | By magic bytes only. The declared `Content-Type` and the filename are never consulted, anywhere |
 | **SVG** | Rejected | An SVG is an XML document that can carry `<script>`. Serving one from our origin is stored XSS by construction. It fails by not matching a signature, and it is called out in code because "images" is the category a reviewer assumes includes it |
-| **GIF** | Rejected (judgement, not necessity) | Accepting it means either flattening animations — the user uploads a moving image and silently gets a still one — or converting frame by frame, which makes frame *count* a second bomb dimension that the pixel cap does not bound. Nothing in PR 19–21 needs animation; a static GIF is a worse JPEG. Revisiting it means bounding `pages × width × height`, not adding four bytes to `detectImageFileType` |
-| Upload size | **4 MB** | Under the CV limit, and set against what a phone actually produces: a 12 MP JPEG off an Android camera is 2–4 MB, and rejecting an employer's own photo of their storefront is a support ticket, not a security win. Bytes are not the DoS gate anyway — pixels are, because compression ratio is the attacker's free variable |
-| Input pixels | **40 MP** | Header-checked before decode *and* enforced inside libvips. Above any real camera (a 100 MP phone sensor bins well below it), far below where decoding costs the process anything |
+| **GIF** | Rejected (judgement, not necessity) | Accepting it means either flattening animations — the user uploads a moving image and silently gets a still one — or converting frame by frame, which makes frame *count* a second bomb dimension that the pixel cap does not bound. Nothing in PR 19 or PR 21 needs animation; a static GIF is a worse JPEG. Revisiting it means bounding `pages × width × height`, not adding four bytes to `detectImageFileType` |
+| Upload size | **4 MB** | Under the CV limit, and set against what a phone actually produces: a 12 MP JPEG off an Android camera is 2–4 MB, and rejecting an employer's own photo of their storefront is a support ticket, not a security win. Bytes are not the DoS gate anyway — pixels are, because compression ratio is the attacker's free variable || Input pixels | **40 MP** | Header-checked before decode *and* enforced inside libvips. Above any real camera (a 100 MP phone sensor bins well below it), far below where decoding costs the process anything |
 | Frames | 1 | See GIF above |
 | Output | WebP, quality 82 | One output format, so the served `Content-Type` is a constant rather than something read back from storage. 82 is where WebP stops being visibly lossy on photographs |
-| Output cap | logos **512 px**, blog **1600 px**, jobs **1600 px** | Fit "inside", no enlargement. Logos render at a few hundred CSS pixels, so 512 is already 2× for retina; blog and job images are content-width photographs |
+| Output cap | logos **512 px**, jobs **1600 px** (`blog` **1600 px**, reserved and unreached) | Fit "inside", no enlargement. Logos render at a few hundred CSS pixels, so 512 is already 2× for retina; job images are content-width photographs. The `blog` entry exists because the namespace does (§4) and is never looked up — blog cover images are committed files, and the 1600 px figure lives on as the CI-asserted width in `PLAN-PHASE3-DRAFT.md` §10.5 |
 | Metadata | Stripped | A consequence of re-encoding, and a deliberate one: EXIF is where a phone writes GPS. `.rotate()` runs first so the orientation tag is applied before it is dropped |
 
 ## 4. Key scheme
@@ -130,13 +143,21 @@ UUID. Nothing about a key is derived from user input, not the filename and not
 an id, which is what makes the assertion a tautology rather than a check that
 could one day fail open.
 
+`blog` is **reserved and has no caller** (`PLAN-PHASE3-DRAFT.md` §9.3): blog
+cover images are committed to git, not uploaded. It is kept rather than removed
+because deleting it means editing a security-critical union, its key regex and
+`verify-image-storage.ts` for no functional gain, and putting all three back the
+day Väg B moves article bodies into the database — where an upload surface, and
+therefore this pipeline, is the right answer. An uninhabited branch of a closed
+union weakens nothing: `buildImageKey()` is never called with it.
+
 The public route reconstructs the key from catch-all path segments through
 `imageKeyFromSegments()`, which returns `null` for anything that is not exactly
 a minted key. It does no unescaping, no normalising and no `..` stripping: a
 segment that needed cleaning up is not a key we minted, so it is not a key, and
 the route answers 404.
 
-## 5. What PR 19, 20 and 21 inherit
+## 5. What PR 19 and 21 inherit
 
 The whole surface they should need:
 
@@ -182,5 +203,32 @@ Rules that come with them:
 - **No upload UI, no drag-and-drop component, no cropper.** PR 19 owns the
   first one and the others can copy it.
 - **No orphan sweeper.** Every consumer deletes its own object when it clears
-  the row. If a fourth consumer appears and forgets, the fix is that consumer,
+  the row. If a third consumer appears and forgets, the fix is that consumer,
   not a background job that decides which objects nobody wants.
+
+## 7. Not everything with a picture in it belongs here
+
+Added 2026-08-12, because the PR 20 contradiction (see the note at the top) is
+the kind that recurs. This pipeline exists for **bytes an outside party hands
+us at runtime** — an employer uploading a logo, an employer uploading a photo of
+the workplace. Its entire design, from magic-byte detection to re-encoding to
+minted keys, is an answer to "someone we do not control is putting a file on our
+origin".
+
+Images that are **committed to this repo** are not that, and must not be routed
+through it:
+
+- `public/logos/*.svg` (the category icons) and `public/blog-covers/*.webp`
+  (blog cover images, `PLAN-PHASE3-DRAFT.md` §10) are authored in a pull
+  request by whoever can already deploy arbitrary code. There is no attacker to
+  stop and no validation that would add a guarantee the commit does not already
+  give.
+- They are also better off in git: versioned, reviewed, deployed with the code,
+  and immune to the `IMAGE_STORAGE_DIR`-outside-the-build-root trap in §2, which
+  only exists because uploaded files have to survive a deploy on their own.
+
+The test for a new feature is not "does it show an image" but **"who produces
+the bytes, and when"**. Runtime, from someone with an account → this pipeline,
+with an authorized route in front of it. Build time, from a commit → a file in
+`public/`, with the size and format rules asserted in CI instead. Nothing may be
+written into `public/` at runtime, and nothing private goes in either store.
