@@ -22,7 +22,8 @@
     "retention:verify": "tsx scripts/verify-retention.ts",
     "access:verify": "tsx scripts/verify-candidate-access.ts",
     "cascade:verify": "tsx scripts/verify-cascades.ts",
-    "blog:verify": "tsx --conditions=react-server scripts/verify-blog.ts"
+    "blog:verify": "tsx --conditions=react-server scripts/verify-blog.ts",
+    "jobs:verify": "tsx scripts/verify-jobs.ts"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
