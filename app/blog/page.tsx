@@ -14,6 +14,7 @@ export const metadata: Metadata = {
   description:
     'Consejos de carrera, análisis del mercado laboral y novedades del portal de empleos de Paraguay.',
   robots: { index: true, follow: true },
+  alternates: { canonical: `${SITE_URL}/blog` },
 };
 
 const CATEGORY_LABELS: Record<BlogCategory, string> = {

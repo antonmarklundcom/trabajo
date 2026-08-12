@@ -1,23 +1,29 @@
 // Asserts the properties of the blog module that are easy to believe and
 // wrong, the same discipline as before the Väg B migration
 // (PLAN-PHASE3-DRAFT.md §4 points 6/7, batch K) plus what the admin CRUD
-// build added: cover-alt enforcement, slug immutability, and draft-preview
-// gating.
+// and SEO builds added: cover-alt enforcement, slug immutability,
+// draft-preview gating, and that the JSON-LD builders actually parse and
+// carry the required fields.
 //
 // Deliberately still no database, no env, no network — same reasoning as the
 // original script had for the file-based blog: this has to run fast and
 // deterministically in CI. Now that content lives in blog_posts instead of
 // content/blog/*.md, that means testing the PURE functions (rendering,
-// validation) rather than reading real rows — the actual DB-backed CRUD
-// (create/update/delete, the real draft-404-for-anonymous /
-// renders-for-editor route behaviour) needs DATABASE_URL and is out of this
-// script's reach, same limitation scripts/verify-scoping.ts already has.
+// validation, JSON-LD) against synthetic fixtures rather than reading real
+// rows — the actual DB-backed CRUD (create/update/delete, the real
+// draft-404-for-anonymous / renders-for-editor route behaviour) needs
+// DATABASE_URL and is out of this script's reach, same limitation
+// scripts/verify-scoping.ts already has. Exercise that against a real
+// database with `npm run db:verify` reachable, not here.
 import {
+  buildBlogBreadcrumbJsonLd,
+  buildBlogPostingJsonLd,
   canPreviewDraft,
   isSlugChangeAllowed,
   renderMarkdown,
   SLUG_PATTERN,
   validateCoverAlt,
+  type BlogPost,
 } from '../lib/blog';
 
 let failures = 0;
@@ -27,6 +33,23 @@ function check(name: string, ok: boolean, detail?: string): void {
   console.log(`${ok ? 'ok  ' : 'FAIL'}  ${name}`);
   if (!ok && detail) console.log(`        ${detail}`);
 }
+
+const FIXTURE_POST: BlogPost = {
+  slug: 'articulo-de-prueba',
+  title: 'Artículo de prueba',
+  description: 'Descripción de prueba para el artículo.',
+  category: 'noticias',
+  publishedAt: '2026-08-12T10:00:00.000Z',
+  updatedAt: '2026-08-13T09:00:00.000Z',
+  status: 'published',
+  coverUrl: null,
+  coverAlt: null,
+  coverWidth: null,
+  coverHeight: null,
+  relatedCategory: undefined,
+  relatedCity: undefined,
+  html: '<p>Cuerpo de prueba.</p>',
+};
 
 function main(): void {
   // -------------------------------------------------------------------------
@@ -101,6 +124,42 @@ function main(): void {
   check('employer: cannot preview a draft', !canPreviewDraft('employer'));
   check('admin: can preview a draft', canPreviewDraft('admin'));
   check('editor: can preview a draft', canPreviewDraft('editor'));
+
+  // -------------------------------------------------------------------------
+  // 6. Article JSON-LD parses and carries the required fields.
+  // -------------------------------------------------------------------------
+  const siteUrl = 'https://trabajo.com.py';
+  const jsonLd = buildBlogPostingJsonLd(FIXTURE_POST, siteUrl);
+  const jsonLdRoundTrip = JSON.parse(JSON.stringify(jsonLd));
+
+  check('BlogPosting JSON-LD parses', typeof jsonLdRoundTrip === 'object' && jsonLdRoundTrip !== null);
+  check('BlogPosting @type is correct', jsonLdRoundTrip['@type'] === 'BlogPosting');
+  check('BlogPosting has headline', jsonLdRoundTrip.headline === FIXTURE_POST.title);
+  check('BlogPosting has description', jsonLdRoundTrip.description === FIXTURE_POST.description);
+  check('BlogPosting has datePublished', jsonLdRoundTrip.datePublished === FIXTURE_POST.publishedAt);
+  check('BlogPosting has dateModified', jsonLdRoundTrip.dateModified === FIXTURE_POST.updatedAt);
+  check('BlogPosting has author', jsonLdRoundTrip.author?.['@type'] === 'Organization');
+  check(
+    'BlogPosting has mainEntityOfPage pointing at the article URL',
+    jsonLdRoundTrip.mainEntityOfPage?.['@id'] === `${siteUrl}/blog/${FIXTURE_POST.slug}`,
+  );
+  check(
+    'BlogPosting falls back to the generated OG image when there is no cover',
+    jsonLdRoundTrip.image === `${siteUrl}/blog/${FIXTURE_POST.slug}/opengraph-image`,
+  );
+
+  const withCover: BlogPost = { ...FIXTURE_POST, coverUrl: '/img/blog/abc.webp' };
+  const jsonLdWithCover = buildBlogPostingJsonLd(withCover, siteUrl);
+  check('BlogPosting uses the real cover when one is set', jsonLdWithCover.image === '/img/blog/abc.webp');
+
+  const breadcrumb = JSON.parse(JSON.stringify(buildBlogBreadcrumbJsonLd(FIXTURE_POST, siteUrl)));
+  check('BreadcrumbList parses and has 3 items', breadcrumb.itemListElement?.length === 3);
+  check(
+    'BreadcrumbList reads Inicio > Blog > title',
+    breadcrumb.itemListElement[0].name === 'Inicio' &&
+      breadcrumb.itemListElement[1].name === 'Blog' &&
+      breadcrumb.itemListElement[2].name === FIXTURE_POST.title,
+  );
 
   console.log('');
   if (failures > 0) {

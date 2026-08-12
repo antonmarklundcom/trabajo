@@ -215,6 +215,41 @@ export function isSlugChangeAllowed(
   return !wasEverPublished;
 }
 
+// ---------------------------------------------------------------------------
+// JSON-LD builders (§12.6 D5). Pure functions so scripts/verify-blog.ts
+// asserts the exact object the page emits, not a copy of its shape, and so
+// app/blog/[slug]/page.tsx has one place to get this from.
+// ---------------------------------------------------------------------------
+
+export function buildBlogPostingJsonLd(post: BlogPost, siteUrl: string): Record<string, unknown> {
+  const postUrl = `${siteUrl}/blog/${post.slug}`;
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: post.title,
+    description: post.description,
+    datePublished: post.publishedAt,
+    dateModified: post.updatedAt,
+    url: postUrl,
+    image: post.coverUrl ?? `${postUrl}/opengraph-image`,
+    author: { '@type': 'Organization', name: 'trabajo.com.py' },
+    mainEntityOfPage: { '@type': 'WebPage', '@id': postUrl },
+  };
+}
+
+export function buildBlogBreadcrumbJsonLd(post: BlogPost, siteUrl: string): Record<string, unknown> {
+  const postUrl = `${siteUrl}/blog/${post.slug}`;
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Inicio', item: siteUrl },
+      { '@type': 'ListItem', position: 2, name: 'Blog', item: `${siteUrl}/blog` },
+      { '@type': 'ListItem', position: 3, name: post.title, item: postUrl },
+    ],
+  };
+}
+
 export const blogPostInputSchema = z.object({
   title: z.string().min(3).max(255),
   slug: z.string().min(1).max(200).regex(SLUG_PATTERN, 'Slug inválido (minúsculas, números y guiones).'),

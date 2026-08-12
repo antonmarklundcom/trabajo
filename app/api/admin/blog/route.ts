@@ -1,6 +1,6 @@
 import { authErrorResponse, requireApiSession, requireRole } from '@/lib/auth';
 import { blogPostInputSchema } from '@/lib/blog';
-import { blogSlugExists, createBlogPost } from '@/lib/db/blog';
+import { blogSlugCollides, blogSlugExists, createBlogPost } from '@/lib/db/blog';
 import { invalidateBlogContent } from '@/lib/cache';
 
 export async function POST(request: Request) {
@@ -17,6 +17,14 @@ export async function POST(request: Request) {
 
     if (await blogSlugExists(data.slug)) {
       return Response.json({ error: 'Ya existe un artículo con ese slug.' }, { status: 409 });
+    }
+    // §12.6 item 6: a blog slug must not collide with a top-level route
+    // segment or an existing job slug.
+    if (await blogSlugCollides(data.slug)) {
+      return Response.json(
+        { error: 'Ese slug choca con una ruta existente del sitio. Elegí otro.' },
+        { status: 409 },
+      );
     }
 
     // A new post has no cover yet — it is attached afterward through

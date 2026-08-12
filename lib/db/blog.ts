@@ -11,7 +11,7 @@
 import 'server-only';
 
 import { and, desc, eq, ne } from 'drizzle-orm';
-import { blogCategoryEnum, blogPosts, blogStatusEnum } from './schema';
+import { blogCategoryEnum, blogPosts, blogStatusEnum, jobs } from './schema';
 
 async function getDb() {
   return (await import('./index')).db;
@@ -90,6 +90,36 @@ export async function blogSlugExists(slug: string, excludeId?: number): Promise<
     ? and(eq(blogPosts.slug, slug), ne(blogPosts.id, excludeId))
     : eq(blogPosts.slug, slug);
   const rows = await db.select({ id: blogPosts.id }).from(blogPosts).where(where).limit(1);
+  return rows.length > 0;
+}
+
+/**
+ * Route-segment collision guard (§12.6 item 6, never checked before this PR).
+ * A blog slug lives under /blog/[slug], which today cannot literally collide
+ * with a top-level route like /empleos — but the check is cheap insurance
+ * against a future flat routing change, and against a job slug being reused
+ * in a way that would make canonical URLs ambiguous.
+ */
+const RESERVED_TOP_LEVEL_SEGMENTS = new Set([
+  'empleos',
+  'planes',
+  'trabajo',
+  'empresa',
+  'admin',
+  'postulante',
+  'publicar',
+  'contacto',
+  'privacidad',
+  'terminos',
+  'api',
+  'img',
+  'blog',
+]);
+
+export async function blogSlugCollides(slug: string): Promise<boolean> {
+  if (RESERVED_TOP_LEVEL_SEGMENTS.has(slug)) return true;
+  const db = await getDb();
+  const rows = await db.select({ id: jobs.id }).from(jobs).where(eq(jobs.slug, slug)).limit(1);
   return rows.length > 0;
 }
 

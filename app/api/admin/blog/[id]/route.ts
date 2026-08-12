@@ -1,6 +1,12 @@
 import { authErrorResponse, requireApiSession, requireRole } from '@/lib/auth';
 import { blogPostInputSchema, isSlugChangeAllowed } from '@/lib/blog';
-import { blogSlugExists, deleteBlogPost, getAdminBlogPost, updateBlogPost } from '@/lib/db/blog';
+import {
+  blogSlugCollides,
+  blogSlugExists,
+  deleteBlogPost,
+  getAdminBlogPost,
+  updateBlogPost,
+} from '@/lib/db/blog';
 import { invalidateBlogContent } from '@/lib/cache';
 import { deleteImage } from '@/lib/image-storage';
 
@@ -42,8 +48,16 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       );
     }
 
-    if (data.slug !== existing.slug && (await blogSlugExists(data.slug, id))) {
-      return Response.json({ error: 'Ya existe un artículo con ese slug.' }, { status: 409 });
+    if (data.slug !== existing.slug) {
+      if (await blogSlugExists(data.slug, id)) {
+        return Response.json({ error: 'Ya existe un artículo con ese slug.' }, { status: 409 });
+      }
+      if (await blogSlugCollides(data.slug)) {
+        return Response.json(
+          { error: 'Ese slug choca con una ruta existente del sitio. Elegí otro.' },
+          { status: 409 },
+        );
+      }
     }
 
     await updateBlogPost(

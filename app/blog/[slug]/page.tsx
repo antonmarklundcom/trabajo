@@ -1,7 +1,14 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getBlogPost, getBlogPostForPreview, getBlogSlugs, type BlogCategory } from '@/lib/blog';
+import {
+  buildBlogBreadcrumbJsonLd,
+  buildBlogPostingJsonLd,
+  getBlogPost,
+  getBlogPostForPreview,
+  getBlogSlugs,
+  type BlogCategory,
+} from '@/lib/blog';
 import { getJobs } from '@/lib/data';
 import JobCard from '@/components/JobCard';
 import CopyLinkButton from '@/components/blog/CopyLinkButton';
@@ -38,6 +45,8 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const post = await resolvePost(slug);
   if (!post) return { title: 'Artículo no encontrado' };
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://trabajo.com.py';
+  const postUrl = `${siteUrl}/blog/${post.slug}`;
   const isDraft = post.status === 'draft';
 
   return {
@@ -46,6 +55,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     // A draft must never be indexed even though an editor can preview it —
     // the preview and the crawler-facing signal are two different questions.
     robots: isDraft ? { index: false, follow: false } : { index: true, follow: true },
+    alternates: { canonical: postUrl },
     openGraph: {
       title: post.title,
       description: post.description,
@@ -76,26 +86,8 @@ export default async function BlogPostPage({ params }: { params: Params }) {
         ).jobs.slice(0, 5)
       : [];
 
-  const jsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'BlogPosting',
-    headline: post.title,
-    description: post.description,
-    datePublished: post.publishedAt,
-    dateModified: post.updatedAt,
-    url: postUrl,
-    author: { '@type': 'Organization', name: 'trabajo.com.py' },
-  };
-
-  const breadcrumbJsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'BreadcrumbList',
-    itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Inicio', item: siteUrl },
-      { '@type': 'ListItem', position: 2, name: 'Blog', item: `${siteUrl}/blog` },
-      { '@type': 'ListItem', position: 3, name: post.title, item: postUrl },
-    ],
-  };
+  const jsonLd = buildBlogPostingJsonLd(post, siteUrl);
+  const breadcrumbJsonLd = buildBlogBreadcrumbJsonLd(post, siteUrl);
 
   return (
     <>
