@@ -2,26 +2,27 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import LogoUploader from '@/components/LogoUploader';
 
 export type CompanyProfileFormInitial = {
   name: string;
-  logoUrl: string;
+  logoSrc: string | null;
   whatsapp: string;
   website: string;
   description: string;
 };
 
+type EditableFields = Omit<CompanyProfileFormInitial, 'logoSrc'>;
+
 export default function CompanyProfileForm({ initial }: { initial: CompanyProfileFormInitial }) {
   const router = useRouter();
-  const [values, setValues] = useState(initial);
+  const { logoSrc, ...editableInitial } = initial;
+  const [values, setValues] = useState<EditableFields>(editableInitial);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  function setField<K extends keyof CompanyProfileFormInitial>(
-    key: K,
-    value: CompanyProfileFormInitial[K],
-  ) {
+  function setField<K extends keyof EditableFields>(key: K, value: EditableFields[K]) {
     setValues((v) => ({ ...v, [key]: value }));
     setSuccess(false);
   }
@@ -33,7 +34,6 @@ export default function CompanyProfileForm({ initial }: { initial: CompanyProfil
     setSuccess(false);
 
     const payload = {
-      logoUrl: values.logoUrl || null,
       whatsapp: values.whatsapp || null,
       website: values.website || null,
       description: values.description || null,
@@ -74,6 +74,8 @@ export default function CompanyProfileForm({ initial }: { initial: CompanyProfil
         </p>
       </Field>
 
+      <LogoUploader companyName={values.name} logoSrc={logoSrc} uploadUrl="/api/empresa/logo" />
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Field label="WhatsApp (E.164 sin +)">
           <input
@@ -94,16 +96,6 @@ export default function CompanyProfileForm({ initial }: { initial: CompanyProfil
           />
         </Field>
       </div>
-
-      <Field label="URL del logo">
-        <input
-          type="url"
-          value={values.logoUrl}
-          onChange={(e) => setField('logoUrl', e.target.value)}
-          placeholder="https://..."
-          className={inputCls()}
-        />
-      </Field>
 
       <Field label="Descripción">
         <textarea

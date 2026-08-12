@@ -373,10 +373,12 @@ export async function companySlugExists(slug: string, excludeId?: number) {
   return rows.length > 0;
 }
 
+// `logoUrl` is deliberately not here — it is legacy free-text data, read-only
+// from PR 19 on (PLAN-IMAGES.md §5). Admin logo writes go through
+// updateCompanyLogo() below, which only ever touches `logoKey`.
 export type CompanyInput = {
   name: string;
   slug: string;
-  logoUrl: string | null;
   whatsapp: string | null;
   website: string | null;
   description: string | null;
@@ -396,6 +398,16 @@ export async function updateCompany(id: number, input: CompanyInput, actorUserId
     .update(companies)
     .set({ ...input, updatedAt: new Date() })
     .where(eq(companies.id, id));
+  await logActivity(actorUserId, 'company', id, 'update');
+}
+
+export async function updateCompanyLogo(
+  id: number,
+  logoKey: string | null,
+  actorUserId: number,
+) {
+  const db = await getDb();
+  await db.update(companies).set({ logoKey, updatedAt: new Date() }).where(eq(companies.id, id));
   await logActivity(actorUserId, 'company', id, 'update');
 }
 

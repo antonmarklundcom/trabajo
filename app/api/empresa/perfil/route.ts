@@ -6,7 +6,6 @@ import { updateEmployerCompany } from '@/lib/db/employer';
 // Deliberately no `name` or `slug` here — the company slug is a public SEO
 // URL and the name is what the platform vouched for at invitation time.
 const schema = z.object({
-  logoUrl: z.string().max(500).nullable(),
   whatsapp: z.string().max(20).nullable(),
   website: z.string().max(500).nullable(),
   description: z.string().max(5000).nullable(),

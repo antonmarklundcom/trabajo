@@ -7,7 +7,6 @@ import { slugify, uniqueSlug } from '@/lib/slug';
 const companySchema = z.object({
   name: z.string().min(2).max(255),
   slug: z.string().max(255).optional(),
-  logoUrl: z.string().max(500).nullable(),
   whatsapp: z.string().max(20).nullable(),
   website: z.string().max(500).nullable(),
   description: z.string().max(5000).nullable(),
@@ -45,7 +44,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       {
         name: data.name,
         slug,
-        logoUrl: data.logoUrl,
         whatsapp: data.whatsapp,
         website: data.website,
         description: data.description,
