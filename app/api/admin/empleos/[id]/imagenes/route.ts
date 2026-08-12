@@ -34,7 +34,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     const processed = await storeImage('jobs', body.bytes);
     if (!processed.ok) {
-      return Response.json({ error: IMAGE_REJECTION_MESSAGES[processed.reason] }, { status: 422 });
+      return Response.json({ error: IMAGE_REJECTION_MESSAGES[processed.reason] }, { status: 400 });
     }
 
     const result = await addAdminJobImage(jobId, user.id, processed);
