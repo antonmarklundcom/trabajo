@@ -41,11 +41,18 @@ import { signedS3Fetch, type S3Config } from './storage';
 // ---------------------------------------------------------------------------
 
 /**
- * The only prefixes that exist. One per consumer, fixed at the type level:
- * `logos` (PR 19, company logos), `blog` (PR 20, article images), `jobs`
- * (PR 21, job-posting images). A namespace is not user input — a caller names
- * the one it owns as a literal, which is what keeps the key un-derivable from a
- * request.
+ * The only prefixes that exist, fixed at the type level: `logos` (PR 19,
+ * company logos) and `jobs` (PR 21, job-posting images). A namespace is not
+ * user input — a caller names the one it owns as a literal, which is what keeps
+ * the key un-derivable from a request.
+ *
+ * `blog` is RESERVED AND HAS NO CALLER. It was minted for an article-image
+ * upload that will not be built: the blog is Väg A, committed Markdown with no
+ * admin UI and no upload route, so cover images are committed to the repo under
+ * public/blog-covers/ instead (PLAN-PHASE3-DRAFT.md §9, PLAN-IMAGES.md §7).
+ * Kept rather than removed so that a Väg B migration — article bodies in the
+ * database, a real upload surface — does not have to re-open this union, its
+ * key pattern and verify-image-storage.ts. Do not read this entry as a plan.
  */
 export const IMAGE_NAMESPACES = ['logos', 'blog', 'jobs'] as const;
 export type ImageNamespace = (typeof IMAGE_NAMESPACES)[number];

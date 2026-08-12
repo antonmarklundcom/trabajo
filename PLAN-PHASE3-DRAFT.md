@@ -3,12 +3,16 @@
 > Status: **beslutad**. Skrivet av Sonnet som utkast, granskat och avgjort av
 > Opus 2026-08-10. §1 (sparade jobb) är byggt och mergat som PR 15 (`1e49e5d`,
 > PR #37); efterkontrollen och rättningarna ligger i PR 15b (§6). §2 (bloggen)
-> är beslutad men obyggd —
-> bygg-briefen ligger i §7.
+> är beslutad och byggd som PR 16 (Väg A); efterkontrollen ligger i §8.
+> Bygg-briefen för PR 16 står kvar oredigerad i §7.
 >
 > §2:s öppna frågor besvaras i §5, §1:s i §6. De ursprungliga
 > formuleringarna står kvar oredigerade, så att beslutet går att läsa mot det
 > som faktiskt frågades.
+>
+> **Tillägg 2026-08-12:** §9 löser upp motsägelsen mellan `PLAN-IMAGES.md`:s
+> "PR 20 (blog images)" och Väg A-beslutet i §5.1; §10 är bygg-briefen för PR 20
+> som den omdefinieras där. `PLAN-IMAGES.md` är rättad att matcha.
 
 ## 1. Sparade jobb (favoriter) för postulantes
 
@@ -104,9 +108,17 @@ dataskydds- eller tenant-gränsyta enligt samma regel som `PLAN.md` §4 /
 |---|---|---|---|
 | 15 | Sparade jobb (schema + UI + query) | Sonnet | **Mergat** (`1e49e5d`, PR #37) |
 | 15b | Efterkontroll batch J: no-FK-beslutet + `cascade:verify` | Opus | Byggd, väntar på merge (se §6) |
-| 16 | Blogg Väg A: `lib/blog.ts`, `/blog`, `/blog/[slug]`, sitemap, OG, JSON-LD | Sonnet | Brief i §7 |
+| 16 | Blogg Väg A: `lib/blog.ts`, `/blog`, `/blog/[slug]`, sitemap, OG, JSON-LD | Sonnet | **Mergat** (batch K, se §8) |
 | 17 | Blogg: de tre första artiklarna som innehåll (bara `content/blog/*.md`) | Sonnet | Efter 16 |
-| (ev. 18) | Blogg Väg B-uppgradering: DB + admin-CRUD, om Väg A inte räcker | Sonnet | Villkorad, se §5 |
+| 20 | Blogg-omslagsbilder som commitade assets (ingen uppladdning, ingen `lib/image-storage.ts`) | Sonnet | Beslut i §9, brief i §10 |
+| (villkorad, ej numrerad) | Blogg Väg B-uppgradering: DB + admin-CRUD, om Väg A inte räcker | Sonnet | Villkorad, se §5.1 |
+
+> Numreringsnot (2026-08-12): raden ovan hette tidigare "(ev. 18)", vilket
+> krockade med PR 18 i `PLAN-IMAGES.md` (den delade bildpipelinen, byggd och
+> mergad). Två olika PR:ar kan inte ha samma nummer i två plandokument som
+> refererar varandra. Väg B-uppgraderingen är villkorad och får ett nummer den
+> dag ett av villkoren i §5.1 faktiskt inträffar — inte innan. PR 19–21 är
+> `PLAN-IMAGES.md`:s numrering och gäller.
 
 Ingen av dessa rör tenant-gränser, kandidatdata eller destruktiva flöden, så
 ingen Opus-batch krävs enligt samma modell-tiering-regel som tidigare faser
@@ -584,3 +596,294 @@ arbetsgivardata, så ingenting i batch K korsade in i Opus-yta i efterhand.
 PR 15b byggde `scripts/verify-cascades.ts` och la in npm-scriptet, men inget
 CI-steg — så kontrollen körde bara när någon råkade komma ihåg den. Tillagd i
 `.github/workflows/ci.yml` tillsammans med den nya `blog:verify`.
+
+---
+
+## 9. Beslut: blogg-bilder (Opus, 2026-08-12)
+
+### 9.1 Motsägelsen som skulle lösas
+
+Två dokument skrivna samma dag (2026-08-10) sa olika saker:
+
+- `PLAN-IMAGES.md` §0 och §5 räknar upp **"PR 20 (blog images)"** som en av tre
+  konsumenter av den delade bildpipelinen, vid sidan av PR 19 (företagslogotyp,
+  byggd och mergad som #42) och PR 21 (jobbannonsbilder, byggd och mergad som
+  #43). Båda de PR:arna levererade samma form: en auktoriserad
+  uppladdningsroute plus ett admin-/arbetsgivar-UI som anropar `storeImage()`.
+- §5.1 i det här dokumentet beslutade Väg A för bloggen: **ingen tabell, inget
+  admin-UI, ingen bilduppladdning, ingen ny auth-yta.**
+
+"PR 20" som `PLAN-IMAGES.md` beskriver den kan inte byggas. Det finns ingen
+admin-yta för bloggen att hänga en uppladdningsroute på, och att bygga en vore
+i sig den "nya auth-yta" §5.1 utesluter — en `POST /api/admin/blog/imagenes`
+kräver en admin-session, ett formulär, en plats i panelen och en
+ägarskapskontroll för innehåll som inte finns i någon tabell att äga.
+Motsägelsen är inte en avvägning mellan två rimliga vägar; den ena sidan
+beskriver en PR vars förutsättningar beslutet på den andra sidan tog bort.
+
+Att `blog`-namespacet ändå finns i `IMAGE_NAMESPACES` är följdfelet: PR 18
+byggde en union på tre värden för tre planerade konsumenter, och den tredje
+blev aldrig av. Det är samma klass av fel som §8.1 — en fil som påstår ett
+skydd den inte har — fast tvärtom: en kodkommentar som utlovar en konsument som
+inte kommer.
+
+### 9.2 Beslut: alternativ (a). Blogg-bilder finns, men de laddas aldrig upp.
+
+**"PR 20 (blog images)" omdefinieras till: en omslagsbild per artikel, commitad
+som en fil i repot bredvid `.md`-filen, refererad från frontmatter, validerad
+av `lib/blog.ts` vid läsning och av `scripts/verify-blog.ts` i CI. Noll anrop
+till `lib/image-storage.ts`, noll runtime-uppladdning, ingen ny route, inget
+nytt UI, ingen ny auth-yta.** Briefen ligger i §10.
+
+Alternativ (b) — "inga blogg-bilder alls förrän Väg B" — övervägdes och
+förkastades, av tre skäl:
+
+1. **Det är den dyraste möjliga kopplingen.** (b) gör en artikelbild beroende
+   av att bloggen först får en databas och ett CMS. Det är att låta en
+   redaktionell fråga (ska en artikel ha en bild?) avgöras av en
+   infrastrukturfråga (ska bloggen ha ett admin-UI?) som §5.1 uttryckligen
+   sköt på framtiden. De två har ingenting med varandra att göra så länge
+   skribenten är samma person som committar.
+2. **Väg A stöder redan innehåll som är filer.** Artikeltexten är en fil i
+   repot. En bild bredvid den är samma sak, samma flöde, samma granskning,
+   samma deploy. Det är inte en ny publiceringsmodell som måste införas — det
+   är den som redan används, applicerad på en andra filtyp.
+3. **`BlogPosting` utan `image` är en sämre SEO-yta**, vilket är hela
+   motiveringen till att bloggen finns (§2). Google Discover och rich results
+   vill ha en `image` på artikelschemat. Den kostar ett fält och en fil.
+
+**Det som gör (a) säkert är att förtroendegränsen inte flyttas.** Hela §5:s och
+§8.1:s resonemang om artikeltexten gäller ordagrant för bilden: innehållet
+ligger i repot, alltså kan den som kan publicera en bild redan publicera
+godtycklig React. Bildpipelinens magic-byte-kontroll och omkodning försvarar
+mot en **främling som laddar upp bytes till vår origin**. Här finns ingen
+främling och ingen uppladdning — det finns en commit, granskad i en PR, av
+samma person som äger sajten. Att köra committade bytes genom `storeImage()`
+skulle inte tillföra ett enda skydd; det skulle bara flytta filen från git
+(versionerad, deployad, backad upp) till `IMAGE_STORAGE_DIR` (oversionerad,
+måste överleva en deploy på egen hand) och göra en statisk sajt beroende av
+runtime-lagring för att rendera sitt eget innehåll. Det vore sämre på varje
+axel.
+
+Att pipelinen inte behövs betyder inte att inget behöver kontrolleras. Två av
+dess gränser gäller fortfarande, av andra skäl, och flyttas därför till CI i
+stället för till runtime (§10.5):
+
+- **Storlek och dimensioner.** Inte för att en angripare kan bomba oss, utan
+  för att en 4 MB-JPEG som committas ligger kvar i git-historiken för alltid
+  och för att en okomprimerad hjältebild är en LCP-regression på paraguayanska
+  mobilnät. Detta är `PLAN-IMAGES.md` §3:s siffror (1600 px för blogg),
+  kontrollerade av ett skript i stället för av en validator.
+- **Ett enda format.** `.webp`, samma som pipelinen producerar. Skälet här är
+  inte XSS — `public/logos/*.svg` visar att repot redan serverar committade
+  vektorer och det är oproblematiskt av exakt samma förtroendeskäl — utan att
+  en (1) filtyp betyder en konstant `Content-Type`, en konvertering som sker
+  vid författandet, och en eventuell Väg B-migrering där bytesen redan har
+  pipelinens utformat.
+
+### 9.3 `blog`-namespacet i `lib/image-storage.ts` behålls, men som reserverat.
+
+`IMAGE_NAMESPACES` innehåller `logos | blog | jobs`. Efter det här beslutet har
+`blog` ingen anropare och kommer inte att få en så länge Väg A gäller.
+
+**Det tas inte bort.** Att stryka det kostar en kod-PR som rör en
+säkerhetskritisk union, dess nyckelregex och `verify-image-storage.ts`, för
+noll funktionell vinst — och det måste läggas tillbaka den dag §5.1:s villkor
+utlöses och artikeltexten flyttar till databasen (då kommer bilderna med, från
+en riktig uppladdningsyta, och då är pipelinen rätt svar). Ett oanvänt värde i
+en sluten union är inte en risk: `buildImageKey()` anropas aldrig med det, och
+regexen blir inte svagare av att en gren är obebodd.
+
+**Det som däremot rättas nu är kommentaren**, eftersom en kodkommentar som
+säger `blog` (PR 20, article images) är exakt den felaktiga utfästelse som
+skapade den här motsägelsen. Namespacet märks som reserverat för Väg B, med
+hänvisning hit. Det är en dokumentationsrättelse i en kodfil, inte ett bygge.
+
+### 9.4 Vad som uttryckligen *inte* följer av det här beslutet
+
+Så att nästa session inte tolkar "blogg-bilder finns nu" bredare än det är:
+
+- Ingen uppladdningsroute, inget formulär, ingen drag-and-drop, ingen cropper —
+  inte i `/admin`, inte någon annanstans. Om en sådan behövs är det inte den
+  här PR:en, det är att §5.1:s villkor har utlösts och att Väg B ska beslutas
+  först.
+- Ingen `/img/`-URL för en blogg-bild. Committade assets serveras statiskt från
+  `public/`; `app/img/[...key]/route.ts` är diskdrivrutinens route för mintade
+  nycklar och ska inte förväxlas med den (§10.2 väljer katalognamn för att
+  hålla de två URL-rymderna åtskilda).
+- Inga bilder i artikel-*body*. Frontmatter-fältet är en omslagsbild, inte ett
+  bildbibliotek. `![alt](...)`-syntax i Markdown lämnas overksam i den mening
+  att inget håller reda på om filen finns — den dagen någon vill ha bilder mitt
+  i en artikel är det en egen, medveten utökning av §10, inte något som smygs
+  in i en artikel-PR.
+- Inga varianter, ingen srcset, ingen resize vid request. `PLAN-IMAGES.md` §6
+  gäller ordagrant även här, och skälet är starkare: en resize-parameter i en
+  URL är en CPU-yta, och den här sajten har ingen anledning att ha en.
+
+---
+
+## 10. Bygg-brief: PR 20, blogg-omslagsbilder (Sonnet)
+
+Fullt scopad. Bygg exakt det här; avvikelser tas upp innan de byggs, inte
+efter. Beslutsunderlaget står i §9 — läs det, inte bara listan nedan. Läs också
+`PLAN-IMAGES.md` §5 och §6 för att förstå vad den här PR:en medvetet *inte*
+använder, och varför det inte är ett förbiseende.
+
+**Modell: Sonnet.** Statisk läs- och renderingsyta: ingen databas, ingen auth,
+ingen uppladdning, ingen kandidat- eller arbetsgivardata, inga destruktiva
+flöden. Samma modell-tiering-regel som §7 och `PLAN.md` §4.
+
+### 10.1 Frontmatter: två nya fält, båda valfria, men bundna till varandra
+
+```
+coverImage: cv-guia-paraguay.webp
+coverAlt: Persona revisando un currículum impreso sobre un escritorio
+```
+
+- Båda **valfria**. En artikel utan omslagsbild är ett normalfall och ska
+  renderas exakt som idag — inget tomrum, ingen platshållare, ingen grå ruta.
+- **`coverAlt` är obligatorisk om `coverImage` finns.** Zod `superRefine`, inte
+  ett runtime-`if` i sidan. En omslagsbild utan alt-text är ett
+  tillgänglighetsfel som ska stoppa bygget, i samma anda som PR #46:s rättning
+  av gallerialt-texten på jobbannonser.
+- `coverImage` är ett **bart filnamn**, aldrig en sökväg: validera mot
+  `/^[a-z0-9]+(?:-[a-z0-9]+)*\.webp$/`. Inga snedstreck, ingen `..`, ingen
+  versal, ingen annan ändelse. Samma disciplin och samma skäl som
+  `SLUG_PATTERN` i `lib/blog.ts` — värdet blir en filsökväg, alltså deklareras
+  den tillåtna mängden en gång och hävdas, i stället för att antas.
+- `coverAlt` max 160 tecken, min 1. Alt-text på spanska (Paraguay), som all
+  UI-copy.
+- Filnamnet behöver **inte** vara samma som artikelns slug. Två artiklar får
+  dela en generisk omslagsbild, och det är en av poängerna med att fältet är
+  ett filnamn i stället för en boolean.
+
+### 10.2 Var filerna ligger: `public/blog-covers/`
+
+Committade assets, serverade statiskt av Next från `public/`, alltså på
+`/blog-covers/<filnamn>`. Katalognamnet är valt för att undvika två krockar,
+och båda måste förbli undvikna:
+
+- **Inte `public/blog/`**, som skulle servera på `/blog/...` och lägga statiska
+  filer i samma URL-rymd som artiklarnas live-SEO-URL:er.
+- **Inte `public/img/`**, som skulle servera på `/img/...` och överlappa
+  `app/img/[...key]/route.ts` — diskdrivrutinens route för mintade nycklar.
+  Statiska filer vinner över route-handlers i Next, så en sådan överlappning
+  går inte sönder högljutt; den går sönder tyst, vilket är värre.
+
+`content/blog/` är fel plats för bytesen: den katalogen serveras inte, så en
+bild där skulle kräva en route-handler som läser från disk — alltså exakt den
+runtime-yta §9.2 säger nej till.
+
+### 10.3 `lib/blog.ts`: validering vid läsning, samma fil som allt annat
+
+All kunskap om omslagsbilder ligger här, som allt annat bloggen läser. Ingen
+sida och ingen komponent får slå upp en fil eller bygga en sökväg själv.
+
+- Utöka `frontmatterSchema` enligt §10.1 och `BlogPostMeta` med
+  `coverImage?: string` och `coverAlt?: string`.
+- I `readPostFile()`: när `coverImage` finns, **kontrollera att filen
+  existerar** i `public/blog-covers/` och kasta annars — högljutt, med
+  filnamnet och artikelslugen i felmeddelandet. Samma val som `readPostFile()`
+  redan gör för ett ogiltigt filnamn: en trasig referens är ett misstag att
+  rätta innan den shippar, inte en artikel att tyst rendera utan bild.
+- Exportera **`blogCoverUrl(coverImage: string): string`** som returnerar
+  `/blog-covers/${coverImage}`. En funktion, inte en sträng som konkateneras på
+  tre ställen, och av exakt samma skäl som `imagePublicUrl()` finns i
+  `PLAN-IMAGES.md` §2.1: den dag bilderna någonsin flyttar är det en fil som
+  ändras. Sidorna anropar den; de känner inte till katalogen.
+- Ingen `sharp`-import i `lib/blog.ts`. Dimensioner läses aldrig vid render
+  (§10.4 förklarar varför de inte behöver läsas).
+
+### 10.4 Rendering
+
+- **`app/blog/[slug]/page.tsx`:** omslagsbilden överst i `<article>`, ovanför
+  kategorietiketten, med rundade hörn som matchar kortet
+  (`rounded-[10px] border border-[#E7E1D6]`, samma paletten som resten av
+  sidan). Vanlig `<img>`, inte `next/image` — `PLAN-IMAGES.md` §6 avstod från
+  loader-integration och ingenting här behöver den.
+- **Fasta dimensioner, inget CLS:** omslagsbilder är **exakt 1600×900**
+  (16:9), hävdat i CI (§10.5), så sidan skriver `width={1600} height={900}`
+  som konstanter och behöver aldrig läsa en filheader vid render. Det är hela
+  skälet till att måttet är exakt och inte "max 1600 bred".
+- `alt={post.coverAlt}`, `fetchPriority="high"`, ingen `loading="lazy"` —
+  bilden är sidans LCP-element.
+- **JSON-LD:** lägg `image: [absolut URL till omslagsbilden]` på `BlogPosting`
+  när den finns, utelämna fältet helt när den inte gör det. Absolut URL byggd
+  från samma `siteUrl` som `postUrl` redan använder.
+- **`/blog`-listan visar inga omslagsbilder.** Medvetet: utan varianter
+  (`PLAN-IMAGES.md` §6) skulle varje kort ladda hela hjältebilden, så en lista
+  med tio artiklar drar ett par megabyte för att visa miniatyrer. Om listan
+  någon gång ska ha bilder är svaret en andra committad fil i
+  miniatyrstorlek — aldrig en resize vid request.
+- **OG-bilden ändras inte.** `app/blog/[slug]/opengraph-image.tsx` fortsätter
+  generera det befintliga kortet. Skäl: den garanterar att *varje* artikel har
+  en OG-bild, även de utan omslag, och att komponera in en WebP i `ImageResponse`
+  förutsätter WebP-stöd i satori som inte ska antas utan att verifieras. Vill
+  man ha omslaget i OG är det ett eget, verifierat steg — inte något som
+  klämmas in här.
+
+### 10.5 `scripts/verify-blog.ts`: det som ersätter pipelinens gränser
+
+Nya assertions i den befintliga filen, i dess stil (samma `check()`, samma
+exit-kod, ingen databas, ingen env, inget nätverk). Det här är den mekaniska
+delen av §9.2 — reglerna som pipelinen hade skött om det funnits en
+uppladdning:
+
+1. Varje `coverImage` som en artikel refererar **existerar** i
+   `public/blog-covers/`.
+2. Filen **avkodar som WebP** — läs headern med `sharp` (redan ett beroende,
+   samma bibliotek pipelinen använder): `format === 'webp'`, `pages` saknas
+   eller är 1 (ingen animation, samma regel som `PLAN-IMAGES.md` §3).
+3. **Exakt 1600×900.**
+4. **Max 200 KB** på disk. Det är gott om marginal för en 1600×900 WebP på
+   kvalitet 82 och samtidigt lågt nog att en okonverterad fil åker fast.
+5. **Inga föräldralösa filer:** varje fil i `public/blog-covers/` refereras av
+   minst en artikel — inklusive artiklar med `published: false`, som är
+   riktiga referenser även om de inte renderas. `PLAN-IMAGES.md` §6 avstod från
+   en orphan sweeper eftersom varje konsument städar sitt eget; här är
+   motsvarigheten att en borttagen artikel som lämnar sin bild kvar fälls i CI,
+   eftersom git inte har någon delete-hook som gör det åt oss.
+6. **Alt-text finns** för varje `coverImage` (redundant mot zod, men den här
+   filen är det som körs i CI och det som en läsare kollar).
+
+Noll omslagsbilder är ett giltigt tillstånd: git spårar inte tomma kataloger, så
+`public/blog-covers/` kan mycket väl saknas när PR 20 mergas och ingen artikel
+ännu har en bild. Skriptet ska då passera, inte krascha — samma hållning som
+`readAllPosts()` har mot en saknad `content/blog/`.
+
+Skriptet körs redan som `npm run blog:verify` i `.github/workflows/ci.yml`
+(§8.6) — ingen ny CI-post behövs.
+
+### 10.6 `content/blog/README.md`
+
+Utöka tabellen med `coverImage` och `coverAlt`, plus ett kort avsnitt
+"Cover images" på engelska som övrig dokumentation:
+
+- Var filen ska ligga (`public/blog-covers/`), att den ska vara WebP, exakt
+  1600×900 och under 200 KB, och att alt-text är obligatorisk när det finns en
+  bild.
+- **Hur man producerar en sådan fil**, som en kommandorad att kopiera, eftersom
+  det är det steget en skribent-session faktiskt fastnar på. Använd repots egen
+  `sharp` (redan ett beroende — hämta inte in `sharp-cli` via `npx` för det
+  här), i stil med:
+
+  ```
+  node -e "require('sharp')('foto.jpg').resize(1600,900,{fit:'cover'}).webp({quality:82}).toFile('public/blog-covers/<namn>.webp')"
+  ```
+
+  Kvalitet 82 är samma tal som pipelinen använder (`PLAN-IMAGES.md` §3), så en
+  committad omslagsbild och en uppladdad jobbbild ser likadana ut.
+  **Kör kommandot innan du skriver in det i README:n** — det här dokumentets
+  version är oprövad (den skrevs i en session utan installerade
+  `node_modules`), och en README med ett kommando som inte kör är sämre än
+  ingen README.
+- Att en borttagen artikel också ska ta bort sin bild (CI fäller annars).
+
+### 10.7 Utanför scope för PR 20
+
+Bilder i artikelbody, bildtexter, gallerier, miniatyrer i listan, OG-komposition,
+kategorisidor, RSS, `next/image`, varianter/srcset, någon form av uppladdning,
+någon form av admin-UI, och varje anrop till `lib/image-storage.ts`. Bygg inget
+av det "medan du ändå är inne i filen" — flera av dem är uttryckligen
+förkastade i §9.4 och en av dem skulle återinföra motsägelsen den här sektionen
+finns för att lösa.
