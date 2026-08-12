@@ -11,7 +11,8 @@ Read before writing code:
 | Doc | What it holds |
 |---|---|
 | `PLAN.md` | The WordPress → MySQL rebuild: 12 steps, gates, model tiering, open questions (all merged) |
-| `PLAN-PHASE2.md` | Next body of work: employer dashboard + job seeker profiles — schema, consent/ARCO model, 14 PRs with model per PR |
+| `PLAN-PHASE2.md` | Employer dashboard + job seeker profiles — schema, consent/ARCO model, 14 PRs with model per PR (all merged; one blocker in §8 Q5) |
+| `PLAN-PHASE3.md` | **Current work.** Saved jobs + the blog; the plan-vs-`main` audit (§11) and the decision on publishing blog posts from `/admin` (§12) |
 | `PLAN-IMAGES.md` | The shared public image pipeline: backend decision, validation rules, key scheme, what PR 19–21 inherit |
 | `ARCHITECTURE.md` | Target backend design: the data seam, DB schema, auth, job lifecycle, caching |
 | `MIGRATION.md` | WordPress → MySQL cutover runbook and rollback |

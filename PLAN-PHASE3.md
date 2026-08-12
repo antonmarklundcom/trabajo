@@ -1,10 +1,11 @@
 # Phase 3 — blogg + sparade jobb
 
-> Status: **beslutad**. Skrivet av Sonnet som utkast, granskat och avgjort av
-> Opus 2026-08-10. §1 (sparade jobb) är byggt och mergat som PR 15 (`1e49e5d`,
-> PR #37); efterkontrollen och rättningarna ligger i PR 15b (§6). §2 (bloggen)
-> är beslutad och byggd som PR 16 (Väg A); efterkontrollen ligger i §8.
-> Bygg-briefen för PR 16 står kvar oredigerad i §7.
+> Status: **beslutad och till största delen byggd**. Skrivet av Sonnet som
+> utkast, granskat och avgjort av Opus 2026-08-10. §1 (sparade jobb) är byggt
+> och mergat som PR 15 (`1e49e5d`, PR #37); efterkontrollen och rättningarna
+> ligger i PR 15b (§6), mergad som #38. §2 (bloggen) är beslutad och byggd som
+> PR 16 (Väg A, #39); efterkontrollen ligger i §8. Bygg-briefen för PR 16 står
+> kvar oredigerad i §7.
 >
 > §2:s öppna frågor besvaras i §5, §1:s i §6. De ursprungliga
 > formuleringarna står kvar oredigerade, så att beslutet går att läsa mot det
@@ -13,6 +14,20 @@
 > **Tillägg 2026-08-12:** §9 löser upp motsägelsen mellan `PLAN-IMAGES.md`:s
 > "PR 20 (blog images)" och Väg A-beslutet i §5.1; §10 är bygg-briefen för PR 20
 > som den omdefinieras där. `PLAN-IMAGES.md` är rättad att matcha.
+>
+> **Befordrad 2026-08-12** från `PLAN-PHASE3-DRAFT.md` till det här namnet, som
+> en del av planrevisionen i §11. Filen hette "DRAFT" medan varje öppen fråga i
+> den redan var avgjord och fyra av dess fem PR:ar var mergade; namnet var det
+> enda som fortfarande sa utkast. §11 är revisionen av plan mot `main`, §12 är
+> beslutet om blogg-publicering från `/admin` — den lucka som `content/blog/README.md`
+> beskriver men som inget plandokument hittills ägde.
+>
+> Språknot: dokumentet är på svenska medan `AGENTS.md` säger att dokumentation
+> är engelsk. Det behålls som det är — §5, §6, §8 och §9 är avgjorda resonemang
+> där en översättning riskerar att tappa nyanser som faktiskt bär beslut, och
+> vinsten av enhetligt språk är mindre än den risken. Nya avsnitt (§11, §12)
+> följer samma språk som resten av filen så att dokumentet inte blir tvåspråkigt
+> mitt i.
 
 ## 1. Sparade jobb (favoriter) för postulantes
 
@@ -107,11 +122,21 @@ dataskydds- eller tenant-gränsyta enligt samma regel som `PLAN.md` §4 /
 | PR | Innehåll | Modell | Status |
 |---|---|---|---|
 | 15 | Sparade jobb (schema + UI + query) | Sonnet | **Mergat** (`1e49e5d`, PR #37) |
-| 15b | Efterkontroll batch J: no-FK-beslutet + `cascade:verify` | Opus | Byggd, väntar på merge (se §6) |
-| 16 | Blogg Väg A: `lib/blog.ts`, `/blog`, `/blog/[slug]`, sitemap, OG, JSON-LD | Sonnet | **Mergat** (batch K, se §8) |
-| 17 | Blogg: de tre första artiklarna som innehåll (bara `content/blog/*.md`) | Sonnet | Efter 16 |
-| 20 | Blogg-omslagsbilder som commitade assets (ingen uppladdning, ingen `lib/image-storage.ts`) | Sonnet | Beslut i §9, brief i §10 |
-| (villkorad, ej numrerad) | Blogg Väg B-uppgradering: DB + admin-CRUD, om Väg A inte räcker | Sonnet | Villkorad, se §5.1 |
+| 15b | Efterkontroll batch J: no-FK-beslutet + `cascade:verify` | Opus | **Mergat** (`3ce0bcc`, PR #38 — se §6) |
+| 16 | Blogg Väg A: `lib/blog.ts`, `/blog`, `/blog/[slug]`, sitemap, OG, JSON-LD | Sonnet | **Mergat** (`4f28183`, PR #39 — batch K, se §8) |
+| 16b | Efterkontroll batch K: escapad rå HTML, bundna blogg-slugs | Opus | **Mergat** (`22745b9`, PR #41 — se §8) |
+| 17 | Blogg: de tre första artiklarna som innehåll (bara `content/blog/*.md`) | Sonnet | **Mergat** (`66a9545`, PR #48) |
+| 20 | Blogg-omslagsbilder som commitade assets (ingen uppladdning, ingen `lib/image-storage.ts`) | Sonnet | **Nästa att bygga.** Beslut i §9, brief i §10. Se §11.2 |
+| 22 | Blogg Väg B, steg 1: `blog_posts`-schema + `lib/db/blog.ts` | **Opus** | **Villkorad** — bygg inte förrän ett villkor i §5.1 är uppfyllt (§12) |
+| 23 | Blogg Väg B, steg 2: admin-CRUD + omslagsuppladdning via `lib/image-storage.ts` | Sonnet | Villkorad, efter 22 (§12) |
+| 24 | Blogg Väg B, steg 3: import av `content/blog/*.md`, cutover, borttagning av filvägen | **Opus** | Villkorad, efter 23 (§12) |
+
+> Numreringsnot (2026-08-12, andra): raden som tidigare stod som "(villkorad, ej
+> numrerad)" har fått nummer — 22, 23 och 24 — i §12, som scopar den. Att den
+> är numrerad betyder **inte** att den är godkänd att bygga; villkoren i §5.1
+> gäller oförändrat och §12.6 är grinden. Numren är tilldelade nu bara för att
+> `PLAN-IMAGES.md` äger 19–21 och nästa lediga nummer annars skulle behöva
+> gissas av den session som en dag utlöser villkoret.
 
 > Numreringsnot (2026-08-12): raden ovan hette tidigare "(ev. 18)", vilket
 > krockade med PR 18 i `PLAN-IMAGES.md` (den delade bildpipelinen, byggd och
@@ -887,3 +912,254 @@ någon form av admin-UI, och varje anrop till `lib/image-storage.ts`. Bygg inget
 av det "medan du ändå är inne i filen" — flera av dem är uttryckligen
 förkastade i §9.4 och en av dem skulle återinföra motsägelsen den här sektionen
 finns för att lösa.
+
+---
+
+## 11. Planrevision mot `main` (Opus, 2026-08-12)
+
+En genomgång av vad plandokumenten påstår mot vad som faktiskt ligger i `main`
+(`ce53893`). Anledningen till att den behövdes: fem PR:ar mergades på två dagar
+över tre plandokument som refererar varandra, och statusraderna uppdaterades
+inte i takt med det.
+
+### 11.1 `PLAN-PHASE2.md`: allt är byggt, och dokumentet säger det ingenstans
+
+PR 1–14 är mergade, samtliga: #20–#23 (PR 1–3 plus PR 5:s scope-beslut), #24 och
+#25 (PR 4–5), #26–#33 (PR 6–13, i den ordning batcherna kördes), #35 (PR 14:s
+dokumentationsdel) och #36 (PR 14b, upcoming-purge i `/admin`). §9:s föreslagna
+tillägg till `AGENTS.md` ligger också inne, alla sex.
+
+Bristen är inte att något saknas utan att **§6:s tabeller inte har någon
+statuskolumn alls**. En läsare kan inte se att hela dokumentet är avklarat utan
+att köra `git log` mot det, vilket är precis det arbete den här revisionen
+gjorde. Rättat: §6 har nu en statuskolumn per PR och en rubrik som säger att
+fasen är stängd.
+
+### 11.2 PR 20 är beslutad men inte byggd
+
+Det här är revisionens enda faktiska avvikelse mellan plan och kod, och den är
+lätt att missläsa åt fel håll:
+
+- **#47 (`4db58ff`) mergade beslutet, inte bygget.** Den PR:en skrev §9 och §10
+  i det här dokumentet, rättade `PLAN-IMAGES.md` att sluta räkna bloggen som en
+  konsument av bildpipelinen, och märkte om `blog`-namespacet i
+  `lib/image-storage.ts` som reserverat. Ren dokumentation plus en kodkommentar.
+- **Bygg-briefen i §10 är orörd.** Verifierat i koden, inte antaget:
+  `frontmatterSchema` i `lib/blog.ts` har varken `coverImage` eller `coverAlt`,
+  `blogCoverUrl()` finns inte, `public/blog-covers/` finns inte, och
+  `scripts/verify-blog.ts` har ingen av §10.5:s sex assertions.
+
+PR 20 är alltså **nästa obyggda PR i hela projektet**, och den är fullt scopad
+sedan #47. §3:s statusrad säger det nu rakt ut.
+
+### 11.3 Statusrader som låg efter
+
+Rättade i §3, listade här så att rättelsen går att kontrollera:
+
+| Rad | Sa | Är |
+|---|---|---|
+| PR 15b | "Byggd, väntar på merge" | Mergad som #38 (`3ce0bcc`) |
+| PR 17 | "Efter 16" | Mergad som #48 (`66a9545`) |
+| PR 16b | fanns inte som rad | Mergad som #41 (`22745b9`) — §8:s egen efterkontroll |
+
+Samma sak i `PLAN-IMAGES.md`: bilddefekt-PR:arna **#44** (escapad rå HTML i
+jobbeskrivningar), **#45** (logotyp-uppladdningens ordning, cache-bustning,
+knappvillkor) och **#46** (statuskod-drift och alt-text i jobbgalleriet) fanns
+inte i något plandokument. De är efterkontroller av PR 19 och 21 i samma anda
+som §6 och §8 är av PR 15 och 16, och `PLAN-IMAGES.md` har nu en rad för dem.
+
+### 11.4 Luckor som inget dokument ägde
+
+Tre saker som revisionen hittade och som inte är statusbokföring:
+
+1. **`PLAN-PHASE2.md` Q5 (transaktionell e-post) besvarades aldrig, och PR 8
+   byggdes utan den.** Det finns ingen `lib/email.ts`, inget e-postberoende i
+   `package.json` och ingen route för lösenordsåterställning någonstans i
+   `app/`. Två konsekvenser som båda står i planen som förutsatta: en kandidat
+   som glömmer sitt lösenord har **ingen återställningsväg alls**, och
+   §4.3:s varning 23 månader före purge kan inte skickas. Ytan är idag mörk
+   bakom `CANDIDATE_ACCOUNTS_ENABLED=false`, vilket är varför det inte har
+   märkts — men flaggan kan inte flippas förrän det är löst, och den kopplingen
+   fanns inte skriven någonstans. Registrerad i `PLAN-PHASE2.md` §8 Q5 som en
+   blockerare för flaggan, inte som en öppen fråga.
+2. **`ARCHITECTURE.md` har noll täckning av Phase 3.** Den uppdaterades för
+   Phase 2 i PR 14 och inte sedan dess: varken `saved_jobs`, bloggen eller den
+   delade bildpipelinen nämns i den. Den är listad i `AGENTS.md` som
+   backend-designen att läsa före kodning, så en session som läser den får en
+   bild av schemat som saknar tre tabeller.
+3. **`AGENTS.md`:s dokumenttabell listade inte det här dokumentet**, trots att
+   det är det som styr allt pågående arbete. Rättat i samma PR som den här
+   sektionen.
+
+Punkt 2 är inte åtgärdad här — den är en egen liten dokumentations-PR och den
+har inget att göra med bloggluckan §12 löser. Den ligger som **PR 21d** i
+`PLAN-IMAGES.md` §6.1, tillsammans med de tre efterkontroll-PR:ar som punkt
+11.3 hittade.
+
+---
+
+## 12. Beslut: publicera och redigera blogginlägg från `/admin` (Opus, 2026-08-12)
+
+### 12.1 Luckan
+
+`content/blog/README.md` avslutas med "There is no database or admin panel —
+content ships via Git." Det är korrekt beskrivet och det var ett medvetet val
+(§5.1). Men det är också den enda innehållsytan på sajten som inte går att
+redigera från `/admin`, och inget plandokument ägde frågan om när det ska
+ändras — §5.1 satte villkoren men scopade aldrig vad som faktiskt ska byggas
+den dagen. Den här sektionen är det scopet.
+
+### 12.2 Två vägar övervägdes. Den ena förkastas, inte skjuts upp.
+
+**Förkastad: behåll Markdown i git och lägg ett admin-UI som committar filer via
+GitHub API.** Den låter billig — ingen tabell, inget migreringsarbete, samma
+läsväg — och den är den sämre av de två på varje axel som betyder något:
+
+1. **Den gör admin-panelen till en RCE-yta.** Ett API som kan committa till det
+   här repot behöver en token med push-rättighet, lagrad i appens env på delad
+   hosting. Merge till `main` är en produktionsdeploy (`DEPLOY.md`). Alltså:
+   den som tar över en admin-session, eller hittar en CSRF i ett formulär i
+   `/admin`, kan committa godtycklig kod som deployas automatiskt. Idag är
+   värsta utfallet av en kapad admin-session att någon redigerar rader i en
+   databas. Det är en kategoriskillnad, och den går åt fel håll.
+2. **Publiceringen blir asynkron och kan misslyckas efter att den bekräftats.**
+   Skribenten klickar "publicera", commiten går igenom, UI:t säger klart — och
+   sedan fäller CI artikeln på en assertion (§10.5:s bildregler är precis den
+   sortens kontroll). Artikeln syns aldrig, och felet dyker upp i en
+   CI-logg som ingen skribent läser. Ett formulär som validerar innan det
+   sparar har inte det problemet.
+3. **Varje rättstavning blir en deploy.** Det är minuter, inte sekunder, och det
+   är dessutom exakt villkor 3 i §5.1 — "artiklar behöver redigeras oftare än de
+   skrivs" — som denna väg gör värre i stället för att lösa.
+4. **Den löser inte villkor 1.** En skribent som inte är ägaren skulle publicera
+   genom en token som tillhör någon annan, utan granskningssteget som är hela
+   poängen med git-flödet. Man får git-flödets kostnader utan dess kontroll.
+
+**Vald: Väg B — `blog_posts` i databasen med admin-CRUD**, exakt den väg §5.1
+redan pekade ut, byggd när §5.1:s villkor utlöses. Det är den enda av de två som
+faktiskt gör det luckan handlar om: redigera utan deploy, publicera utan
+push-rättighet, och ge en skribent som inte är ägaren en yta med rollkontroll i
+stället för en delad token.
+
+### 12.3 Villkoret står kvar. Det är inte uppfyllt idag.
+
+Att luckan nu är scopad ändrar inte §5.1: Väg B byggs när **ett** av dessa är
+sant, inte tidigare.
+
+1. Någon som inte är ägaren, och inte arbetar genom en Claude-session, ska kunna
+   publicera utan att be någon annan.
+2. Publiceringstakten går över ungefär två artiklar i veckan.
+3. Artiklar behöver redigeras oftare än de skrivs.
+
+Med tre publicerade artiklar och en skribent är inget av det sant. §12.2 säger
+vad som byggs; det här säger när. Att blanda ihop de två är hur en villkorad
+uppgradering blir en planerad.
+
+### 12.4 Vad Väg B kostar, uttryckligen, så att det inte upptäcks mitt i bygget
+
+Två saker som Väg A ger gratis och som Väg B tar bort. Ingen av dem är ett skäl
+att inte bygga den, men båda är sådant som annars upptäcks av den session som
+sitter med en trasig CI-build:
+
+- **Bloggen slutar renderas i `DATA_SOURCE=seed`.** Det finns ingen
+  seed-representation av artiklar och det ska inte byggas en (`ARCHITECTURE.md`
+  §3:s söm är definierad kring den publika jobbkatalogen). Seed-läget behåller
+  alltså sajten men inte bloggen.
+- **`generateStaticParams` över artiklar kan inte vara kvar.** CI kör
+  `npm run build` utan databas. Artikelsidan måste därför bli
+  `revalidate`-cachad i stället för statiskt genererad, med samma
+  `unstable_cache` + tag-mönster som jobbkatalogen (`lib/cache-tags.ts`), och en
+  egen cache-tag som admin-skrivningar invaliderar. Det är PR 22:s arbete, inte
+  något PR 23 upptäcker.
+
+### 12.5 Designen, mot `AGENTS.md` som den är skriven
+
+Det här är det som gör scopet kontrollerbart innan det byggs. Varje punkt är en
+regel i `AGENTS.md` och hur Väg B möter den:
+
+- **Inga FK-constraints.** `blog_posts` får rena int-kolumner. Den pekar på
+  `users` genom `created_by_user_id` / `updated_by_user_id`, som är
+  **revisionsstämplar och medvetet får dangla** — en borttagen redaktör ska inte
+  ta sina artiklar med sig, och en artikel utan författare är fortfarande en
+  publicerad SEO-URL. De registreras därför i `DELIBERATE_ORPHANS` i
+  `scripts/verify-cascades.ts`, inte i `DEPENDENCIES`, i samma form som
+  `deletionRequests` redan står där. Det är ett beslut som ska stå skrivet, inte
+  en utelämnad rad.
+- **Publika läsningar går genom en enda synlighetspredikat.** `lib/db/queries.ts`
+  äger jobbkatalogens predikat; bloggen är inte jobbkatalogen, så den får sitt
+  eget i `lib/db/blog.ts` — `published = true AND published_at <= now()` — som
+  **en** exporterad predikatfunktion som varje publik läsning använder. Samma
+  konstruktion, samma skäl: en glömd `WHERE` publicerar ett utkast.
+- **`lib/blog.ts` förblir enda läsvägen för sidorna.** Det var hela poängen med
+  §7.2. Sidor och komponenter ändras inte i PR 24; det som byts ut är vad
+  `lib/blog.ts` läser ifrån. Om en blogg-PR någonsin importerar `lib/db/blog`
+  direkt från en sida är den fel.
+- **Serversidig auktorisering i varje muterande handler.** `/api/admin/blog/*`
+  börjar med `requireSessionWithRole(['admin','editor'])`. `editor` **ska** ha
+  bloggen — det är innehållskuration, inte kandidatdata, och `AGENTS.md`:s
+  narrowing gäller uttryckligen bara kandidatdata.
+- **Omslagsbilder blir uppladdningar och går genom `lib/image-storage.ts`.** Det
+  här är den punkt där §9.2:s resonemang vänder: under Väg A produceras bytesen
+  av en commit från den som redan kan deploya, under Väg B av en inloggad
+  redaktör vid runtime. Då finns det en främling igen, och då är pipelinen rätt
+  svar — vilket är exakt varför `blog`-namespacet reserverades i §9.3 i stället
+  för att tas bort. Databasen lagrar **nyckeln**, aldrig URL:en
+  (`PLAN-IMAGES.md` §2.1), och nyckeln mintas av `buildImageKey()` och härleds
+  aldrig ur filnamn eller artikel-id.
+- **Slugs är live SEO-URL:er.** Den vassaste nya kanten: ett formulär gör det
+  trivialt att byta URL på en indexerad artikel. Regeln blir att **slugen är
+  oföränderlig när artikeln en gång publicerats** — samma disciplin som
+  arbetsgivare inte får redigera jobb-slugs (`PLAN-PHASE2.md` PR 5). Ett byte
+  kräver en 301, och en 301-tabell är en egen utökning, inte något som smygs in
+  i ett redigeringsformulär.
+- **Rå HTML i artikeltext.** Escapningen i `lib/blog.ts` slutar vara hygien och
+  blir en säkerhetskontroll den dag texten kommer från en databas och en
+  icke-ägare kan skriva den — vilket §8.1 förutsåg och är skälet till att den
+  finns. `blog:verify` måste behålla sin assertion och PR 22 måste inte röra
+  renderaren.
+- **Ingen kandidat- eller ansökningsdata.** §5.4:s förbud gäller oförändrat:
+  ingen "populärt bland sökande"-widget, ingen ansökningsstatistik. En
+  admin-vy över bloggen läser `blog_posts` och ingenting annat.
+
+### 12.6 PR-uppdelning och modelltier
+
+Tre PR:ar, sekventiellt, samma disciplin som §6.2 i `PLAN-PHASE2.md` — skapa PR,
+CI grön, merga, dra `main`, nästa.
+
+| PR | Innehåll | Modell |
+|---|---|---|
+| **22** | `blog_posts`-schema (en migrering), `lib/db/blog.ts` med synlighetspredikatet, cache-tag + invalidering, `DELIBERATE_ORPHANS`-posten i `verify-cascades.ts`. Sidorna byggs om från `generateStaticParams` till `revalidate`-cachning (§12.4). **Ingen UI, ingen beteendeändring — `lib/blog.ts` läser fortfarande filer.** | **Opus** |
+| **23** | `/admin/blog` CRUD: lista, skapa, redigera, publicera/avpublicera, omslagsuppladdning via `lib/image-storage.ts` med `blog`-namespacet, `/api/admin/blog/*` med rollkontroll. Spanska (PY). Skriver till tabellen; publika sidor läser fortfarande filer. | Sonnet |
+| **24** | Cutover: `scripts/blog-import.ts` (idempotent på slug) importerar `content/blog/*.md`, `lib/blog.ts` byter läskälla till `lib/db/blog.ts`, `.md`-filerna tas bort, `content/blog/README.md` ersätts av admin-dokumentation, `scripts/verify-blog.ts` byter från filassertions till DB-form. | **Opus** |
+
+*Varför Opus på 22 och 24:* PR 22 är där synlighetspredikatet och
+no-FK-konventionen blir kolumner — ett missat predikat publicerar utkast, och
+en felregistrerad cascade upptäcks först när en användare raderas. PR 24 är en
+cutover av **live, indexerade URL:er**: en artikel som tappar sin slug mellan
+filen och raden är en 404 på en sida Google redan har. Ingen av dem är mekaniskt
+arbete mot en färdig spec, vilket är gränsen `PLAN.md` §4 drar. PR 23 är
+formulär och CRUD mot ett schema som redan finns, alltså Sonnet.
+
+Att PR 23 skriver till en tabell som ingen läser publikt är avsiktligt: det gör
+att admin-UI:t kan mergas, deployas och provas mot riktig data medan bloggen
+fortfarande serveras från filer, så att PR 24 är en cutover med känd datamängd i
+stället för ett bygge och en cutover samtidigt.
+
+### 12.7 Frågor som måste besvaras innan PR 22 skrivs
+
+Schemabeslut är dyra att ångra när det finns rader. Två är verkligt öppna:
+
+1. **Var ligger artikeltexten — Markdown eller rich text?** *Föreslaget:
+   Markdown i en `text`-kolumn, renderad av samma `marked`-konfiguration som
+   idag.* Det gör PR 24:s import till en kopiering i stället för en konvertering
+   och behåller escapningen i §8.1. En WYSIWYG som producerar HTML skulle göra
+   saneringsfrågan verklig på ett sätt Markdown inte gör.
+2. **Behålls `category` som enum i schemat, eller blir det en tabell?**
+   *Föreslaget: enum, samma tre värden som `frontmatterSchema` har idag.* §5.3
+   beslutade en sluten lista på tre; en tabell är bara motiverad när
+   kategorisidor byggs, och de är i sin tur gated på fem artiklar över två
+   kategorier.
+
+Båda är förslag, inte beslut, och båda ska bekräftas av ägaren innan migreringen
+skrivs — inte efter, eftersom en `ALTER` på en tabell med publicerade artiklar
+är en produktionsdeploy mot live SEO-URL:er.

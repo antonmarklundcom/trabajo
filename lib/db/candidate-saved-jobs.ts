@@ -1,5 +1,5 @@
 // Candidate-scoped saved-jobs ("favoritos") reads/writes — a bookmark to read
-// or compare later, separate from `applications` (PLAN-PHASE3-DRAFT.md §1).
+// or compare later, separate from `applications` (PLAN-PHASE3.md §1).
 //
 // Same discipline as lib/db/candidate-applications.ts and lib/db/employer.ts:
 // every export takes `candidateId` as its FIRST parameter and every query
@@ -12,7 +12,7 @@
 // NOT through lib/db/queries.ts's visiblePredicate(): a candidate must still
 // see a row for a job that was later archived, expired or rejected — labelled
 // as no longer available — rather than have it silently vanish from their own
-// list (PLAN-PHASE3-DRAFT.md §4 point 2).
+// list (PLAN-PHASE3.md §4 point 2).
 import 'server-only';
 
 import { and, count, desc, eq, sql } from 'drizzle-orm';

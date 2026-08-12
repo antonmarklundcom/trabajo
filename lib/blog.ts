@@ -35,7 +35,7 @@ const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 // would be defending against an attacker who has by definition already won.
 // The reason to escape anyway is twofold. It stops a code block pasted from
 // another site smuggling in a tracking pixel unnoticed — the hygiene this file
-// always claimed and did not have. And PLAN-PHASE3-DRAFT.md §5 keeps the door
+// always claimed and did not have. And PLAN-PHASE3.md §5 keeps the door
 // open to Väg B, where article bodies live in the database and a non-owner can
 // write them; that change must not silently inherit an HTML passthrough nobody
 // realised was on.

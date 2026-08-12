@@ -447,7 +447,7 @@ export const deletionRequests = mysqlTable('deletion_requests', {
 // saved_jobs
 //
 // A candidate bookmarking a job to read/compare later — separate from
-// `applications` (PLAN-PHASE3-DRAFT.md §1). No FK constraints, same as every
+// `applications` (PLAN-PHASE3.md §1). No FK constraints, same as every
 // other table here: cross-table cleanup (a hard-deleted job) is done in code,
 // in `deleteJob()`, not by the schema.
 // ---------------------------------------------------------------------------

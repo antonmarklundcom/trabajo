@@ -66,7 +66,7 @@ jobs:
       - name: Verify cascade cleanups
         run: npm run cascade:verify
 
-      # PLAN-PHASE3-DRAFT.md §4 points 6 and 7 (batch K review): article bodies
+      # PLAN-PHASE3.md §4 points 6 and 7 (batch K review): article bodies
       # reach dangerouslySetInnerHTML, and `marked` passes raw HTML through by
       # default — so "is it still escaped?" is a question about a dependency's
       # default that a version bump can change. Also asserts a blog slug cannot

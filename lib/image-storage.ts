@@ -49,7 +49,7 @@ import { signedS3Fetch, type S3Config } from './storage';
  * `blog` is RESERVED AND HAS NO CALLER. It was minted for an article-image
  * upload that will not be built: the blog is Väg A, committed Markdown with no
  * admin UI and no upload route, so cover images are committed to the repo under
- * public/blog-covers/ instead (PLAN-PHASE3-DRAFT.md §9, PLAN-IMAGES.md §7).
+ * public/blog-covers/ instead (PLAN-PHASE3.md §9, PLAN-IMAGES.md §7).
  * Kept rather than removed so that a Väg B migration — article bodies in the
  * database, a real upload surface — does not have to re-open this union, its
  * key pattern and verify-image-storage.ts. Do not read this entry as a plan.

@@ -11,6 +11,16 @@
 >
 > Companion docs: `ARCHITECTURE.md` (current backend design), `DEPLOY.md`
 > (Hostinger + MySQL traps), `MIGRATION.md` (historical cutover).
+>
+> **Status 2026-08-12: all fourteen PRs below are merged.** §6's tables were
+> written without a status column, so until this note the document read as
+> pending work that was in fact finished — see `PLAN-PHASE3.md` §11.1. The
+> next body of work is `PLAN-PHASE3.md`.
+>
+> **One thing in here shipped incomplete and blocks a flag:** open question Q5
+> (transactional email) was never answered and PR 8 was built without it, so
+> there is no password recovery for candidates and no retention warning. §8 Q5
+> records what that blocks. Everything else below is done as designed.
 
 ---
 
@@ -497,11 +507,11 @@ the code but *before* the surface goes live.
 
 ### Phase 0 — Foundation (Opus)
 
-| PR | Title | Model | Scope |
-|---|---|---|---|
-| **1** | Data model & migration | **Opus** | All of §1: new tables, `applications` changes, indexes, one drizzle migration, `db:verify` extended to count the new tables. **No behaviour change, no UI.** |
-| **2** | Multi-audience auth core | **Opus** | `requireCompanyScope()`; role-aware post-login redirect; `lib/auth-candidate.ts` (own cookie, own rate limiter, bcrypt 12, DB-per-request lookup); `scripts/create-candidate.ts` for local testing; the two feature flags. No UI. |
-| **3** | Employer-scoped data layer | **Opus** | `lib/db/employer.ts` per §2.3 + `scripts/verify-scoping.ts` with its cross-company assertions actually run and pasted into the PR body. No UI. |
+| PR | Title | Model | Scope | Status |
+|---|---|---|---|---|
+| **1** | Data model & migration | **Opus** | All of §1: new tables, `applications` changes, indexes, one drizzle migration, `db:verify` extended to count the new tables. **No behaviour change, no UI.** | **Mergad** (#20) |
+| **2** | Multi-audience auth core | **Opus** | `requireCompanyScope()`; role-aware post-login redirect; `lib/auth-candidate.ts` (own cookie, own rate limiter, bcrypt 12, DB-per-request lookup); `scripts/create-candidate.ts` for local testing; the two feature flags. No UI. | **Mergad** (#21) |
+| **3** | Employer-scoped data layer | **Opus** | `lib/db/employer.ts` per §2.3 + `scripts/verify-scoping.ts` with its cross-company assertions actually run and pasted into the PR body. No UI. | **Mergad** (#22, scope #23) |
 
 *Why Opus for all three:* PR 1 is where the legal model becomes columns — a
 missing `redacted_at` or a soft-delete flag chosen here propagates into every
@@ -515,24 +525,24 @@ PR 2 medium-high, PR 3 medium. One Opus session.
 
 ### Phase 1 — Employer dashboard (Sonnet)
 
-| PR | Title | Model | Scope |
-|---|---|---|---|
-| **4** | Employer dashboard UI | Sonnet | `/empresa` (layout, nav, dashboard counts), `/empresa/login`, `/empresa/empleos` (own jobs, read-only), `/empresa/postulaciones` (own applications, contact details, status change), `/api/empresa/*` handlers. Spanish (PY). `noindex` on the whole tree + excluded from `sitemap.ts`/`robots.ts`. |
-| **5** | Employer provisioning + job submission | Sonnet | Invitation issue/accept flow per §2.2; `/admin/empresas/[id]` gains "invitar usuario"; employer creates/edits **own** jobs, always saved as `pending`, never self-published; **slug is not editable by employers at all** (slugs are live SEO URLs — an employer must not be able to trigger a 301 obligation). Reuses the admin job form component. Also implements the material-change rule in §6.1. |
-| **6** | Phase-1 legal copy + flag flip | Sonnet | §7 items 1–6. Ends by setting `EMPLOYER_DASHBOARD_ENABLED=true` in hPanel. ⛔ **No auto-merge** — the owner reads the Spanish copy before it is public. |
+| PR | Title | Model | Scope | Status |
+|---|---|---|---|---|
+| **4** | Employer dashboard UI | Sonnet | `/empresa` (layout, nav, dashboard counts), `/empresa/login`, `/empresa/empleos` (own jobs, read-only), `/empresa/postulaciones` (own applications, contact details, status change), `/api/empresa/*` handlers. Spanish (PY). `noindex` on the whole tree + excluded from `sitemap.ts`/`robots.ts`. | **Mergad** (#24, `4889124`) |
+| **5** | Employer provisioning + job submission | Sonnet | Invitation issue/accept flow per §2.2; `/admin/empresas/[id]` gains "invitar usuario"; employer creates/edits **own** jobs, always saved as `pending`, never self-published; **slug is not editable by employers at all** (slugs are live SEO URLs — an employer must not be able to trigger a 301 obligation). Reuses the admin job form component. Also implements the material-change rule in §6.1. | **Mergad** (#25, `1450c00`) |
+| **6** | Phase-1 legal copy + flag flip | Sonnet | §7 items 1–6. Ends by setting `EMPLOYER_DASHBOARD_ENABLED=true` in hPanel. ⛔ **No auto-merge** — the owner reads the Spanish copy before it is public. | **Mergad** (#26) |
 
 *Complexity:* PR 4 large (biggest UI chunk in the plan), PR 5 medium, PR 6
 small. One Sonnet session, possibly one and a half.
 
 ### Phase 2 — Candidate profiles (mixed)
 
-| PR | Title | Model | Scope |
-|---|---|---|---|
-| **7** | CV storage layer | **Opus** | `lib/storage.ts` + both drivers, magic-byte validation, size limit, the three download routes with their distinct authz (§3.3), delete-fails-loudly semantics. Next 16 upload/stream APIs read from the docs. |
-| **8** | Candidate accounts + profile | Sonnet | `/postulante/registro` (consent #1), `/postulante/login`, `/postulante/perfil` (edit, work history CRUD, CV upload/replace). Includes `lib/email.ts` for verification + password reset if Q5 is approved. |
-| **9** | One-click apply | Sonnet | Logged-in apply on `/empleos/[slug]` — consent #2 naming the employer, writes `applications` with `candidate_id`/`consent_id`/`cv_id` **and** fires the existing lead fan-out unchanged; `/postulante/mis-postulaciones`; employer inbox renders profile + CV for its own applications. **The anonymous lead form stays exactly as it is** — `lib/leads.ts` and `POST /api/v1/leads` are not rewritten (`ARCHITECTURE.md` §7). |
-| **10** | ARCO rights | **Opus** | `/postulante/mis-datos`: self-service export (JSON of everything we hold), rectification (already covered by profile edit — linked from here), per-application consent withdrawal + redaction, account deletion executing §4.4 in order. `npm run db:purge` retention sweep, dry-run default. |
-| **11** | Phase-2 legal copy + flag flip | Sonnet | §7 items 7–12. Ends by setting `CANDIDATE_ACCOUNTS_ENABLED=true`. ⛔ **No auto-merge.** |
+| PR | Title | Model | Scope | Status |
+|---|---|---|---|---|
+| **7** | CV storage layer | **Opus** | `lib/storage.ts` + both drivers, magic-byte validation, size limit, the three download routes with their distinct authz (§3.3), delete-fails-loudly semantics. Next 16 upload/stream APIs read from the docs. | **Mergad** (#27) |
+| **8** | Candidate accounts + profile | Sonnet | `/postulante/registro` (consent #1), `/postulante/login`, `/postulante/perfil` (edit, work history CRUD, CV upload/replace). Includes `lib/email.ts` for verification + password reset if Q5 is approved. | **Mergad** (#28) ⚠️ utan e-post, se §8 Q5 |
+| **9** | One-click apply | Sonnet | Logged-in apply on `/empleos/[slug]` — consent #2 naming the employer, writes `applications` with `candidate_id`/`consent_id`/`cv_id` **and** fires the existing lead fan-out unchanged; `/postulante/mis-postulaciones`; employer inbox renders profile + CV for its own applications. **The anonymous lead form stays exactly as it is** — `lib/leads.ts` and `POST /api/v1/leads` are not rewritten (`ARCHITECTURE.md` §7). | **Mergad** (#29) |
+| **10** | ARCO rights | **Opus** | `/postulante/mis-datos`: self-service export (JSON of everything we hold), rectification (already covered by profile edit — linked from here), per-application consent withdrawal + redaction, account deletion executing §4.4 in order. `npm run db:purge` retention sweep, dry-run default. | **Mergad** (#31) |
+| **11** | Phase-2 legal copy + flag flip | Sonnet | §7 items 7–12. Ends by setting `CANDIDATE_ACCOUNTS_ENABLED=true`. ⛔ **No auto-merge.** | **Mergad** (#32) |
 
 *Why Opus for 7 and 10:* PR 7 is untrusted file upload plus authorized binary
 download — the other place where a mistake is a data breach rather than a bug.
@@ -546,11 +556,11 @@ small. Roughly two Sonnet sessions plus two short Opus ones.
 
 ### Phase 3 — Admin oversight & statistics (mixed)
 
-| PR | Title | Model | Scope |
-|---|---|---|---|
-| **12** | Access logging + candidate oversight | **Opus** | `lib/db/candidates-admin.ts` with logging inside every function (§2.4); `/admin/postulantes` aggregate-first with reason-gated drill-down; `/admin/registros-de-acceso`. |
-| **13** | `/admin/estadisticas` | Sonnet | §5.1 metrics, aggregate only, cached. Charts can be plain SVG/CSS — no new dependency for six bar charts. |
-| **14** | Retention ops + docs | Sonnet | `db:purge` wired into `DEPLOY.md`, upcoming-purge visibility in `/admin`, `ARCHITECTURE.md` updated with the new tables and the two new auth surfaces, `AGENTS.md` non-negotiables extended (see §9). |
+| PR | Title | Model | Scope | Status |
+|---|---|---|---|---|
+| **12** | Access logging + candidate oversight | **Opus** | `lib/db/candidates-admin.ts` with logging inside every function (§2.4); `/admin/postulantes` aggregate-first with reason-gated drill-down; `/admin/registros-de-acceso`. | **Mergad** (#33) |
+| **13** | `/admin/estadisticas` | Sonnet | §5.1 metrics, aggregate only, cached. Charts can be plain SVG/CSS — no new dependency for six bar charts. | **Mergad** (#30) |
+| **14** | Retention ops + docs | Sonnet | `db:purge` wired into `DEPLOY.md`, upcoming-purge visibility in `/admin`, `ARCHITECTURE.md` updated with the new tables and the two new auth surfaces, `AGENTS.md` non-negotiables extended (see §9). | **Mergad** (#35 + #36, PR 14b) |
 
 *Why Opus for 12:* it is the code that implements the legal promise made in the
 privacy policy. The logging must be unbypassable by construction, not by
@@ -713,6 +723,18 @@ does not require rewriting this plan, except where noted.
    their password has no recovery path and the 23-month warning cannot be sent.
    *Recommendation: add Resend (free tier covers this volume) in PR 8.* This is
    the one open question that changes PR scope, so answer it before batch E.
+
+   **What actually happened (recorded 2026-08-12, `PLAN-PHASE3.md` §11.4).**
+   It was never answered, and batch E shipped without it. There is no
+   `lib/email.ts`, no mail dependency in `package.json`, and no
+   password-recovery route anywhere under `app/`. So, stated as a blocker
+   rather than a question: **`CANDIDATE_ACCOUNTS_ENABLED` must not be flipped
+   to `true` until this is resolved.** A candidate who forgets their password
+   today has no recovery path at all — not a degraded one — and §4.3's
+   23-month warning before a profile is purged cannot be sent, which is a
+   commitment the privacy copy in §7 item 9 makes on our behalf. The surface
+   being dark is the only reason this has cost nothing so far. Resolving it is
+   its own PR against this section, not a bolt-on to a Phase 3 PR.
 6. **Who is the data-protection contact?** The privacy policy needs a named
    contact for ARCO requests — an email address at minimum. Also: does the
    business want a manual review step for deletion requests, or is

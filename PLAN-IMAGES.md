@@ -9,10 +9,10 @@
 > **Corrected 2026-08-12.** As written, this document also listed **PR 20 (blog
 > images)** as a third consumer. It is not one, and cannot be: the blog was
 > decided as Väg A — committed Markdown, no table, no admin UI, no upload, no
-> new auth surface (`PLAN-PHASE3-DRAFT.md` §5.1) — so there is no authorized
+> new auth surface (`PLAN-PHASE3.md` §5.1) — so there is no authorized
 > upload route for this pipeline to sit behind. PR 20 has been redefined as
 > **cover images committed to the repo**, which touches nothing in this file;
-> the decision is `PLAN-PHASE3-DRAFT.md` §9 and its build brief is §10. The
+> the decision is `PLAN-PHASE3.md` §9 and its build brief is §10. The
 > `blog` namespace stays in the code, reserved and unused, per §9.3 — every
 > mention of it below is marked accordingly. **PR 19 and PR 21 are this
 > pipeline's only consumers.**
@@ -66,7 +66,7 @@ transfer, because the two things it rested on do not apply here:
    behind "not a directory nobody backs up" is absent. (This argument originally
    also covered blog images "living next to Markdown the owner authored". That
    turned out to be the tell: content that lives next to committed Markdown does
-   not belong in an upload store at all — see `PLAN-PHASE3-DRAFT.md` §9.2, where
+   not belong in an upload store at all — see `PLAN-PHASE3.md` §9.2, where
    it is committed to git instead, versioned and deployed with the article.)
 2. **Privacy of the store.** R2 for CVs means a *private* bucket with presigned
    reads. Images need the opposite — a public-read bucket — so this is a
@@ -127,7 +127,7 @@ non-issue: the second request for a given image does not reach us.
 | Upload size | **4 MB** | Under the CV limit, and set against what a phone actually produces: a 12 MP JPEG off an Android camera is 2–4 MB, and rejecting an employer's own photo of their storefront is a support ticket, not a security win. Bytes are not the DoS gate anyway — pixels are, because compression ratio is the attacker's free variable || Input pixels | **40 MP** | Header-checked before decode *and* enforced inside libvips. Above any real camera (a 100 MP phone sensor bins well below it), far below where decoding costs the process anything |
 | Frames | 1 | See GIF above |
 | Output | WebP, quality 82 | One output format, so the served `Content-Type` is a constant rather than something read back from storage. 82 is where WebP stops being visibly lossy on photographs |
-| Output cap | logos **512 px**, jobs **1600 px** (`blog` **1600 px**, reserved and unreached) | Fit "inside", no enlargement. Logos render at a few hundred CSS pixels, so 512 is already 2× for retina; job images are content-width photographs. The `blog` entry exists because the namespace does (§4) and is never looked up — blog cover images are committed files, and the 1600 px figure lives on as the CI-asserted width in `PLAN-PHASE3-DRAFT.md` §10.5 |
+| Output cap | logos **512 px**, jobs **1600 px** (`blog` **1600 px**, reserved and unreached) | Fit "inside", no enlargement. Logos render at a few hundred CSS pixels, so 512 is already 2× for retina; job images are content-width photographs. The `blog` entry exists because the namespace does (§4) and is never looked up — blog cover images are committed files, and the 1600 px figure lives on as the CI-asserted width in `PLAN-PHASE3.md` §10.5 |
 | Metadata | Stripped | A consequence of re-encoding, and a deliberate one: EXIF is where a phone writes GPS. `.rotate()` runs first so the orientation tag is applied before it is dropped |
 
 ## 4. Key scheme
@@ -143,7 +143,7 @@ UUID. Nothing about a key is derived from user input, not the filename and not
 an id, which is what makes the assertion a tautology rather than a check that
 could one day fail open.
 
-`blog` is **reserved and has no caller** (`PLAN-PHASE3-DRAFT.md` §9.3): blog
+`blog` is **reserved and has no caller** (`PLAN-PHASE3.md` §9.3): blog
 cover images are committed to git, not uploaded. It is kept rather than removed
 because deleting it means editing a security-critical union, its key regex and
 `verify-image-storage.ts` for no functional gain, and putting all three back the
@@ -206,6 +206,20 @@ Rules that come with them:
   the row. If a third consumer appears and forgets, the fix is that consumer,
   not a background job that decides which objects nobody wants.
 
+## 6.1 Follow-up PRs on this pipeline's two consumers
+
+Added 2026-08-12 by the plan audit (`PLAN-PHASE3.md` §11.3), because three
+defect-fix PRs on PR 19 and PR 21 had merged without appearing in any plan
+document — the same bookkeeping gap that made "is PR 20 built?" a question that
+needed `git log` to answer.
+
+| PR | What it fixed | Status |
+|---|---|---|
+| **19b** | Logo upload: store-before-delete ordering (§5's asymmetry, which the first cut had backwards), cache busting on the employer route, the remove button gated on `logoKey` | **Merged** (#45, `1dd682c`) |
+| **21b** | Job images: status-code drift between the upload route and its callers, and missing gallery alt text | **Merged** (#46, `82ccf25`) |
+| **21c** | `components/MarkdownContent.tsx` escapes raw HTML in job descriptions before rendering — employer-submitted text reaching `dangerouslySetInnerHTML` | **Merged** (#44, `d953921`) |
+| **21d** | `ARCHITECTURE.md` still describes the Phase 2 schema: `saved_jobs`, `job_images` and this pipeline are absent from the document `AGENTS.md` points sessions at | **Not built** (`PLAN-PHASE3.md` §11.4 point 2). Sonnet — documentation only |
+
 ## 7. Not everything with a picture in it belongs here
 
 Added 2026-08-12, because the PR 20 contradiction (see the note at the top) is
@@ -219,7 +233,7 @@ Images that are **committed to this repo** are not that, and must not be routed
 through it:
 
 - `public/logos/*.svg` (the category icons) and `public/blog-covers/*.webp`
-  (blog cover images, `PLAN-PHASE3-DRAFT.md` §10) are authored in a pull
+  (blog cover images, `PLAN-PHASE3.md` §10) are authored in a pull
   request by whoever can already deploy arbitrary code. There is no attacker to
   stop and no validation that would add a guarantee the commit does not already
   give.

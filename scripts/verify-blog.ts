@@ -1,5 +1,5 @@
 // Asserts the two properties of lib/blog.ts that are easy to believe and wrong
-// (PLAN-PHASE3-DRAFT.md §4 points 6 and 7, the batch K review).
+// (PLAN-PHASE3.md §4 points 6 and 7, the batch K review).
 //
 // Both exist because the intuition about them does not match the library:
 //

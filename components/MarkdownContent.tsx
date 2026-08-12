@@ -28,7 +28,7 @@ export default function MarkdownContent({ content, className }: Props) {
 // node:fs, zod and marked; this component renders in either environment and
 // must not inherit that constraint for five lines of string replacement.
 //
-// No sanitizer (DOMPurify/jsdom): PLAN-PHASE3-DRAFT.md §7.3 ruled that out for
+// No sanitizer (DOMPurify/jsdom): PLAN-PHASE3.md §7.3 ruled that out for
 // the sibling blog case, and it applies here too — nothing in a job description
 // needs real HTML to survive, so escaping is the whole requirement.
 //
