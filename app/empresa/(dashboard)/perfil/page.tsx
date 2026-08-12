@@ -18,6 +18,7 @@ export default async function EmpresaPerfilPage() {
   const initial: CompanyProfileFormInitial = {
     name: company?.name ?? '',
     logoSrc: company ? companyLogoSrc(company.logoKey, company.logoUrl) : null,
+    logoKey: company?.logoKey ?? null,
     whatsapp: company?.whatsapp ?? '',
     website: company?.website ?? '',
     description: company?.description ?? '',

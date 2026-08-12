@@ -7,6 +7,7 @@ import { authErrorResponse, requireApiCompanyScope } from '@/lib/auth';
 import { employerDashboardEnabled } from '@/lib/flags';
 import { uploadCompanyLogo, removeCompanyLogoObject } from '@/lib/company-logo';
 import { getEmployerCompany, updateEmployerCompany } from '@/lib/db/employer';
+import { invalidatePublicContent } from '@/lib/cache';
 
 const NOT_FOUND = () => Response.json({ error: 'No encontrado.' }, { status: 404 });
 
@@ -24,6 +25,7 @@ export async function POST(request: Request) {
     }
 
     await updateEmployerCompany(companyId, user.id, { logoKey: result.key });
+    invalidatePublicContent();
 
     return Response.json({ key: result.key, url: result.url }, { status: 201 });
   } catch (err) {
@@ -45,6 +47,7 @@ export async function DELETE() {
     if (company.logoKey) {
       await removeCompanyLogoObject(company.logoKey);
       await updateEmployerCompany(companyId, user.id, { logoKey: null });
+      invalidatePublicContent();
     }
 
     return Response.json({ ok: true });
