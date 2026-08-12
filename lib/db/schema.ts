@@ -49,7 +49,13 @@ export const companies = mysqlTable('companies', {
   id: int('id').autoincrement().primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
   slug: varchar('slug', { length: 255 }).notNull().unique(),
+  // Legacy free-text URL. Read-only from 2026-08-10 on (PLAN-IMAGES.md) — no
+  // new code path writes it, it exists only so a company that already had a
+  // typed-in URL doesn't go blank. `logoKey` is the write path now.
   logoUrl: varchar('logo_url', { length: 500 }),
+  // img/logos/{uuid}.webp, minted by lib/image-storage.ts. Takes precedence
+  // over logoUrl whenever present — see companyLogoSrc() in lib/company-logo.ts.
+  logoKey: varchar('logo_key', { length: 255 }),
   whatsapp: varchar('whatsapp', { length: 20 }),
   website: varchar('website', { length: 500 }),
   description: text('description'),
@@ -151,7 +157,7 @@ export const jobs = mysqlTable(
 // 1–3 public photos per job posting (PLAN-IMAGES.md). One row per image so
 // reordering/removing one never touches the others. `image_key` is the minted
 // img/jobs/{uuid}.webp key from lib/image-storage.ts — never a URL, same rule
-// as companies.logoUrl will move to once PR 19 lands (§2.1).
+// companies.logoKey already follows since PR 19 (§2.1).
 // ---------------------------------------------------------------------------
 
 export const jobImages = mysqlTable(

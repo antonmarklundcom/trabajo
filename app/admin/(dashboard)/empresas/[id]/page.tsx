@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { requireSessionWithRole } from '@/lib/auth';
 import { getAdminCompany } from '@/lib/db/admin';
+import { companyLogoSrc } from '@/lib/company-logo';
 import { listEmployerInvitations } from '@/lib/db/employer-invitations';
 import CompanyForm, { type CompanyFormInitial } from '@/components/admin/CompanyForm';
 import EmployerInvitationForm from '@/components/admin/EmployerInvitationForm';
@@ -26,7 +27,7 @@ export default async function EditarEmpresaPage({
     id: company.id,
     name: company.name,
     slug: company.slug,
-    logoUrl: company.logoUrl ?? '',
+    logoSrc: companyLogoSrc(company.logoKey, company.logoUrl),
     whatsapp: company.whatsapp ?? '',
     website: company.website ?? '',
     description: company.description ?? '',

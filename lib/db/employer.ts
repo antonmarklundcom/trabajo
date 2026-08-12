@@ -604,12 +604,19 @@ export async function setEmployerApplicationStatus(
 // name is what the platform vouched for when it issued the invitation.
 // ---------------------------------------------------------------------------
 
-export type EmployerCompanyInput = {
+/**
+ * Partial because two different routes write into this row: the profile
+ * PATCH sends whatsapp/website/description together, and the logo route
+ * (app/api/empresa/logo) sends `logoKey` alone. `logoUrl` is deliberately
+ * not a field here — it is legacy data, read-only from PR 19 on
+ * (PLAN-IMAGES.md §5), and no employer write path may touch it.
+ */
+export type EmployerCompanyInput = Partial<{
   whatsapp: string | null;
   website: string | null;
   description: string | null;
-  logoUrl: string | null;
-};
+  logoKey: string | null;
+}>;
 
 export async function getEmployerCompany(companyId: number) {
   const db = await getDb();
