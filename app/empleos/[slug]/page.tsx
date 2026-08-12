@@ -169,12 +169,12 @@ export default async function JobDetailPage({ params }: { params: Params }) {
               {/* Job images (PLAN-IMAGES.md §5) */}
               {job.images.length > 0 && (
                 <div className={`grid gap-2 mb-6 ${job.images.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
-                  {job.images.map((url) => (
+                  {job.images.map((url, index) => (
                     // eslint-disable-next-line @next/next/no-img-element -- one stored size, no next/image loader (PLAN-IMAGES.md §6)
                     <img
                       key={url}
                       src={url}
-                      alt={job.title}
+                      alt={`Foto ${index + 1} de ${job.images.length} del puesto ${job.title}`}
                       className="w-full aspect-video object-cover rounded-[10px] border border-[#E7E1D6]"
                     />
                   ))}
