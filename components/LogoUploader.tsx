@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 type Props = {
   companyName: string;
   logoSrc: string | null;
+  canRemove: boolean;
   uploadUrl: string;
 };
 
@@ -13,7 +14,7 @@ type Props = {
 // the route immediately (not gated behind the surrounding form's Save
 // button) and then router.refresh() so the server recomputes logoSrc from
 // the row it just wrote. No drag-and-drop, no cropper — PLAN-IMAGES.md §6.
-export default function LogoUploader({ companyName, logoSrc, uploadUrl }: Props) {
+export default function LogoUploader({ companyName, logoSrc, canRemove, uploadUrl }: Props) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState('');
@@ -90,7 +91,7 @@ export default function LogoUploader({ companyName, logoSrc, uploadUrl }: Props)
             }}
             className="text-sm text-[#57514A] disabled:opacity-60"
           />
-          {logoSrc && (
+          {canRemove && (
             <button
               type="button"
               onClick={handleRemove}

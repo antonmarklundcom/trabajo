@@ -7,16 +7,17 @@ import LogoUploader from '@/components/LogoUploader';
 export type CompanyProfileFormInitial = {
   name: string;
   logoSrc: string | null;
+  logoKey: string | null;
   whatsapp: string;
   website: string;
   description: string;
 };
 
-type EditableFields = Omit<CompanyProfileFormInitial, 'logoSrc'>;
+type EditableFields = Omit<CompanyProfileFormInitial, 'logoSrc' | 'logoKey'>;
 
 export default function CompanyProfileForm({ initial }: { initial: CompanyProfileFormInitial }) {
   const router = useRouter();
-  const { logoSrc, ...editableInitial } = initial;
+  const { logoSrc, logoKey, ...editableInitial } = initial;
   const [values, setValues] = useState<EditableFields>(editableInitial);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -74,7 +75,12 @@ export default function CompanyProfileForm({ initial }: { initial: CompanyProfil
         </p>
       </Field>
 
-      <LogoUploader companyName={values.name} logoSrc={logoSrc} uploadUrl="/api/empresa/logo" />
+      <LogoUploader
+        companyName={values.name}
+        logoSrc={logoSrc}
+        canRemove={logoKey !== null}
+        uploadUrl="/api/empresa/logo"
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Field label="WhatsApp (E.164 sin +)">

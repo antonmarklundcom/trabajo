@@ -9,6 +9,7 @@ export type CompanyFormInitial = {
   name: string;
   slug: string;
   logoSrc: string | null;
+  logoKey: string | null;
   whatsapp: string;
   website: string;
   description: string;
@@ -18,6 +19,7 @@ const EMPTY: CompanyFormInitial = {
   name: '',
   slug: '',
   logoSrc: null,
+  logoKey: null,
   whatsapp: '',
   website: '',
   description: '',
@@ -116,6 +118,7 @@ export default function CompanyForm({ initial }: { initial?: CompanyFormInitial 
         <LogoUploader
           companyName={values.name}
           logoSrc={values.logoSrc}
+          canRemove={values.logoKey !== null}
           uploadUrl={`/api/admin/empresas/${values.id}/logo`}
         />
       ) : (

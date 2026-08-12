@@ -28,6 +28,7 @@ export default async function EditarEmpresaPage({
     name: company.name,
     slug: company.slug,
     logoSrc: companyLogoSrc(company.logoKey, company.logoUrl),
+    logoKey: company.logoKey,
     whatsapp: company.whatsapp ?? '',
     website: company.website ?? '',
     description: company.description ?? '',

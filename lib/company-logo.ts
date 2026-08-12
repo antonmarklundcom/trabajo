@@ -1,7 +1,7 @@
 // Render precedence + upload mechanics shared by the employer and admin logo
 // routes (PLAN-IMAGES.md §5, PR 19). One place for the "which column wins"
 // decision so it is not re-derived at every CompanyAvatar call site, and one
-// place for the delete-then-store replacement order so both auth paths (
+// place for the store-then-delete replacement order so both auth paths (
 // employer, admin) can't drift apart on it.
 import 'server-only';
 
@@ -29,10 +29,13 @@ export type LogoUploadResult =
   | { ok: false; status: 400 | 413; error: string };
 
 /**
- * Read the raw body, delete the old object (if any), store the new one.
- * Object first, row second: the caller writes `logoKey` only after this
- * resolves, so a failed delete never leaves a new key unrecorded and a
- * failed store never clears the old key.
+ * Read the raw body, store the new object, then delete the old one (if any).
+ * Store first, delete second: a rejected upload must never touch the live
+ * logo, so the old object is only removed once the new one has passed
+ * validation and been written to the store. A failed delete of the old
+ * object does not fail the request — the new key is already stored and
+ * about to be written to the row, so we swallow-and-log it: one orphan
+ * beats a broken row.
  */
 export async function uploadCompanyLogo(
   request: Request,
@@ -49,16 +52,17 @@ export async function uploadCompanyLogo(
       : { ok: false, status: 400, error: IMAGE_REJECTION_MESSAGES.empty };
   }
 
-  // Delete before store, and let a failed delete propagate — the caller's
-  // route handler turns that into a 500 without ever calling storeImage(),
-  // so the row keeps pointing at the (still live) old object.
-  if (existingLogoKey) {
-    await deleteImage(existingLogoKey);
-  }
-
   const stored = await storeImage('logos', body.bytes);
   if (!stored.ok) {
     return { ok: false, status: 400, error: IMAGE_REJECTION_MESSAGES[stored.reason] };
+  }
+
+  if (existingLogoKey) {
+    try {
+      await deleteImage(existingLogoKey);
+    } catch (err) {
+      console.error('[company-logo] failed to delete old logo object', existingLogoKey, err);
+    }
   }
 
   return { ok: true, key: stored.key, url: imagePublicUrl(stored.key) };

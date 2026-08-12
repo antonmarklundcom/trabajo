@@ -154,8 +154,10 @@ Rules that come with them:
 - **Delete the object before clearing the row that points at it**, and let the
   error propagate — the same asymmetry as CVs. A row pointing at bytes that are
   gone renders one broken image; an object with no row pointing at it is a file
-  nobody can ever remove. Replacing a logo is a delete plus a store, in that
-  order, and a failed delete must not leave the new key in the row unrecorded.
+  nobody can ever remove. Replacing a logo is validate, store, then delete the
+  old object — a store that succeeds and a delete that fails leaves one
+  orphan, which is the acceptable failure mode; the reverse order destroyed
+  live data on any rejected upload.
 - **Authorization is the caller's job and is checked server-side**, per
   `AGENTS.md`. This module will happily store bytes for anyone who calls it; it
   is the route handler that decides whether this employer may touch this
