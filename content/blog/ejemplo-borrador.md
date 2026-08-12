@@ -7,6 +7,8 @@ updatedAt: 2026-08-01
 published: false
 relatedCategory: administracion
 relatedCity: asuncion
+coverImage: ejemplo-borrador.webp
+coverAlt: Marca de trabajo.com.py sobre fondo claro
 ---
 
 Este artículo existe únicamente para verificar el pipeline de build del

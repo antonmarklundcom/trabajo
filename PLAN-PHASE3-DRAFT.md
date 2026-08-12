@@ -110,7 +110,7 @@ dataskydds- eller tenant-gränsyta enligt samma regel som `PLAN.md` §4 /
 | 15b | Efterkontroll batch J: no-FK-beslutet + `cascade:verify` | Opus | Byggd, väntar på merge (se §6) |
 | 16 | Blogg Väg A: `lib/blog.ts`, `/blog`, `/blog/[slug]`, sitemap, OG, JSON-LD | Sonnet | **Mergat** (batch K, se §8) |
 | 17 | Blogg: de tre första artiklarna som innehåll (bara `content/blog/*.md`) | Sonnet | Efter 16 |
-| 20 | Blogg-omslagsbilder som commitade assets (ingen uppladdning, ingen `lib/image-storage.ts`) | Sonnet | Beslut i §9, brief i §10 |
+| 20 | Blogg-omslagsbilder som commitade assets (ingen uppladdning, ingen `lib/image-storage.ts`) | Sonnet (byggd av Opus) | **Byggd** — beslut i §9, brief i §10 |
 | (villkorad, ej numrerad) | Blogg Väg B-uppgradering: DB + admin-CRUD, om Väg A inte räcker | Sonnet | Villkorad, se §5.1 |
 
 > Numreringsnot (2026-08-12): raden ovan hette tidigare "(ev. 18)", vilket

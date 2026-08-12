@@ -13,6 +13,58 @@ import { marked } from 'marked';
 const BLOG_DIR = path.join(process.cwd(), 'content', 'blog');
 
 /**
+ * Cover images are COMMITTED FILES, not uploads, and deliberately do not touch
+ * lib/image-storage.ts (PLAN-PHASE3-DRAFT.md §9, PLAN-IMAGES.md §7). The blog is
+ * Väg A — no admin UI, no upload route — so the only way an image gets here is a
+ * pull request from whoever can already deploy arbitrary code. That is the same
+ * trust boundary the article body has, so magic bytes and re-encoding would
+ * defend against nobody; what still matters (one format, bounded size and
+ * dimensions) is asserted in CI by scripts/verify-blog.ts instead.
+ *
+ * Not `public/blog/`, which would put static files in the articles' own live
+ * URL space, and not `public/img/`, which would overlap app/img/[...key]/route.ts
+ * — static files win over route handlers in Next, so that collision would not
+ * break loudly, it would break silently.
+ */
+const COVER_DIR = path.join(process.cwd(), 'public', 'blog-covers');
+const COVER_URL_PREFIX = '/blog-covers';
+
+/**
+ * The only shape a cover filename may have. Same reasoning as SLUG_PATTERN
+ * below: the value becomes a filesystem path, so the allowed set is declared and
+ * asserted rather than assumed. No slashes, no `..`, no uppercase, and `.webp`
+ * only — one committed format means one served Content-Type, and it forces the
+ * conversion to happen at authoring time where a human can look at the result.
+ */
+const COVER_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*\.webp$/;
+
+/**
+ * Covers are EXACTLY this size, asserted in CI (scripts/verify-blog.ts). Exact
+ * rather than "at most 1600 wide" so the article page can write the intrinsic
+ * dimensions as constants and reserve the space before the bytes arrive — no
+ * layout shift, and no image header read at render time. 1600 px is the same
+ * width the upload pipeline caps content images at (PLAN-IMAGES.md §3), so a
+ * committed cover and an uploaded job photo agree on what "full width" means.
+ */
+export const BLOG_COVER_WIDTH = 1600;
+export const BLOG_COVER_HEIGHT = 900;
+
+/** Cover weight ceiling, asserted in CI. Generous for 1600×900 WebP at q82, low
+ *  enough that an unconverted file is caught before it enters git history — where,
+ *  unlike an uploaded object, it stays forever. */
+export const BLOG_COVER_MAX_BYTES = 200 * 1024;
+
+/**
+ * Where the browser fetches a cover. A function rather than a string
+ * concatenated at each call site, for the same reason imagePublicUrl() exists in
+ * lib/image-storage.ts (PLAN-IMAGES.md §2.1): if these bytes ever move, one file
+ * changes. Pages call this; they do not know the directory.
+ */
+export function blogCoverUrl(coverImage: string): string {
+  return `${COVER_URL_PREFIX}/${coverImage}`;
+}
+
+/**
  * The only shape a blog slug may have. Same idea as STORAGE_KEY_PATTERN in
  * lib/storage.ts: the slug becomes a filesystem path, so the safe set is
  * declared once and asserted, rather than being an assumption about what the
@@ -72,16 +124,45 @@ export function renderMarkdown(body: string): string {
 
 const CATEGORIES = ['noticias', 'analisis-laboral', 'consejos-cv'] as const;
 
-const frontmatterSchema = z.object({
-  title: z.string().min(1),
-  description: z.string().min(1).max(160),
-  category: z.enum(CATEGORIES),
-  publishedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'publishedAt debe ser YYYY-MM-DD'),
-  updatedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'updatedAt debe ser YYYY-MM-DD'),
-  published: z.enum(['true', 'false']).transform((v) => v === 'true'),
-  relatedCategory: z.string().optional(),
-  relatedCity: z.string().optional(),
-});
+const frontmatterSchema = z
+  .object({
+    title: z.string().min(1),
+    description: z.string().min(1).max(160),
+    category: z.enum(CATEGORIES),
+    publishedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'publishedAt debe ser YYYY-MM-DD'),
+    updatedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'updatedAt debe ser YYYY-MM-DD'),
+    published: z.enum(['true', 'false']).transform((v) => v === 'true'),
+    relatedCategory: z.string().optional(),
+    relatedCity: z.string().optional(),
+    coverImage: z
+      .string()
+      .regex(
+        COVER_PATTERN,
+        'coverImage debe ser un nombre de archivo .webp en minúsculas (a-z0-9-), sin barras',
+      )
+      .optional(),
+    coverAlt: z.string().min(1).max(160).optional(),
+  })
+  // An article without a cover is the normal case. An article WITH a cover and
+  // without alt text is an accessibility defect, and it fails the build rather
+  // than reaching a reader — same call as the job gallery alt text (PR #46),
+  // made one layer earlier because here it can be made at parse time.
+  .superRefine((data, ctx) => {
+    if (data.coverImage && !data.coverAlt) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['coverAlt'],
+        message: 'coverAlt es obligatorio cuando hay coverImage (texto alternativo en español)',
+      });
+    }
+    if (data.coverAlt && !data.coverImage) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['coverImage'],
+        message: 'coverAlt sin coverImage: falta la imagen o sobra el texto alternativo',
+      });
+    }
+  });
 
 export type BlogCategory = (typeof CATEGORIES)[number];
 
@@ -95,6 +176,8 @@ export type BlogPostMeta = {
   published: boolean;
   relatedCategory?: string;
   relatedCity?: string;
+  coverImage?: string;
+  coverAlt?: string;
 };
 
 export type BlogPost = BlogPostMeta & { html: string };
@@ -133,6 +216,15 @@ function readPostFile(filename: string): BlogPost {
   const raw = fs.readFileSync(path.join(BLOG_DIR, filename), 'utf8');
   const { data, body } = parseFrontmatter(raw);
   const meta = frontmatterSchema.parse(data);
+  // Loud for the same reason an invalid filename is loud: a cover that points at
+  // nothing renders as a broken image on a live SEO page, and the moment to
+  // catch that is the build, not a reader's browser. COVER_PATTERN has already
+  // ruled out anything that could escape COVER_DIR.
+  if (meta.coverImage && !fs.existsSync(path.join(COVER_DIR, meta.coverImage))) {
+    throw new Error(
+      `${filename}: coverImage "${meta.coverImage}" no existe en public/blog-covers/.`,
+    );
+  }
   const html = renderMarkdown(body);
   return { slug, ...meta, html };
 }
@@ -156,6 +248,8 @@ function toMeta(post: BlogPost): BlogPostMeta {
     published: post.published,
     relatedCategory: post.relatedCategory,
     relatedCity: post.relatedCity,
+    coverImage: post.coverImage,
+    coverAlt: post.coverAlt,
   };
 }
 
@@ -170,6 +264,24 @@ export async function getBlogSlugs(): Promise<string[]> {
   return readAllPosts()
     .filter((p) => p.published)
     .map((p) => p.slug);
+}
+
+/**
+ * Every article, drafts included, and the directory the covers live in. For
+ * scripts/verify-blog.ts only — the site never renders an unpublished article,
+ * so nothing under app/ may call this. Drafts are included because a draft's
+ * coverImage is a real reference: its file is in use and must not be reported as
+ * an orphan just because the article is not live yet.
+ */
+export function listBlogSourcesForVerification(): {
+  posts: BlogPostMeta[];
+  coverDir: string;
+  coverFiles: string[];
+} {
+  const coverFiles = fs.existsSync(COVER_DIR)
+    ? fs.readdirSync(COVER_DIR).filter((f) => !f.startsWith('.'))
+    : [];
+  return { posts: readAllPosts().map(toMeta), coverDir: COVER_DIR, coverFiles };
 }
 
 export async function getBlogPost(slug: string): Promise<BlogPost | null> {

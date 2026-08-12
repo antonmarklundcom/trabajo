@@ -1,7 +1,14 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getBlogPost, getBlogSlugs, type BlogCategory } from '@/lib/blog';
+import {
+  getBlogPost,
+  getBlogSlugs,
+  blogCoverUrl,
+  BLOG_COVER_WIDTH,
+  BLOG_COVER_HEIGHT,
+  type BlogCategory,
+} from '@/lib/blog';
 import { getJobs } from '@/lib/data';
 import JobCard from '@/components/JobCard';
 import CopyLinkButton from '@/components/blog/CopyLinkButton';
@@ -66,6 +73,10 @@ export default async function BlogPostPage({ params }: { params: Params }) {
     dateModified: post.updatedAt,
     url: postUrl,
     author: { '@type': 'Organization', name: 'trabajo.com.py' },
+    // Absolute, and omitted entirely rather than sent empty when the article has
+    // no cover: an `image` key pointing nowhere is worse for rich results than
+    // no `image` key at all.
+    ...(post.coverImage ? { image: [`${siteUrl}${blogCoverUrl(post.coverImage)}`] } : {}),
   };
 
   const breadcrumbJsonLd = {
@@ -99,6 +110,23 @@ export default async function BlogPostPage({ params }: { params: Params }) {
         </nav>
 
         <article className="bg-white rounded-[10px] border border-[#E7E1D6] p-6 sm:p-8">
+          {post.coverImage && (
+            // Plain <img>, not next/image (PLAN-IMAGES.md §6 declined the loader
+            // integration and nothing here needs it). Intrinsic size is a
+            // constant because every cover is exactly BLOG_COVER_WIDTH ×
+            // BLOG_COVER_HEIGHT, asserted in CI — so the browser reserves the
+            // box before the bytes arrive. No lazy loading: this is the LCP
+            // element.
+            // eslint-disable-next-line @next/next/no-img-element -- one committed size, no next/image loader (PLAN-IMAGES.md §6)
+            <img
+              src={blogCoverUrl(post.coverImage)}
+              alt={post.coverAlt ?? ''}
+              width={BLOG_COVER_WIDTH}
+              height={BLOG_COVER_HEIGHT}
+              fetchPriority="high"
+              className="w-full h-auto mb-6 rounded-[8px] border border-[#E7E1D6]"
+            />
+          )}
           <div className="flex items-center gap-3">
             <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-[#F5F1EA] text-[#57514A] border border-[#E7E1D6]">
               {CATEGORY_LABELS[post.category]}

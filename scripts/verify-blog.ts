@@ -15,7 +15,23 @@
 // fails CI instead of failing the page for a visitor.
 //
 // No database, no env, no network.
-import { getBlogPost, getBlogPosts, getBlogSlugs, renderMarkdown } from '../lib/blog';
+//   3. Cover images are committed files, not uploads, so nothing validates them
+//      at runtime (PLAN-PHASE3-DRAFT.md §9.2). The limits that still matter —
+//      one format, exact dimensions, bounded weight, no orphans — are asserted
+//      here instead. This section IS the validation layer for blog covers.
+import fs from 'node:fs';
+import path from 'node:path';
+import sharp from 'sharp';
+import {
+  getBlogPost,
+  getBlogPosts,
+  getBlogSlugs,
+  renderMarkdown,
+  listBlogSourcesForVerification,
+  BLOG_COVER_WIDTH,
+  BLOG_COVER_HEIGHT,
+  BLOG_COVER_MAX_BYTES,
+} from '../lib/blog';
 
 let failures = 0;
 
@@ -89,6 +105,60 @@ async function main() {
   }
 
   check('getBlogSlugs() matches getBlogPosts()', slugs.length === posts.length);
+
+  // -------------------------------------------------------------------------
+  // 4. Cover images: committed, so CI is the only thing checking them.
+  // -------------------------------------------------------------------------
+  // Drafts count here. An unpublished article's coverImage is a real reference —
+  // the file is in use and must not be reported as an orphan — and its cover
+  // should fail CI now rather than on the day the article flips to published.
+  const { posts: allPosts, coverDir, coverFiles } = listBlogSourcesForVerification();
+  const referenced = new Set<string>();
+
+  console.log(`${coverFiles.length} cover file(s) in public/blog-covers/\n`);
+
+  for (const post of allPosts) {
+    if (!post.coverImage) continue;
+    referenced.add(post.coverImage);
+
+    // Redundant against the zod superRefine, deliberately: this file is what
+    // runs in CI and what a reader checks to learn the rule.
+    check(`${post.slug}: cover has alt text`, Boolean(post.coverAlt && post.coverAlt.trim()));
+
+    const file = path.join(coverDir, post.coverImage);
+    if (!fs.existsSync(file)) {
+      // readPostFile() already throws on this, so reaching here means that check
+      // regressed rather than that a file is missing.
+      check(`${post.slug}: cover file exists`, false, file);
+      continue;
+    }
+
+    const bytes = fs.statSync(file).size;
+    check(
+      `${post.coverImage}: <= ${BLOG_COVER_MAX_BYTES / 1024} KB`,
+      bytes <= BLOG_COVER_MAX_BYTES,
+      `${Math.round(bytes / 1024)} KB — re-encode to WebP q82 instead of committing it`,
+    );
+
+    // Read through sharp — the same library the upload pipeline uses — so the
+    // file has to actually decode as the format its extension claims. An
+    // extension is not a format.
+    const meta = await sharp(file).metadata();
+    check(`${post.coverImage}: decodes as WebP`, meta.format === 'webp', String(meta.format));
+    check(`${post.coverImage}: single frame`, (meta.pages ?? 1) === 1, `pages: ${meta.pages}`);
+    check(
+      `${post.coverImage}: exactly ${BLOG_COVER_WIDTH}×${BLOG_COVER_HEIGHT}`,
+      meta.width === BLOG_COVER_WIDTH && meta.height === BLOG_COVER_HEIGHT,
+      `${meta.width}×${meta.height} — the article page hardcodes the intrinsic size`,
+    );
+  }
+
+  // git has no delete hook, so a deleted article leaves its cover behind. The
+  // pipeline's consumers each delete their own object (PLAN-IMAGES.md §6); for
+  // committed files, this is that rule.
+  for (const file of coverFiles) {
+    check(`${file}: referenced by an article`, referenced.has(file), 'unused — delete it');
+  }
 
   console.log('');
   if (failures > 0) {
