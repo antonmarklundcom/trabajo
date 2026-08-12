@@ -52,6 +52,9 @@ const DEPENDENCIES: Dependency[] = [
   // A bookmark is meaningless without its job, and must not outlive the
   // candidate who made it (PLAN-PHASE3-DRAFT.md §1, §4 point 2).
   { child: 'savedJobs', parents: ['jobs', 'candidates'] },
+  // A job-posting photo with no job is an orphaned WebP nobody can reach —
+  // deleting the job must delete its images first (PLAN-IMAGES.md §5).
+  { child: 'jobImages', parents: ['jobs'] },
 ];
 
 /**

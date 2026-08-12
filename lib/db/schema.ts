@@ -152,6 +152,29 @@ export const jobs = mysqlTable(
 );
 
 // ---------------------------------------------------------------------------
+// job_images
+//
+// 1–3 public photos per job posting (PLAN-IMAGES.md). One row per image so
+// reordering/removing one never touches the others. `image_key` is the minted
+// img/jobs/{uuid}.webp key from lib/image-storage.ts — never a URL, same rule
+// companies.logoKey already follows since PR 19 (§2.1).
+// ---------------------------------------------------------------------------
+
+export const jobImages = mysqlTable(
+  'job_images',
+  {
+    id: int('id').autoincrement().primaryKey(),
+    jobId: int('job_id').notNull(),
+    imageKey: varchar('image_key', { length: 255 }).notNull(),
+    width: int('width').notNull(),
+    height: int('height').notNull(),
+    sortOrder: int('sort_order').notNull().default(0),
+    createdAt: datetime('created_at').notNull(),
+  },
+  (table) => [index('job_sort_idx').on(table.jobId, table.sortOrder)],
+);
+
+// ---------------------------------------------------------------------------
 // applications
 //
 // Still one row per application, and still the destination of the anonymous

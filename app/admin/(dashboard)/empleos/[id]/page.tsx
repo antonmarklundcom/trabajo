@@ -2,11 +2,14 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import {
   getAdminJob,
+  listAdminJobImages,
   listCategoryOptions,
   listCityOptions,
   listCompanyOptions,
 } from '@/lib/db/admin';
+import { imagePublicUrl } from '@/lib/image-storage';
 import JobForm, { type JobFormInitial } from '@/components/admin/JobForm';
+import JobImageUploader from '@/components/admin/JobImageUploader';
 
 export const metadata: Metadata = { title: 'Editar empleo — trabajo.com.py' };
 
@@ -33,6 +36,14 @@ export default async function EditarEmpleoPage({
     listCityOptions(),
   ]);
   if (!job) notFound();
+
+  const images = await listAdminJobImages(id);
+  const initialImages = images.map((img) => ({
+    id: img.id,
+    url: imagePublicUrl(img.imageKey),
+    width: img.width,
+    height: img.height,
+  }));
 
   const initial: JobFormInitial = {
     id: job.id,
@@ -61,6 +72,10 @@ export default async function EditarEmpleoPage({
       <h1 className="text-2xl font-bold text-[#1E1B17] mb-6">Editar empleo</h1>
       <div className="bg-white rounded-[10px] border border-[#E7E1D6] p-6 sm:p-8 max-w-3xl">
         <JobForm companies={companies} categories={categories} cities={cities} initial={initial} />
+      </div>
+      <div className="bg-white rounded-[10px] border border-[#E7E1D6] p-6 sm:p-8 max-w-3xl mt-6">
+        <h2 className="text-lg font-bold text-[#1E1B17] mb-4">Imágenes del empleo</h2>
+        <JobImageUploader jobId={job.id} initialImages={initialImages} />
       </div>
     </div>
   );

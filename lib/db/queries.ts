@@ -1,8 +1,9 @@
-import { and, asc, desc, eq, gt, isNull, like, or, sql, count } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, inArray, isNull, like, or, sql, count } from 'drizzle-orm';
 import { unstable_cache } from 'next/cache';
 import { db } from './index';
-import { categories, cities, companies, jobs } from './schema';
+import { categories, cities, companies, jobImages, jobs } from './schema';
 import { CACHE_TAGS, PUBLIC_CACHE_TTL_SECONDS } from '../cache-tags';
+import { imagePublicUrl } from '../image-storage';
 import { companyLogoSrc } from '../company-logo';
 import type { Job, Category, City, JobFilters } from '../types';
 
@@ -31,6 +32,7 @@ function isFeaturedSql() {
 // ---------------------------------------------------------------------------
 
 const jobSelection = {
+  id: jobs.id,
   slug: jobs.slug,
   title: jobs.title,
   company: companies.name,
@@ -52,6 +54,7 @@ const jobSelection = {
 };
 
 type JobRow = {
+  id: number;
   slug: string;
   title: string;
   company: string;
@@ -72,7 +75,7 @@ type JobRow = {
   updatedAt: Date;
 };
 
-function toJob(row: JobRow): Job {
+function toJob(row: JobRow, images: string[]): Job {
   return {
     slug: row.slug,
     title: row.title,
@@ -91,7 +94,36 @@ function toJob(row: JobRow): Job {
     featuredUntil: row.featuredUntil ? row.featuredUntil.toISOString() : null,
     postedAt: row.postedAt ? row.postedAt.toISOString() : '',
     updatedAt: row.updatedAt.toISOString(),
+    images,
   };
+}
+
+/**
+ * Batch-loads job_images for a page of rows and maps each to Job, rather than
+ * one query per row — `getJobs` returns up to PAGE_SIZE (20) rows, and this
+ * keeps that a fixed two queries instead of N+1. `imagePublicUrl()` is only
+ * called for jobs that actually have image rows, so a deployment with
+ * DATA_SOURCE=db but no IMAGE_STORAGE_DRIVER configured never touches it on
+ * the (overwhelmingly common) job with zero photos.
+ */
+async function attachImages(rows: JobRow[]): Promise<Job[]> {
+  if (rows.length === 0) return [];
+
+  const ids = rows.map((row) => row.id);
+  const imageRows = await db
+    .select({ jobId: jobImages.jobId, imageKey: jobImages.imageKey })
+    .from(jobImages)
+    .where(inArray(jobImages.jobId, ids))
+    .orderBy(asc(jobImages.sortOrder), asc(jobImages.id));
+
+  const byJobId = new Map<number, string[]>();
+  for (const { jobId, imageKey } of imageRows) {
+    const urls = byJobId.get(jobId) ?? [];
+    urls.push(imagePublicUrl(imageKey));
+    byJobId.set(jobId, urls);
+  }
+
+  return rows.map((row) => toJob(row, byJobId.get(row.id) ?? []));
 }
 
 function baseQuery() {
@@ -154,13 +186,15 @@ async function queryJobs(filters: JobFilters): Promise<{ jobs: Job[]; total: num
       .where(where),
   ]);
 
-  return { jobs: (rows as JobRow[]).map(toJob), total };
+  return { jobs: await attachImages(rows as JobRow[]), total };
 }
 
 async function queryJob(slug: string): Promise<Job | null> {
   const rows = await baseQuery().where(and(visiblePredicate(), eq(jobs.slug, slug))).limit(1);
   const row = (rows as JobRow[])[0];
-  return row ? toJob(row) : null;
+  if (!row) return null;
+  const [job] = await attachImages([row]);
+  return job;
 }
 
 async function queryFeaturedJobs(limit = 6): Promise<Job[]> {
@@ -173,7 +207,7 @@ async function queryFeaturedJobs(limit = 6): Promise<Job[]> {
     )
     .orderBy(asc(jobs.id))
     .limit(limit);
-  return (rows as JobRow[]).map(toJob);
+  return attachImages(rows as JobRow[]);
 }
 
 async function queryRecentJobs(limit = 8): Promise<Job[]> {
@@ -181,7 +215,7 @@ async function queryRecentJobs(limit = 8): Promise<Job[]> {
     .where(visiblePredicate())
     .orderBy(desc(jobs.publishedAt), asc(jobs.id))
     .limit(limit);
-  return (rows as JobRow[]).map(toJob);
+  return attachImages(rows as JobRow[]);
 }
 
 // ---------------------------------------------------------------------------
