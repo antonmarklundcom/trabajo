@@ -15,7 +15,27 @@
 // fails CI instead of failing the page for a visitor.
 //
 // No database, no env, no network.
-import { getBlogPost, getBlogPosts, getBlogSlugs, renderMarkdown } from '../lib/blog';
+import { statSync } from 'node:fs';
+import sharp from 'sharp';
+import type { Metadata } from 'sharp';
+import {
+  getBlogPost,
+  getBlogPosts,
+  getBlogSlugs,
+  renderMarkdown,
+  listCoverImageReferences,
+  listCoverFiles,
+  coverFilePath,
+  BLOG_COVER_WIDTH,
+  BLOG_COVER_HEIGHT,
+} from '../lib/blog';
+
+/**
+ * The cap that replaces the upload pipeline's byte limit (PLAN-PHASE3.md
+ * §10.5). Generous for a 1600x900 WebP at quality 82, and low enough that an
+ * unconverted file is caught rather than committed into git history forever.
+ */
+const MAX_COVER_BYTES = 200 * 1024;
 
 let failures = 0;
 
@@ -89,6 +109,70 @@ async function main() {
   }
 
   check('getBlogSlugs() matches getBlogPosts()', slugs.length === posts.length);
+
+  // -------------------------------------------------------------------------
+  // 4. Cover images: the limits the upload pipeline would have enforced.
+  // -------------------------------------------------------------------------
+  // Committed bytes never reach lib/image-storage.ts (PLAN-PHASE3.md §9.2), so
+  // these assertions ARE the enforcement. Different reasons than the pipeline's
+  // though: not "an attacker uploaded this" but "a 4 MB JPEG is permanent in git
+  // history and a slow LCP on a Paraguayan mobile network".
+  //
+  // References include unpublished articles on purpose — a draft's cover is a
+  // real reference, and calling it an orphan would delete the image before the
+  // article that needs it ships.
+  const coverRefs = listCoverImageReferences();
+  const coverFiles = listCoverFiles();
+  console.log(`${coverRefs.length} cover reference(s), ${coverFiles.length} file(s) in public/blog-covers/\n`);
+
+  for (const ref of coverRefs) {
+    // Existence is already enforced at read time by lib/blog.ts, which throws —
+    // so reaching this loop at all proves it. Asserted anyway: this script is
+    // what runs in CI and what a reader checks, and a check that restates a
+    // guarantee from another module is cheap next to one that silently moved.
+    let meta: Metadata | null = null;
+    try {
+      meta = await sharp(coverFilePath(ref.coverImage)).metadata();
+    } catch (err) {
+      check(`${ref.coverImage}: decodes as an image`, false, String(err));
+      continue;
+    }
+
+    check(`${ref.coverImage}: is WebP`, meta.format === 'webp', `format = ${meta.format}`);
+    check(
+      `${ref.coverImage}: is not animated`,
+      meta.pages === undefined || meta.pages === 1,
+      `pages = ${meta.pages}`,
+    );
+    check(
+      `${ref.coverImage}: is exactly ${BLOG_COVER_WIDTH}x${BLOG_COVER_HEIGHT}`,
+      meta.width === BLOG_COVER_WIDTH && meta.height === BLOG_COVER_HEIGHT,
+      `got ${meta.width}x${meta.height} — the page writes the dimensions as constants, so a ` +
+        'different size renders stretched.',
+    );
+
+    const bytes = statSync(coverFilePath(ref.coverImage)).size;
+    check(
+      `${ref.coverImage}: is under ${Math.round(MAX_COVER_BYTES / 1024)} KB`,
+      bytes <= MAX_COVER_BYTES,
+      `${Math.round(bytes / 1024)} KB — re-encode at quality 82 (see content/blog/README.md).`,
+    );
+
+    // Redundant against the zod superRefine in lib/blog.ts, deliberately: that
+    // one is the gate, this one is what a reader of CI sees.
+    check(`${ref.slug}: cover has alt text`, ref.coverAlt.trim().length > 0);
+  }
+
+  // Orphans. git has no delete hook, so an article removed without its image
+  // leaves the file behind forever unless something fails on it.
+  const referenced = new Set(coverRefs.map((r) => r.coverImage));
+  for (const file of coverFiles) {
+    check(
+      `${file}: is referenced by an article`,
+      referenced.has(file),
+      'No article declares this coverImage. Delete the file, or reference it.',
+    );
+  }
 
   console.log('');
   if (failures > 0) {

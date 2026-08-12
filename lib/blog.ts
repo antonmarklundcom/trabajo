@@ -22,6 +22,51 @@ const BLOG_DIR = path.join(process.cwd(), 'content', 'blog');
  */
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
+/**
+ * Cover images are COMMITTED files, not uploads (PLAN-PHASE3.md §9.2).
+ *
+ * They deliberately do not go through lib/image-storage.ts, and that is not an
+ * oversight: that pipeline defends against a stranger putting bytes on our
+ * origin at runtime, and there is no stranger here — a cover image arrives in a
+ * pull request from whoever can already deploy arbitrary code. Routing it
+ * through storeImage() would add no guarantee the commit does not already give,
+ * and would move the file out of git into IMAGE_STORAGE_DIR, where a static
+ * site would then depend on runtime storage to render its own content.
+ *
+ * What the pipeline WOULD have enforced still gets enforced — size, dimensions
+ * and a single format — but in CI, by scripts/verify-blog.ts, for different
+ * reasons: an oversized JPEG committed once lives in git history forever, and
+ * an unconverted hero image is an LCP regression on Paraguayan mobile networks.
+ */
+const COVERS_DIR = path.join(process.cwd(), 'public', 'blog-covers');
+
+/**
+ * A bare filename, never a path. Same discipline and same reason as
+ * SLUG_PATTERN: the value becomes a filesystem path, so the permitted set is
+ * declared once and asserted rather than assumed. No slashes, no `..`, no
+ * uppercase, no other extension.
+ */
+const COVER_IMAGE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*\.webp$/;
+
+/**
+ * Exact, not a maximum (PLAN-PHASE3.md §10.4). Because every cover is the same
+ * size, the page writes these as constants and never reads a file header at
+ * render time — which is what keeps the largest image on the page from being a
+ * layout shift. scripts/verify-blog.ts asserts the files actually match.
+ */
+export const BLOG_COVER_WIDTH = 1600;
+export const BLOG_COVER_HEIGHT = 900;
+
+/**
+ * Where the browser fetches a cover. A function rather than a string
+ * concatenated at three call sites, for the same reason imagePublicUrl() exists
+ * in PLAN-IMAGES.md §2.1: if these bytes ever move, one file changes. Pages
+ * call this and do not know the directory.
+ */
+export function blogCoverUrl(coverImage: string): string {
+  return `/blog-covers/${coverImage}`;
+}
+
 // Raw HTML in an article is ESCAPED, not passed through and not dropped.
 //
 // This needs stating precisely, because the obvious assumption is wrong:
@@ -81,6 +126,20 @@ const frontmatterSchema = z.object({
   published: z.enum(['true', 'false']).transform((v) => v === 'true'),
   relatedCategory: z.string().optional(),
   relatedCity: z.string().optional(),
+  coverImage: z.string().regex(COVER_IMAGE_PATTERN, 'coverImage debe ser un nombre de archivo .webp en minúsculas, sin carpetas').optional(),
+  coverAlt: z.string().min(1).max(160).optional(),
+}).superRefine((data, ctx) => {
+  // Bound at schema level rather than in an `if` inside the page: a cover image
+  // without alt text is an accessibility defect that should stop the build, in
+  // the same spirit as PR #46's fix to the job gallery's alt text. A page-level
+  // check would only fire for articles someone happened to open.
+  if (data.coverImage && !data.coverAlt) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['coverAlt'],
+      message: 'coverAlt es obligatorio cuando hay coverImage.',
+    });
+  }
 });
 
 export type BlogCategory = (typeof CATEGORIES)[number];
@@ -95,6 +154,8 @@ export type BlogPostMeta = {
   published: boolean;
   relatedCategory?: string;
   relatedCity?: string;
+  coverImage?: string;
+  coverAlt?: string;
 };
 
 export type BlogPost = BlogPostMeta & { html: string };
@@ -133,6 +194,16 @@ function readPostFile(filename: string): BlogPost {
   const raw = fs.readFileSync(path.join(BLOG_DIR, filename), 'utf8');
   const { data, body } = parseFrontmatter(raw);
   const meta = frontmatterSchema.parse(data);
+  // Loud, not silently coverless. A frontmatter field pointing at a file that
+  // is not there is a mistake to fix before it ships — rendering the article
+  // without its cover would hide the typo behind a page that looks fine, which
+  // is the same reasoning readPostFile() already applies to an invalid filename.
+  if (meta.coverImage && !fs.existsSync(path.join(COVERS_DIR, meta.coverImage))) {
+    throw new Error(
+      `El art\u00edculo "${slug}" declara coverImage: ${meta.coverImage}, ` +
+        'pero public/blog-covers/ no contiene ese archivo.',
+    );
+  }
   const html = renderMarkdown(body);
   return { slug, ...meta, html };
 }
@@ -156,6 +227,8 @@ function toMeta(post: BlogPost): BlogPostMeta {
     published: post.published,
     relatedCategory: post.relatedCategory,
     relatedCity: post.relatedCity,
+    coverImage: post.coverImage,
+    coverAlt: post.coverAlt,
   };
 }
 
@@ -185,4 +258,43 @@ export async function getBlogPost(slug: string): Promise<BlogPost | null> {
   const post = readPostFile(filename);
   if (!post.published) return null;
   return post;
+}
+
+/**
+ * Every cover reference declared in content/blog/, INCLUDING articles with
+ * `published: false`.
+ *
+ * Deliberately narrow. scripts/verify-blog.ts needs to see unpublished
+ * articles — a draft's cover is a real reference, and treating it as an orphan
+ * would delete the image out from under the article before it ships. But an
+ * unfiltered "all posts" export would be a loaded gun pointed at the listing
+ * page, where it would publish drafts. This returns cover references and
+ * nothing else: no body, no title, nothing a page could render.
+ */
+export function listCoverImageReferences(): { slug: string; coverImage: string; coverAlt: string }[] {
+  return readAllPosts()
+    .filter((p) => p.coverImage)
+    .map((p) => ({ slug: p.slug, coverImage: p.coverImage!, coverAlt: p.coverAlt ?? '' }));
+}
+
+/**
+ * The cover files actually on disk, for the orphan check in
+ * scripts/verify-blog.ts. Missing directory is a valid state and returns []:
+ * git does not track empty directories, so public/blog-covers/ legitimately
+ * does not exist until the first article gets a cover — the same stance
+ * readAllPosts() takes towards a missing content/blog/.
+ */
+export function listCoverFiles(): string[] {
+  if (!fs.existsSync(COVERS_DIR)) return [];
+  return fs.readdirSync(COVERS_DIR).filter((f) => !f.startsWith('.'));
+}
+
+/** Absolute path of a cover file. Only scripts/verify-blog.ts needs this — it
+ *  is the one caller that reads the bytes rather than linking to them, and
+ *  keeping the join here is what stops a second module learning the directory. */
+export function coverFilePath(coverImage: string): string {
+  if (!COVER_IMAGE_PATTERN.test(coverImage)) {
+    throw new Error(`Nombre de archivo de portada inválido: "${coverImage}"`);
+  }
+  return path.join(COVERS_DIR, coverImage);
 }
