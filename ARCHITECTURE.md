@@ -114,9 +114,15 @@ admin/editor only — adding a role later means retrofitting every permission
 check.
 
 ### `companies`
-`id` · `name` · `slug` UNIQUE · `logo_url` NULL · `whatsapp` NULL ·
-`website` NULL · `description` NULL · `owner_user_id` NULL → `users.id` ·
-`created_at` · `updated_at`
+`id` · `name` · `slug` UNIQUE · `logo_url` NULL · `logo_key` NULL ·
+`whatsapp` NULL · `website` NULL · `description` NULL · `owner_user_id` NULL →
+`users.id` · `created_at` · `updated_at`
+
+`logo_url` is the legacy free-text URL, read-only since 2026-08-10
+(`PLAN-IMAGES.md`). `logo_key` is the write path: an `img/logos/{uuid}.webp`
+key minted by `lib/image-storage.ts` — the key, never a URL. `logo_key` takes
+precedence over `logo_url` whenever present (`companyLogoSrc()` in
+`lib/company-logo.ts`).
 
 Today `Job.company` is a plain string and `Job.companyLogo` a path. Both are
 resolved by joining `companies` — the seed importer creates one company row per
@@ -164,6 +170,15 @@ status = 'published' AND (expires_at IS NULL OR expires_at > NOW())
 Put it in a single exported helper in `lib/db/queries.ts`. A page that forgets
 it leaks unapproved drafts — that is the single highest-risk bug in this
 migration, and it belongs in the parity tests.
+
+### `job_images`
+`id` · `job_id` → `jobs.id` · `image_key` (`img/jobs/{uuid}.webp`, minted by
+`lib/image-storage.ts` — the key, never a URL) · `width` · `height` ·
+`sort_order` int default 0 · `created_at`
+
+Index `(job_id, sort_order)`. 1–3 public photos per posting
+(`PLAN-IMAGES.md`); one row per image so reordering/removing one never touches
+the others.
 
 ### `applications`
 `id` · `job_id` → `jobs.id` · `candidate_id` NULL → `candidates.id` ·
@@ -240,6 +255,15 @@ enum(`candidate`,`admin`) · `actor_user_id` NULL · `requested_at` ·
 
 Holds no personal data by construction; the audit trail of ARCO cancellations.
 
+### `saved_jobs`
+`id` · `candidate_id` → `candidates.id` · `job_id` → `jobs.id` · `created_at`
+
+Unique index `(candidate_id, job_id)` — also the idempotency guard for "save":
+a second save hits the constraint and the write path treats it as success.
+Index `(candidate_id, created_at)` for "Mis guardados". A candidate
+bookmarking a job, separate from `applications`
+(`PLAN-PHASE3-DRAFT.md` §1/§6).
+
 ### `employer_invitations`
 `id` · `company_id` → `companies.id` · `email` · `token_hash` UNIQUE (sha256 of
 a 32-byte random token; the raw token exists only in the invite link) ·
@@ -260,6 +284,31 @@ at a candidate id that no longer exists.
 Written on approve / reject / publish / feature / delete. Cheap now, expensive
 to retrofit once there's a billing dispute about a featured listing.
 
+### `blog_posts`
+`id` · `slug` varchar(200) UNIQUE (live SEO URL) · `title` · `description`
+varchar(300) (meta/OG description, capped at 160 in zod) · `body` text
+(Markdown as typed — **never stored HTML**, rendered on read by
+`renderMarkdown()` in `lib/blog.ts`) · `category`
+enum(`noticias`,`analisis-laboral`,`consejos-cv`) · `status`
+enum(`draft`,`published`) default `draft` · `cover_image_key` NULL
+(`img/blog/{uuid}.webp`, the key never a URL) · `cover_alt` NULL (required in
+the write path whenever `cover_image_key` is set) · `related_category_slug`
+NULL · `related_city_slug` NULL · `published_at` date NULL (editorial date,
+author-set) · `author_user_id` NULL → `users.id` · `created_at` · `updated_at`
+
+Index `(status, published_at)`. Two statuses, not five: a blog post has no
+moderation queue. Public reads go through `publishedPredicate()` in
+`lib/db/blog.ts`, read only via `lib/blog.ts`
+(`PLAN-PHASE3-DRAFT.md` §11, `AGENTS.md`).
+
+### `blog_post_redirects`
+`id` · `from_slug` varchar(200) UNIQUE · `post_id` → `blog_posts.id` ·
+`created_at`
+
+Index `(post_id)`. One row per slug a published post used to have: renaming a
+published article mints the 301 inside the same write (`AGENTS.md`).
+`from_slug` is unique so a retired slug can never point at two destinations.
+
 ---
 
 ## 5. Auth & authorization
@@ -268,9 +317,12 @@ to retrofit once there's a billing dispute about a featured listing.
   the user (and therefore the role) from the DB on each request. Storing the
   role in the cookie means a demoted or disabled user keeps their access until
   the cookie expires.
-- **Passwords**: bcrypt cost 12. No password reset flow in v1 — admin resets
-  via a `scripts/set-password.ts` one-off. Add self-serve reset with employer
-  accounts, not before.
+- **Passwords**: bcrypt cost 12. Still no self-serve password reset — admin
+  resets via `npm run user:password` (`scripts/set-password.ts`). The original
+  trigger ("add self-serve reset with employer accounts") has fired: employer
+  accounts shipped with PLAN-PHASE2.md. What blocks reset now is
+  PLAN-PHASE2.md §8 Q5 — there is no transactional email provider, so there is
+  nothing to send a reset link with.
 - **Every mutating server action / route handler starts with an authorization
   check**, not just a hidden button:
 

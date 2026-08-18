@@ -24,11 +24,11 @@
 > längre. §9.2:s resonemang om *varför* committade bytes inte behövde
 > pipelinen står kvar som korrekt för den värld det skrevs i.
 >
-> **Tillägg 2026-08-18:** §12 är en genomgång av redan mergad kod — fyra
-> rättningar, ordnade efter risk, med modell per PR. §13 är fyra frågor som
-> ägaren måste svara på och som ingen session ska avgöra åt hen. §12.1 skriver
-> ut att det §12 uppdraget hänvisade till inte fanns i repot, och att fynden
-> därför är omgjorda mot koden.
+> **Tillägg 2026-08-18:** §12 är två oberoende revisionspass över hela repot
+> (Sonnet + Fable 5) — fynden, inte rättningarna. §13 är triagen av §12.1:
+> sju PR:er, ordnade efter exponering, med modell per PR. §14 är §12.2:s fyra
+> frågor skrivna som beslutsunderlag för ägaren. §12–§14 är på engelska enligt
+> `AGENTS.md`; §1–§11 står kvar på svenska.
 
 ## 1. Sparade jobb (favoriter) för postulantes
 
@@ -971,10 +971,11 @@ femton-minuters beslut i stället för en ny utredning.
    samma sittning.
 2. Efterkontroll i §4:s anda efter merge (särskilt punkt 5, `noindex`/sitemap,
    nu när artikel-URL:erna genereras från en tabell).
-3. Fristående från de två ovan: `/admin/blog` öppnade en skrivväg som §12.3 F2
+3. Fristående från de två ovan: `/admin/blog` öppnade en skrivväg som §12.1
    hittade ett hål i (`javascript:`-URL:er i artikel-Markdown). Den rättningen
-   är PR **A2** i §12.4 och hör inte hemma i den här listan — den här listan
-   handlar om att bli klar med cutovern.
+   är PR **B3** i §13.4 och hör inte hemma i den här listan — den här listan
+   handlar om att bli klar med cutovern. Steg 1 ovan är samma sak som §12.3
+   noterar som ogjort.
 
 ### 11.5 Vad som *inte* följer av det här beslutet
 
@@ -988,345 +989,450 @@ femton-minuters beslut i stället för en ny utredning.
 
 ---
 
-## 12. Revisionsfynd: triage och PR-uppdelning (2026-08-18)
+## 12. Audit findings — Sonnet + Fable 5 (2026-08-18)
 
-### 12.1 Om underlaget: §12 fanns inte, fynden är omgjorda mot koden
+Two independent passes over the whole repo: first a Sonnet checklist audit
+(non-negotiables, doc/code drift, CI coverage), then a Fable 5 deep-read audit
+deliberately steered away from repeating it (races, transaction boundaries,
+cache behaviour, trust boundaries). Combined results below. The stale-doc items
+both passes found were fixed in the same commit as this section
+(`ARCHITECTURE.md` §4/§5, `MIGRATION.md` header, `DEPLOY.md` counts,
+`PLAN-PHASE2.md` §8 Q1); everything below is what remains. Code fixes are
+intentionally NOT applied here — this section is the record, the fixes are
+follow-up PRs.
 
-Uppdraget hänvisade till ett befintligt §12 *"Audit findings — Sonnet + Fable 5
-(2026-08-18)"* i det här dokumentet, och till rättningar i `ARCHITECTURE.md`,
-`MIGRATION.md`, `DEPLOY.md` och `PLAN-PHASE2.md` §8 Q1 "i samma commit".
+### 12.1 Pure engineering fixes — no owner decision needed
 
-**Inget av det finns i repot.** Vid `f5403cf` (= `origin/main` = den här
-grenens utgångspunkt, arbetsträdet rent) slutar dokumentet vid §11.5, det finns
-ingen sektion som nämner en revision, och `PLAN-PHASE2.md` §8 Q1 står kvar
-oförändrad med sin 24/12-månaders retention som antagande. Ingen commit i
-historiken innehåller ordet "audit".
+**CI gaps**
 
-Sektionen nedan är därför inte en triage av en lista som fanns, utan av fynd som
-är **omgjorda direkt mot koden** i den ordning uppdraget pekade ut: först de två
-namngivna säkerhetsluckorna, sedan cache- och dedup-frågorna. Varje fynd nedan
-är verifierat mot fil och rad, och där det gick att köra är det kört. Två av
-dem stämde, ett tredje visade sig vara något annat än vad rubriken antydde, och
-cache-halvan visade sig vara ren. Det står utskrivet vilket som är vilket, av
-samma skäl som §8.1 skrev ut att en kommentar i `lib/blog.ts` var faktafel:
-ett fynd som inte går att spåra tillbaka till kod är inte ett fynd.
+- No `npm run lint` step and no isolated `tsc --noEmit` step in
+  `.github/workflows/ci.yml` — typechecking happens only implicitly inside
+  `next build`. Fix: add both as explicit CI steps. Benefit: lint regressions
+  and type errors in non-built code paths (scripts) fail fast and visibly.
 
-### 12.2 Var det här hör hemma, och varför inte `PLAN-PHASE4.md`
+**Correctness / atomicity**
 
-Beslut: **§12 och §13 i det här dokumentet. Ingen ny plandokumentfil, och inte
-heller inbakat i §11.4.**
+- Duplicate-application race: `createCandidateApplication()`
+  (`lib/db/candidate-applications.ts:57–62`) is check-then-insert with **no
+  unique index on `(candidate_id, job_id)`** — unlike `saved_jobs`, which has
+  exactly that guard (`lib/db/schema.ts:466`). Two concurrent submits both
+  pass the check. Fix: add the unique index (candidate rows only —
+  anonymous rows have NULL `candidate_id`, which MySQL unique indexes permit
+  repeatedly, so the lead form is unaffected) and treat the constraint
+  violation as `already_applied`. Benefit: the race becomes impossible
+  instead of unlikely.
+- No DB transaction around (a) the consent-insert → application-insert pair
+  (`lib/db/candidate-applications.ts:74–87`) and (b) steps 3–5 of
+  `deleteCandidateAccount()` (`lib/db/candidate-arco.ts:386–435`). A
+  mid-write crash can leave a consent row authorising a share that never
+  happened, or a half-deleted candidate. Fix: wrap each in
+  `db.transaction()`. Benefit: consent/application state and the ARCO purge
+  become all-or-nothing. (The CV *storage* delete stays outside the
+  transaction by design — bytes-before-rows is §4.4's ordering.)
 
-1. **En ny `PLAN-PHASE4.md` skulle beskriva fel sorts arbete.** `PLAN.md` och
-   `PLAN-PHASE2.md` öppnar var sin *ny kropp av arbete* — ett schema, en flagga,
-   en yta som inte finns än. Fyra rättningar i redan mergad kod har inget av
-   det: inga nya tabeller, ingen ny route, ingen flagga att tända. Ett eget
-   plandokument skulle ge dem en tyngd de inte har och göra "planen" till en
-   plats där buggar bokförs.
-2. **"Phase 4" är dessutom ett upptaget namn.** `PLAN-PHASE2.md` §6 kallar
-   sökning, ranking och matchning av kandidater för *"Phase 4 — NOT NOW"*,
-   spärrat på juridisk granskning, och `AGENTS.md` upprepar det som en
-   icke-förhandlingsbar punkt. En `PLAN-PHASE4.md` om rate limiting skulle göra
-   varje framtida hänvisning till "fas 4" tvetydig — precis den sortens krock
-   som notisen "läs §11 innan §9–§10" i dokumenthuvudet finns till för att
-   varna för.
-3. **§11.4 är fel lista.** Den är svansen på *ett* PR: bloggens cutover-steg,
-   två kommandon som ska köras i samma sittning. Lägger man fyra
-   tvärgående rättningar där slutar den vara en checklista för att bli klar med
-   bloggen.
-4. **Det här dokumentet är däremot redan platsen där efterkontroller bor** —
-   §4, §6 och §8 är alla "vad hittade vi efter merge". §12 är samma genre, ett
-   snäpp större. §11.4 får en rad som pekar hit.
+**Security**
 
-### 12.3 Fynden
+- Blog Markdown XSS gap: the `marked` renderer override in `lib/blog.ts:64–72`
+  escapes raw HTML but does **not** filter link destinations —
+  `[x](javascript:alert(1))` renders as a live anchor. Fix: allowlist link
+  href schemes (http/https/mailto only) in the renderer, and add a
+  corresponding assertion to `scripts/verify-blog.ts` so the property is
+  CI-locked like the raw-HTML escape already is. Benefit: closes the one
+  remaining script-injection path from the admin editor to every visitor.
+- Spoofable rate-limit key: the login limiter reads the client IP as the
+  **leftmost** `x-forwarded-for` entry (`app/api/admin/login/route.ts:20`,
+  same pattern in the empresa/postulante routes and `lib/leads.ts:249`). XFF
+  is client-appendable — an attacker prepending a random value gets a fresh
+  bucket per request, i.e. unlimited login attempts per account. Fix: take
+  the trusted hop (rightmost entry / the platform-provided real client IP)
+  in one shared helper. Benefit: the limiter actually limits an attacker,
+  not just an honest client.
+- No rate limiting on authenticated candidate write endpoints (e.g.
+  `POST /api/postulante/postulaciones`) while the anonymous leads route
+  already has it — §6.6 flagged the same for `guardados`. Fix: apply the
+  same `createAttemptLimiter` pattern. Benefit: a compromised or scripted
+  account can't spray writes.
 
-| # | Fynd | Var | Status | Live idag? |
-|---|---|---|---|---|
-| **F1** | Login-limitern nyckas på en IP som klienten själv sätter | `lib/rate-limit.ts`, `app/api/admin/login/route.ts:16-21` m.fl. | Bekräftat | **Ja** — `/admin/login` ligger inte bakom någon flagga |
-| **F2** | `javascript:`-URL:er överlever blogg-Markdown | `lib/blog.ts:63-81` | Bekräftat, kört | **Ja** — `/admin/blog` mergades i PR #49 |
-| **F3** | Sju kopior av `clientIp`, som inte gör samma sak | 6 route-filer + `lib/leads.ts:249` | Bekräftat | — |
-| **F4** | `npm run lint` körs aldrig i CI | `.github/workflows/ci.yml` | Bekräftat | — |
-| **F5** | ARCO-raderingen delar budget med inloggningen | `app/api/postulante/mis-datos/eliminar/route.ts:56-57` | Bekräftat, men annan sort än det såg ut | Nej (flagga av) |
-| **F6** | Cache-invalidering | `lib/cache.ts`, `lib/cache-tags.ts` | **Rent — inget att laga** | — |
+**Duplication / drift**
 
-#### F1 — `x-forwarded-for` är angriparens fält, inte proxyns
+- Two independent in-memory rate limiters: `lib/rate-limit.ts`
+  (`createAttemptLimiter`) and a second hand-rolled one in `lib/leads.ts:260`
+  (`requestTimestamps` Map). Same single-process fragility, implemented
+  twice. Fix: consolidate on one module. Benefit: one place to fix the XFF
+  issue above and one place to replace if the process model ever changes.
+- `cachedOrRaw()` is duplicated verbatim in `lib/db/queries.ts:380` and
+  `lib/blog.ts`, both string-matching `'incrementalCache missing'` against a
+  Next internal. Fix: extract one shared helper. Benefit: when the Next
+  internal message changes, it breaks in one place, loudly, not in two.
+- Unbounded cache cardinality: `cachedJobs` keys on `filtersKey(filters)`
+  including free-text `q` (`lib/db/queries.ts:316–326`). A crawler sending
+  random `?q=` values mints an unlimited number of cached entries on disk.
+  Fix: normalize/cap `q` in the key, or exclude `q`-carrying queries from
+  `unstable_cache` and serve them raw. Benefit: cache size is bounded by the
+  finite filter space again.
+- Seed-vs-DB sort drift: seed's `salario` sort ignores `featured`
+  (`lib/data.ts`) while the DB path keeps featured as a tiebreaker
+  (`lib/db/queries.ts`); `seedGetFeaturedJobs` returns file order while the
+  DB orders `asc(jobs.id)`. Fix: align both sides, or record the divergence
+  as accepted in `ARCHITECTURE.md` §3 — `db:parity` should not be quietly
+  tolerating it. Benefit: the parity guarantee stays a guarantee.
 
-`clientIp()` tar **första** hoppet i `x-forwarded-for` och skickar det till
-`checkLoginRateLimit(ip, email)`, som nyckar på `` `${ip}:${email}` ``
-(`lib/rate-limit.ts:33`). Första hoppet är det värde klienten själv skickade —
-Hostingers proxy *lägger till* sitt hopp, den ersätter inte det som redan står
-där. En angripare som vill prova lösenord mot en känd admin-adress skickar en ny
-`X-Forwarded-For` per försök och får en ny hink varje gång. Taket på fem försök
-per femton minuter finns kvar i koden och binder ingenting.
+**Docs**
 
-Kommentaren på raden ovanför beskriver ett äkta problem (appen *står* bakom en
-proxy och `request.ip` finns inte), men lösningen tar fel ände av listan.
+- `user:password` and `candidate:create` (`package.json`) are the only two
+  ops scripts documented nowhere. Fix: one line each in `DEPLOY.md`.
+  Benefit: the next operator doesn't rediscover them by reading
+  `package.json`.
 
-Två saker till hör ihop med det här, och är skälet att fyndet inte är
-"bara" en limiter-bugg:
+### 12.2 Requires an owner decision — recorded, not resolved
 
-- Samma spoofbara värde skrivs ned som bevis. `consents.ip` och
-  `data_access_logs` matas från samma header (`lib/db/candidates-admin.ts:90`,
-  routes under `/api/postulante/*`). En IP-kolumn i en samtyckesrad som vem som
-  helst kan sätta är inte bevisvärde, och det är den kolumnen ARCO-spåret vilar
-  på.
-- `lib/leads.ts:249` har samma konstruktion bakom lead-formulärets limiter, som
-  **är** publik idag.
+- **CV storage driver (R2 vs disk) — PLAN-PHASE2.md §8 Q4, still open.**
+  `CV_STORAGE_DRIVER` has no default and throws if unset, so production has
+  chosen *something*, but the repo doesn't say what. `DEPLOY.md` already
+  spells out the stakes: disk means unscheduled manual backups, legal
+  exposure under Ley N° 7593/2025 if a CV is lost, and **no migration path
+  between drivers once CVs exist on one**. The cost of deferring rises with
+  every stored CV. Decision needed before real CV volume arrives.
+- **Transactional email (Resend) — PLAN-PHASE2.md §8 Q5, still entirely
+  unimplemented**, and §8 calls it "the one open question that changes PR
+  scope". Consequences of not deciding: password reset has no possible
+  implementation (see the `ARCHITECTURE.md` §5 note fixed in this commit);
+  the 23-month retention warning can only be *reported*, never sent
+  (`db:purge`); and `candidates.emailVerifiedAt` can never be set — meaning
+  every consent row is tied to an unverified address, which weakens its
+  evidentiary value for ARCO/legal purposes.
+- **Single-process assumption.** Both in-memory rate limiters and the
+  `revalidateTag`-based invalidation (`ARCHITECTURE.md` §8) assume one Node
+  process. Fine forever if Hostinger stays single-instance; breaks
+  *silently* under horizontal scaling — per-instance rate limits, and an
+  instance that never sees another's invalidations, so "editor publishes and
+  sees it immediately" stops being true. Owner should confirm whether
+  single-instance is a permanent assumption (then document it as one) or
+  whether scaling should be planned for (then these become real work).
+- **Ops hardening phase — candidate for a small new phase, priority is the
+  owner's call** since none of it gates a current PR:
+  - No error tracking — only stray `console.*` calls in `lib/`, while
+    `DEPLOY.md` itself describes production failures as an opaque
+    "Application error / Digest" page with no useful information.
+  - No MySQL backup/restore procedure documented anywhere — only the CV and
+    image *directories* are mentioned in backup terms.
+  - No monitoring that the monthly `db:purge` sweep actually runs. A
+    silently skipped month is non-compliance with the retention numbers
+    published in `/privacidad`.
+  - No auth audit trail beyond `lastLoginAt` — no record of logins, failed
+    logins, or password changes.
 
-*Formen på rättningen* (inte implementationen — det här passet bygger
-ingenting): hoppet måste pinnas, alltså räknas bakifrån utifrån hur många
-proxies som faktiskt står framför appen, konfigurerat och inte gissat. Och det
-räcker inte: en angripare med riktiga IP:n har riktiga IP:n. Den halva som
-faktiskt stänger luckan är en hink till som **inte** beror på IP alls — per
-e-postadress, med ett eget, glesare tak — så att ett konto inte kan hamras oavsett
-varifrån. Nuvarande nyckel `ip:email` är medvetet vald för att en angripare inte
-ska kunna låsa ute en känd användare (`lib/rate-limit.ts:31-33`); den avvägningen
-ska stå kvar, och den nya hinken ska vara långsam snarare än utestängande.
+### 12.3 Operational, not code
 
-#### F2 — råa HTML-taggar är stängda, länk-scheman är öppna
+- **The blog production cutover (§11.4 step 1) does not appear to have been
+  run**: `npm run db:migrate` then `npm run blog:import -- --write` against
+  production. This cannot be confirmed from the repo — that state lives in
+  the production database — but it is still listed as outstanding, and until
+  it runs, the deployed `/blog` is empty. Operational to-do for whoever holds
+  production access; nothing to fix in code.
+---
 
-`lib/blog.ts` skriver över `marked`s `html`-renderare och escapar råa taggar.
-Det fungerar och `scripts/verify-blog.ts` bevakar det. Men Markdowns egen
-länksyntax går inte genom den renderaren. Kört mot repots egen `marked` (18.0.9)
-med exakt konfigurationen i `lib/blog.ts:63-69`:
+## 13. Triage of §12 — PR breakdown and model per PR (2026-08-18)
 
-```
-[clic](javascript:alert(document.cookie))
-  → <p><a href="javascript:alert(document.cookie)">clic</a></p>
-![x](javascript:alert(1))
-  → <p><img src="javascript:alert(1)" alt="x"></p>
-[a](data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==)
-  → <p><a href="data:text/html;base64,…">a</a></p>
-```
+English, like §12 and unlike the rest of this document: this section is read
+against §12's finding list, and `AGENTS.md` puts docs in English anyway. §1–§11
+stay as they are.
 
-`AGENTS.md` formulerar escapen som "gränsen mellan *en redaktör skriver en
-artikel* och *en redaktör skriver JavaScript som körs i varje besökares
-webbläsare*". En `javascript:`-länk går runt gränsen utan att röra den.
-Artikelkroppen kommer numera över HTTP från en admin- eller editor-session
-(§11.2), så det här är inte längre en fråga om vad en committer kan skriva.
+### 13.1 What this triage is, and how it was produced
 
-Två avgränsningar, båda kontrollerade:
+§12 is the record of what is wrong. This section is the plan for fixing it:
+§12.1's list cut into PR-sized units, each with a model, ordered by risk.
+Nothing here is implemented — that is deliberate, and it matches §12's own
+"the fixes are follow-up PRs".
 
-- **Jobbannonser är inte drabbade.** `components/MarkdownContent.tsx` har ingen
-  länksyntax över huvud taget — den har inga `href` alls, och
-  `scripts/verify-jobs.ts:56` täcker attributfallet. Den handrullade renderaren
-  är här strikt säkrare än biblioteket.
-- **Utomstående kan inte nå det.** Det krävs `admin`- eller `editor`-session.
-  Det gör fyndet till "en kompromitterad redaktörssession blir persistent XSS
-  mot hela publiken", inte till en öppen dörr.
+One thing about the provenance, because it affects how much weight the
+agreements below deserve. This triage was started while §12 was still an
+unmerged branch and was not visible in the repo, so the two named security
+findings were re-derived from the code independently rather than read off
+§12's list. Where this section and §12 agree, two passes that could not see
+each other reached the same place. Two consequences of that are worth keeping:
 
-*Formen på rättningen:* en scheme-allowlist i `link`- och `image`-renderarna
-(`http`, `https`, `mailto`, plus relativa URL:er), och assertionen in i
-`scripts/verify-blog.ts` — av exakt det skäl CI-kommentaren redan anger för
-den befintliga escapen: det är ett *default i ett beroende*, och en
-versionshöjning kan öppna det igen utan att någon rör vår kod.
+- **The blog XSS was reproduced, not reasoned about.** Running the repo's own
+  `marked` (18.0.9) with the exact override in `lib/blog.ts:63-69`:
+  `[clic](javascript:alert(document.cookie))` →
+  `<a href="javascript:alert(document.cookie)">clic</a>`. Also
+  `![x](javascript:…)` → a live `img src`, and `data:text/html;base64,…`
+  survives as an href — so the allowlist §12.1 asks for has to cover the
+  `image` renderer too, not only `link`.
+- **Job descriptions are not affected, and that is not luck.**
+  `components/MarkdownContent.tsx` implements no link syntax at all — no `href`
+  is produced anywhere in that file — so the hand-rolled renderer is strictly
+  safer here than the library. Worth writing down so nobody "fixes" the job
+  path by moving it to `marked`.
 
-#### F3 — `clientIp` finns i sju exemplar, i tre varianter
+### 13.2 Correction to my own pass: the cache was not clean
 
-`app/api/admin/login`, `app/api/postulante/login`,
-`app/api/postulante/registro`, `app/api/postulante/postulaciones`,
-`app/api/postulante/mis-datos/eliminar`, `app/api/empresa/activar` och
-`lib/leads.ts` har var sin kopia. De är inte identiska: tre returnerar `null`,
-två `'unknown'`, och bara `lib/leads.ts` faller tillbaka på `x-real-ip`.
+Before §12 was visible I audited the cache and reported it clean. That was
+answering a narrower question than the one that mattered. I checked
+*invalidation* — all 22 call sites of `invalidatePublicContent()` and
+`invalidateBlogContent()` against `PUBLIC_PATHS`, `BLOG_PATHS`, `CACHE_TAGS`
+and every `unstable_cache` key — and that half is genuinely fine: every
+mutating handler that can change public output calls one of the two, and
+`revalidatePath` with `'page'` on the dynamic patterns covers every slug,
+including the old one after a rename.
 
-Det här är inte en stilfråga i det här läget. Det är F1:s spridningsyta: en
-rättning som inte först slår ihop dem kommer att appliceras på fem av sju filer,
-och de två som blir kvar är de som ingen läste. Därför ligger F3 i samma PR som
-F1 och inte i en egen städ-PR.
+I did not check *key cardinality*, and that is where the defect is. §12.1's
+finding stands, and it is verified: `filtersKey()` (`lib/db/queries.ts:316`)
+JSON-encodes the whole filter object including free-text `q`, and `q` reaches
+it straight from the public query string (`app/empleos/page.tsx:28,47`). Every
+distinct `?q=` mints a cache entry. On shared Hostinger disk that is a
+resource-exhaustion vector any crawler can trip by accident, and it is live in
+production today.
 
-#### F4 — CI kör åtta verify-skript men inte eslint
+So it is not a "cache cleanup" and it is not ranked with the tidying below —
+it is B2, above the blog XSS, because it needs no session at all.
 
-`.github/workflows/ci.yml` kör `build` plus `storage:verify`,
-`image-storage:verify`, `retention:verify`, `access:verify`, `cascade:verify`,
-`blog:verify` och `jobs:verify`. `npm run lint` finns i `package.json` och körs
-inte. Billigast möjliga rättning, och den hör hemma i samma anda som §8.6, där
-`cascade:verify` fanns men aldrig kördes.
+### 13.3 One finding not in §12
 
-#### F5 — raderingsvägen lånar inloggningens hink
+`/api/postulante/mis-datos/eliminar` calls
+`checkCandidateLoginRateLimit(ip, candidate.email)` — the **same limiter
+instance** as candidate login (route line 56-57). Five failed password
+confirmations on the deletion page consume the login budget, and vice versa.
 
-`/api/postulante/mis-datos/eliminar` anropar `checkCandidateLoginRateLimit(ip,
-candidate.email)` — alltså **samma limiter-instans** som kandidatinloggningen.
-Fem misslyckade lösenordsbekräftelser på raderingssidan förbrukar därmed
-inloggningsbudgeten, och tvärtom.
+`lib/rate-limit.ts`'s own header states the rule being broken: *"Each caller
+creates its OWN limiter instance. That is deliberate… Sharing the code is the
+point; sharing the counters is not."* The module already has the answer; the
+call site does not follow it. It lands in B1 because B1 is already rewriting
+every limiter call site, and it matters because the affected path is ARCO
+self-service deletion — the one `/privacidad` promises.
 
-`lib/rate-limit.ts`:s eget dokumentationsblock säger vad som gäller: *"Each
-caller creates its OWN limiter instance. That is deliberate… Sharing the code is
-the point; sharing the counters is not."* Modulen har redan svaret; anropet
-följer det bara inte. Att det drabbar just ARCO-raderingen — den väg
-integritetspolicyn lovar ska vara självbetjäning — är vad som lyfter det över
-kosmetiskt.
+Related, and already implied by §12.1's XFF finding but worth making explicit
+as a *requirement on the fix* rather than a separate item: the same spoofable
+value is what gets written to `consents.ip` and `data_access_logs`
+(`lib/db/candidates-admin.ts:90`). Those are the ARCO evidence rows. B1 is not
+only a limiter fix; it decides what those columns are worth.
 
-Fyndet är alltså mindre än rubriken "kvarvarande dedup-arbete" antyder, och
-mer specifikt: en rad, en ny instans.
+### 13.4 The PRs
 
-#### F6 — cachen är ren
+Ordered by exposure, not by size. The rule used: **live and reachable without
+any session first**, then live-but-authenticated, then work behind a dark
+feature flag. Flag-dark work is not low priority — B4 must land before
+`CANDIDATE_ACCOUNTS_ENABLED` is ever flipped — it just cannot hurt anyone this
+week.
 
-Genomgången jag faktiskt gjorde, så att nästa läsare vet vad som är kontrollerat:
-alla 22 anropsställen för `invalidatePublicContent()` och
-`invalidateBlogContent()`, mot `PUBLIC_PATHS`, `BLOG_PATHS`, `CACHE_TAGS` och
-samtliga `unstable_cache`-nycklar i `lib/db/queries.ts` och `lib/blog.ts`.
-
-Varje muterande handler som kan ändra vad publiken ser anropar en av de två.
-Uppdelningen jobb/taxonomier/blogg stämmer med vilka skrivningar som faktiskt
-finns, `/sitemap.xml` ligger korrekt i båda listorna, och `revalidatePath` med
-`'page'` på de dynamiska ruttmönstren täcker alla slugs — inklusive den gamla
-när en slug byter namn. Grovheten i `CACHE_TAGS` är dessutom argumenterad i
-`lib/cache-tags.ts` och argumentet håller.
-
-**Ingen PR föreslås här.** Att skriva om cachen för att den råkade stå på
-uppdragets lista vore att laga något som fungerar.
-
-### 12.4 PR-uppdelning, modell per PR
-
-Ordnade efter risk, inte efter storlek. A1 och A2 före A3 och A4.
-
-| PR | Titel | Modell | Innehåll |
+| PR | Title | Model | §12 items covered |
 |---|---|---|---|
-| **A1** | Betrodd klient-IP + en enda `clientIp` | **Opus** | F1 + F3. En delad helper med konfigurerbart antal betrodda proxy-hopp; en identitetsbunden hink vid sidan av `ip:email`-hinken; alla sju anropsställen flyttade till helpern, inklusive `lib/leads.ts`. Ett verify-skript i `scripts/`-familjens anda som bevisar att en påhittad `x-forwarded-for` inte ger en ny hink. |
-| **A2** | Scheme-allowlist för länkar och bilder i blogg-Markdown | **Opus** | F2. `link`- och `image`-renderarna i `lib/blog.ts`; assertionerna in i `scripts/verify-blog.ts` bredvid de befintliga. Ingen ny renderingsväg, ingen sanitizer som beroende. |
-| **A3** | Egen limiter-instans för ARCO-raderingen | Sonnet | F5. En instans, ett anrop, en rad i `scripts/verify-retention.ts` eller närmaste befintliga skript. |
-| **A4** | `npm run lint` i CI | Sonnet | F4. Ett steg i `ci.yml`, plus de rättningar som krävs för att det ska bli grönt första gången. |
+| **B1** | Trusted client IP + one limiter module | **Opus** | Spoofable XFF key; two independent limiter implementations; plus §13.3's shared ARCO instance and the seven divergent `clientIp` copies |
+| **B2** | Bounded cache key for free-text search | **Opus** | Unbounded cache cardinality |
+| **B3** | Link/image scheme allowlist in blog Markdown | **Opus** | Blog Markdown XSS gap |
+| **B4** | Application uniqueness + transaction boundaries | **Opus** | Duplicate-application race; missing transactions around consent→application and `deleteCandidateAccount()` steps 3–5 |
+| **B5** | Rate limits on authenticated candidate writes | Sonnet | No limiting on `postulaciones` / `guardados` (also §6.6) |
+| **B6** | CI: `lint` and `tsc --noEmit` | Sonnet | Both CI gaps |
+| **B7** | Shared `cachedOrRaw`, seed/DB sort parity, two undocumented scripts | Sonnet | `cachedOrRaw` duplication; seed-vs-DB sort drift; `user:password` / `candidate:create` in `DEPLOY.md` |
 
-**Varför Opus på A1.** Det är auth, alltså `PLAN.md` §4:s första kriterium
-ordagrant — "getting it subtly wrong leaks data". Två saker till: rättningen
-skriver om vad som hamnar i `consents.ip` och `data_access_logs`, som är
-ARCO-spårets bevisrader (`PLAN-PHASE2.md` §4), och avvägningen mellan "hindra
-credential stuffing" och "låt inte en angripare låsa ute en riktig användare"
-är den sorts beslut där ett rimligt utseende och ett riktigt beteende inte är
-samma sak. Felet syns inte i något UI när det är fel.
+**B1 — Opus.** `PLAN.md` §4's first criterion verbatim: auth, where subtly
+wrong leaks data. Three things have to be true at once and only one of them is
+mechanical. The hop must be counted from the trusted end, configured rather
+than guessed. A second bucket keyed on identity alone has to exist, because an
+attacker with a botnet has real IPs and pinning the hop does not stop them —
+while staying slow rather than locking-out, since the current `ip:email` key
+was chosen precisely so a stranger cannot lock a known-good account out
+(`lib/rate-limit.ts:31-33`). And it changes what lands in the consent evidence
+columns. None of that shows up in a UI when it is wrong.
 
-**Varför Opus på A2.** Inte för att en allowlist är svår, utan för att den
-skrivs *i samma renderer-override* som håller den befintliga
-HTML-escapen. En override som råkar ersätta i stället för att komplettera
-stänger av escapen utan att något test som finns idag märker det — och
-`AGENTS.md` namnger just den escapen som en gräns. Det är samma klass som
-`PLAN.md` §4:s andra Opus-rad: fel gör inget oväsen.
+**B2 — Opus.** `PLAN.md` §4's other named Opus area, and for its stated
+reason. The failure mode of a badly normalized cache key is not a big cache;
+it is two different filter sets colliding on one key and one visitor's result
+set being served for another's query. That is "silently serves stale content"
+with a sharper edge. The two candidate fixes — normalize-and-cap `q`, or
+exclude `q`-carrying queries from `unstable_cache` entirely — differ in
+exactly this risk, and picking between them is the work.
 
-**Varför Sonnet på A3 och A4.** A3 är mekaniskt arbete mot en specifikation som
-redan står skriven i modulens eget dokumentationsblock. A4 är konfiguration.
-Ingen rör en invariant i `AGENTS.md`.
+**B3 — Opus.** Not because an allowlist is hard, but because it is written
+*into the same renderer override* that currently holds the raw-HTML escape. An
+override that replaces where it should extend switches that escape off, and
+nothing in CI today would notice — `blog:verify` asserts the escape through
+`renderMarkdown()`, so it would keep passing if the escape were still there and
+fail usefully only if the new assertions land in the same PR. `AGENTS.md` names
+that escape as a boundary. Silent-when-wrong is the Opus line.
 
-*Komplexitet:* A1 medel, och den enda som behöver läsas mot
-`node_modules/next/dist/docs/` för header-hanteringen. A2 liten. A3 mycket
-liten. A4 liten, med en okänd svans i hur mycket eslint faktiskt klagar på
-första körningen — den svansen ska stanna i A4 och inte bli en formateringspass
-över hela repot.
+**B4 — Opus.** A schema migration under the no-FK regime (`AGENTS.md`: plain
+columns and indexes, cross-table cleanup in code, and `verify-cascades.ts`
+kept in step), plus transactions on the ARCO purge — the destructive path
+`PLAN-PHASE2.md` §6 already made Opus for PR 10, for reasons that have not
+changed. The unique index needs the NULL-`candidate_id` behaviour §12.1
+describes to be correct in MySQL, or the anonymous lead form breaks; that is
+worth proving in the PR body, not asserting.
 
-### 12.5 Vad som uttryckligen *inte* ligger i A1–A4
+**B5, B6, B7 — Sonnet.** B5 is applying an existing pattern once B1 has
+settled what the pattern is, so it is sequenced after B1 and is otherwise
+mechanical. B6 is configuration, with one unknown: how much eslint complains on
+its first green run. That tail stays inside B6 and must not become a
+repo-wide reformat. B7 is three small independent things; the only judgement in
+it is the sort drift, and the rule is *the DB path is the source of truth and
+seed follows it*, with `db:parity` run and pasted into the PR body — §12.1 is
+right that parity quietly tolerating a divergence is the actual problem.
 
-- **Ingen distribuerad rate-limit-store.** Det förutsätter ett svar på §13 D3.
-  A1 gör limitern korrekt inom en process; den gör den inte delad mellan flera.
-- **Ingen CSP-header.** Den hör till §13 D4 och är ett andra försvarslager under
-  A2, inte en ersättning för det.
-- **Ingen captcha, ingen kontoutlåsning.** Båda ändrar vad en riktig användare
-  möter, och det är ett produktbeslut, inte en revisionsrättning.
-- **Inget omtag på cachen.** §12.3 F6.
+*Rough shape:* B1 medium and the one that needs
+`node_modules/next/dist/docs/` read for header handling; B2 medium; B3 small;
+B4 medium; B5 small; B6 small-with-a-tail; B7 small. Two Opus sessions and one
+Sonnet session, near enough.
+
+### 13.5 Deliberately not in B1–B7
+
+- **No distributed rate-limit store and no cross-instance invalidation.** Both
+  wait on §14 D3. B1 makes the limiter correct within one process; it does not
+  make it shared.
+- **No CSP header, no error tracking, no backup procedure, no purge-run
+  monitoring, no auth audit trail.** That is §12.2's ops-hardening list, which
+  §14 D4 leaves with the owner precisely because none of it gates a PR.
+- **No captcha and no account lockout.** Both change what a real user meets,
+  which makes them product decisions rather than audit fixes.
+- **Nothing about the blog production cutover.** §12.3 is right that it is
+  operational; §11.4 step 1 already owns it.
+
+### 13.6 Where this lands, and why not a `PLAN-PHASE4.md`
+
+Decision: **§13 and §14 in this document. No new plan file, and not folded
+into §11.4.**
+
+1. **A `PLAN-PHASE4.md` would describe the wrong kind of work.** `PLAN.md` and
+   `PLAN-PHASE2.md` each open a *new body of work* — a schema, a flag, a
+   surface that does not exist yet. Seven fixes to already-merged code have
+   none of that. A plan document of their own would give them a weight they do
+   not have and turn "the plan" into a bug tracker.
+2. **"Phase 4" is already taken.** `PLAN-PHASE2.md` §6 calls candidate search,
+   ranking and matching *"Phase 4 — NOT NOW"*, gated on legal review, and
+   `AGENTS.md` repeats it as a non-negotiable. A `PLAN-PHASE4.md` about rate
+   limiting would make every future reference to "phase 4" ambiguous — exactly
+   the collision the "read §11 before §9–§10" note in this document's header
+   exists to warn about.
+3. **§11.4 is the wrong list.** It is one PR's tail: the blog cutover's two
+   commands, run in one sitting. Seven cross-cutting fixes there stop it being
+   a checklist for finishing the blog.
+4. **This document is already where post-merge review lives** — §4, §6, §8 and
+   now §12 are all "what did we find after merge". §13 is the same genre one
+   size up, and it sits directly under the findings it triages, which is the
+   only place it can be read without cross-referencing.
 
 ---
 
-## 13. Beslutsunderlag för ägaren: fyra frågor (2026-08-18)
+## 14. Owner decisions: the four questions in §12.2 (2026-08-18)
 
-Samma form som `PLAN-PHASE2.md` §8: vad som frågas, vad alternativen kostar,
-och vad som går sönder om svaret dröjer. Antagen standard står utskriven **bara
-där planen redan har en** — på D4 har den ingen, och det är där hela frågan
-ligger.
+Same form as `PLAN-PHASE2.md` §8: what is being asked, what each option costs,
+and what breaks if the answer keeps waiting. An assumed default is written out
+**only where the plan already has one** — D4 has none, and that absence is the
+question.
 
-### D1. CV-lagring: Cloudflare R2 eller Hostingers disk?
+None of these are decided here. §12.2 records them; this section is what the
+owner needs in order to answer them.
 
-*Planens antagande: R2* (`PLAN-PHASE2.md` §3.1 och §8 Q4).
+### D1. CV storage: Cloudflare R2 or Hostinger disk?
 
-**Vad som frågas.** Bara vilken av dem som ska köras. Båda drivrutinerna är
-byggda, ligger bakom ett gemensamt gränssnitt i `lib/storage.ts` och testas i CI
-vid varje push. Det här är ett konto och två till fyra miljövariabler, inte
-kod.
+*Plan's assumption: R2* (`PLAN-PHASE2.md` §3.1 and §8 Q4).
 
-**Vad de kostar.** R2: ett Cloudflare-konto, en privat bucket,
+**What is being asked.** Only which one runs. Both drivers are built, sit
+behind one interface in `lib/storage.ts`, and are exercised in CI on every
+push. This is an account and a few environment variables, not code.
+
+**What they cost.** R2: a Cloudflare account, a private bucket, and
 `CV_R2_ACCOUNT_ID`, `CV_R2_BUCKET`, `CV_R2_ACCESS_KEY_ID`,
-`CV_R2_SECRET_ACCESS_KEY`. Volymen ryms i gratisnivån med marginal. Disk:
-noll nya konton, en katalog utanför byggroten, `CV_STORAGE_DIR` — och då blir
-Hostingers egen backup den enda backupen av alla CV:n, vilket betyder att
-frågan om backup-rutin flyttar hit i stället för att försvinna.
+`CV_R2_SECRET_ACCESS_KEY`. The volume fits the free tier with room to spare.
+Disk: no new account, a directory outside the build root, `CV_STORAGE_DIR` —
+and then Hostinger's own backup is the only backup of every CV, which moves
+the backup question into D4 rather than removing it.
 
-**Om det skjuts upp.** Inget går sönder idag: `CANDIDATE_ACCOUNTS_ENABLED` är
-`false` och det finns inte ett enda CV i systemet. Exakt två saker blockeras.
-Att tända den flaggan, och `npm run db:purge --apply` när en kandidat är
-förfallen — den vägrar köra utan konfigurerad drivrutin (`DEPLOY.md`), avsiktligt.
+**On the migration point.** §12.2 says there is no migration path between
+drivers once CVs exist. Precisely: no such script exists today, and none is
+planned. One could be written — the interface makes it a read-all/write-all
+loop — but it is real work that has to be scheduled, and its cost grows with
+the number of stored CVs. So the door is not locked; it gets heavier.
 
-### D2. Transaktionsmejl: läggs Resend till, eller inte?
+**If deferred.** Nothing breaks today: `CANDIDATE_ACCOUNTS_ENABLED` is `false`
+and there is not one CV in the system. Exactly two things are blocked —
+flipping that flag, and `npm run db:purge --apply` once a candidate is due,
+which refuses to run without a configured driver, by design.
 
-*Planens antagande: ja, Resend, i PR 8* (`PLAN-PHASE2.md` §8 Q5).
+### D2. Transactional email: is Resend added, or not?
 
-**Vad som frågas.** Detsamma som §8 Q5 frågade, och svaret har inte kommit. Det
-finns fortfarande ingen mejlleverantör i repot — inte Resend, inte nodemailer,
-ingen SMTP-kod alls.
+*Plan's assumption: yes, Resend, in PR 8* (`PLAN-PHASE2.md` §8 Q5).
 
-**Vad som inte finns utan det.** Tre saker, konkret:
+**What is being asked.** The same thing §8 Q5 asked, still unanswered. There is
+still no email provider in the repo — not Resend, not nodemailer, no SMTP code
+at all.
 
-1. E-postverifiering vid registrering. En adress är idag ett påstående.
-2. Lösenordsåterställning. Det finns ingen `/postulante/recuperar`-route,
-   eftersom det inte går att bygga en. En kandidat som glömmer sitt lösenord har
-   ingen väg tillbaka till sitt konto — och sitt CV.
-3. Varningen före gallring. `findCandidatesToWarn()` i `lib/db/retention.ts`
-   *rapporterar* vilka som är i varningsfönstret och stannar där; kommentaren i
-   filen skriver ut varför. Utan mejl gallras data utan det förvarsel
-   integritetspolicyn lovar.
+**What does not exist without it.** Four things, and the fourth is the one
+that is easy to miss:
 
-**Vad det kostar.** Resends gratisnivå täcker den här volymen. En API-nyckel,
-en `lib/email.ts`, ungefär ett Sonnet-PR. Det verkliga arbetet är DNS: SPF och
-DKIM på domänen, annars hamnar posten i skräpkorgen och funktionen finns bara
-på pappret.
+1. Email verification at registration. An address is currently a claim.
+2. Password reset. There is no `/postulante/recuperar` route because one
+   cannot be built. A candidate who forgets their password has no way back to
+   their account, and their CV.
+3. The pre-purge warning. `findCandidatesToWarn()` (`lib/db/retention.ts:74`)
+   reports who is in the warning window and stops there; the comment in the
+   file says why. Without email, data is purged without the notice the privacy
+   policy promises.
+4. `candidates.emailVerifiedAt` can never be set — so every consent row is
+   attached to an unverified address. §12.2 is right that this weakens the
+   evidentiary value of the consent record, which is the same asset B1 is
+   protecting from the other side.
 
-**Om det skjuts upp.** Kandidatkonton kan inte gå live ärligt. Punkt 3 är
-skillnaden mellan en saknad funktion och en text på `/privacidad` som inte
-stämmer med vad systemet gör. Det här är fortfarande, precis som §8 Q5 skrev,
-den enda av frågorna som ändrar PR-omfattning.
+**What it costs.** Resend's free tier covers this volume. An API key, a
+`lib/email.ts`, roughly one Sonnet PR. The real work is DNS — SPF and DKIM on
+the domain — without which the feature exists but the mail lands in spam.
 
-### D3. Får appen anta att den kör som exakt en process?
+**If deferred.** Candidate accounts cannot honestly go live. Items 3 and 4 are
+the difference between a missing feature and text on `/privacidad` that does
+not match what the system does. Still, as §8 Q5 said, the one question that
+changes PR scope.
 
-**Vad som frågas.** Om enprocess-antagandet ska skrivas ned som en regel för
-driften, eller om koden ska sluta lita på det.
+### D3. May the app assume it runs as exactly one process?
 
-**Vad som hänger på det.** Tre limiters, alla `Map` i minnet: personalens
-inloggning och kandidaternas (`lib/rate-limit.ts`) samt lead-formulärets
-(`lib/leads.ts`). Antagandet är sant idag — Hostinger kör appen som en
-persistent Node-process — och `lib/rate-limit.ts` skriver ut det självt,
-inklusive konsekvensen: det återställs vid deploy och håller inte vid
-horisontell skalning.
+**What is being asked.** Whether single-instance is a permanent constraint to
+be written down, or an assumption the code should stop making.
 
-**Vad alternativen kostar.** Behålla antagandet: noll. Släppa det: limitern
-flyttar till en tabell — en tabell, ett index, en skrivning per
-inloggningsförsök, ungefär ett Opus-PR, och `AGENTS.md`:s no-FK-regel plus
-`scripts/verify-cascades.ts` gäller för den nya tabellen.
+**What depends on it.** More than the limiters, which is the part worth
+correcting from my earlier framing. Two things:
 
-**Om det skjuts upp.** Ingenting går sönder — *förutsatt att antagandet står
-nedskrivet som ett villkor på hostingen och inte lever som en olycka i tre
-kommentarer*. Felmoden är obehaglig just för att den är tyst: någon skalar ut
-till två instanser en dag, limitern blir hälften så sträng, och ingenting
-loggar eller kraschar.
+- Both login limiters and the lead limiter are in-memory `Map`s
+  (`lib/rate-limit.ts`, `lib/leads.ts:260`). Under two instances each becomes
+  half as strict, silently.
+- `revalidateTag`-based invalidation (`ARCHITECTURE.md` §8) is per-process
+  too. Under two instances, an editor publishes, one instance expires its
+  entries and the other does not — so "publish and see it immediately" becomes
+  a coin flip, and an unpublished job can keep being served by the instance
+  that never heard. That is the more serious half, because it touches the
+  visibility predicate's whole point.
 
-**Rekommendation** (planen har ingen standard här, men skälen pekar åt ett
-håll): behåll antagandet, skriv in det i `DEPLOY.md` som en regel — *skala inte
-den här appen horisontellt utan att först flytta limitrarna* — och ta upp
-frågan igen först när det finns ett skäl att skala. A1 minskar beroendet av
-antagandet men tar inte bort det.
+**What the options cost.** Keeping the assumption: nothing. It is true today —
+Hostinger runs this app as one persistent Node process, and
+`lib/rate-limit.ts` says so itself. Dropping it: the limiter moves to a table
+(one table, one index, a write per login attempt, `AGENTS.md`'s no-FK rule and
+`verify-cascades.ts` applying to it), and the cache needs a shared invalidation
+signal, which is a larger question than the limiter and not a one-PR change.
 
-### D4. Ops-härdning: hur långt ska den gå?
+**If deferred.** Nothing breaks — *provided the assumption is written down as
+a hosting constraint rather than living in three code comments*. The failure
+mode is quiet: someone scales to two instances one day and nothing logs, errors
+or looks different.
 
-**Vad som frågas.** Hur mycket utanför själva appen som ska byggas nu. Här
-finns ingen antagen standard att luta sig mot: planen har aldrig satt någon, och
-det är därför frågan ligger hos ägaren och inte hos den som skriver kod.
+**Recommendation** (the plan states no default here, but the reasons point one
+way): keep the assumption, record it in `DEPLOY.md` as a rule — *do not scale
+this app horizontally without first moving the limiters and the cache
+invalidation* — and reopen it only when there is a reason to scale.
 
-**Menyn, med vad varje post kostar.**
+### D4. Ops hardening: how far?
 
-| | Vad | Kostnad | Vad den skyddar mot |
+**What is being asked.** How much outside the app itself gets built now. There
+is no assumed default to fall back on: the plan has never set one, and that is
+why the question belongs to the owner rather than to whoever writes the code.
+§12.2 lists four gaps; a fifth belongs with them because B3 makes it relevant.
+
+| | Item | Cost | What it buys |
 |---|---|---|---|
-| a | CSP-header | Litet PR plus en genomgång av inline-script | Andra försvarslagret under A2; gör en framtida XSS mycket mindre användbar |
-| b | Schemalagd MySQL-dump **plus en repeterad återläsning** | Litet, men återläsningen är den enda delen som räknas | Den otestade backupen är den klassiska förlusten |
-| c | Uppetids- och felövervakning | En tjänst, en URL, en larmkanal | Idag får vi veta av en besökare |
-| d | Rutin för nyckelrotation (DB-lösenord, R2-nycklar) | Ingen kod, en nedskriven rutin | `DEPLOY.md` dokumenterar redan kraschen när lösenordet byts och appens variabel inte följer med |
+| a | Error tracking | A service, an env var, one wiring PR | `DEPLOY.md` describes production failures as an opaque "Application error / Digest" page; today the only trace is stray `console.*` in `lib/` |
+| b | MySQL backup **and one rehearsed restore** | Small — but only the restore counts | Nothing today documents a database backup; only the CV and image directories are discussed in those terms. The untested backup is the classic loss |
+| c | Monitoring that `db:purge` actually ran | A scheduled check and an alert | A silently skipped month is non-compliance with the retention numbers published on `/privacidad` — invisible until someone asks |
+| d | Auth audit trail beyond `lastLoginAt` | A table, or structured logs | No record of logins, failed logins or password changes; after an incident there would be nothing to read |
+| e | CSP header | Small PR plus a pass over inline scripts | Second layer under B3; makes a future XSS much less useful |
 
-**Om det skjuts upp.** Ingenting går sönder en bra dag. Var och en av posterna
-syns bara en dålig dag, och (b) är den enda där uppskjutandet kan bli
-oåterkalleligt — de andra tre går att lägga till efteråt utan att något gått
-förlorat under tiden.
-
----
+**If deferred.** Nothing breaks on a good day — each of these is only visible
+on a bad one. Two asymmetries are worth weighing: (b) is the only one where
+deferring can become irreversible, and (d) is the only one that cannot be
+applied retroactively, because it is a record that either was or was not being
+kept at the time you need it.
