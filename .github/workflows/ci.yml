@@ -93,3 +93,10 @@ jobs:
       # a fresh bucket.
       - name: Verify client IP and rate limiter
         run: npm run client-ip:verify
+
+      # PLAN-PHASE3-DRAFT.md §12.1's unbounded cache cardinality (PR B2). Also
+      # silent when broken: a cache entry per distinct ?q= looks like a working
+      # cache right up until the disk fills, and an unescaped % in a LIKE looks
+      # like a search that matched a lot of rows.
+      - name: Verify search term handling
+        run: npm run search:verify

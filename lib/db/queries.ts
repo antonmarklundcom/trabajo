@@ -4,6 +4,7 @@ import { db } from './index';
 import { categories, cities, companies, jobImages, jobs } from './schema';
 import { CACHE_TAGS, PUBLIC_CACHE_TTL_SECONDS } from '../cache-tags';
 import { imagePublicUrl } from '../image-storage';
+import { escapeLikeWildcards, normalizeSearchTerm } from '../search-term';
 import { companyLogoSrc } from '../company-logo';
 import type { Job, Category, City, JobFilters } from '../types';
 
@@ -157,8 +158,14 @@ async function queryJobs(filters: JobFilters): Promise<{ jobs: Job[]; total: num
     conditions.push(eq(jobs.salaryHidden, false));
     conditions.push(sql`${jobs.salaryMin} IS NOT NULL AND ${jobs.salaryMin} >= ${filters.salarioMin}`);
   }
-  if (filters.q) {
-    const term = `%${filters.q}%`;
+  const searchTerm = normalizeSearchTerm(filters.q);
+  if (searchTerm) {
+    // escapeLikeWildcards, not just interpolation: `%` and `_` are LIKE
+    // metacharacters, so a search for "50%" without it becomes "match anything
+    // containing 50", and a lone "%" becomes a full table scan that matches
+    // every row. Not an injection — drizzle parameterises the value — but it is
+    // a query the visitor did not ask for.
+    const term = `%${escapeLikeWildcards(searchTerm)}%`;
     conditions.push(
       or(like(jobs.title, term), like(companies.name, term), like(jobs.description, term))!,
     );
@@ -312,6 +319,10 @@ const cacheOptions = (tags: string[]) => ({
  * happens to use, and a separate entry for `{ page: 1 }` vs
  * `{ page: 1, q: undefined }`. Both are the same query. Canonicalise first:
  * drop empty values, sort the keys, and pass one string.
+ *
+ * This canonicalisation is why the cache key space is finite for every filter
+ * EXCEPT `q` — see getJobs() below, which is why `q` never reaches this
+ * function.
  */
 function filtersKey(filters: JobFilters): string {
   const entries = Object.entries(filters)
@@ -391,7 +402,31 @@ async function cachedOrRaw<T>(cached: () => Promise<T>, raw: () => Promise<T>): 
 // The eight seam functions (ARCHITECTURE.md §3). Signatures and semantics are
 // unchanged — only the caching is new — so lib/data.ts needs no edit.
 
+/**
+ * The one seam function that sometimes does not cache, and the reason is
+ * cardinality rather than freshness (PLAN-PHASE3-DRAFT.md §12.1, PR B2).
+ *
+ * `unstable_cache` keys on its arguments, and every distinct argument mints a
+ * cache entry on disk. Every filter except `q` draws from a finite set —
+ * category and city slugs, four contract types, a page number — so the number
+ * of possible entries is bounded and small. `q` is free text off the public
+ * query string (`app/empleos/page.tsx`), so it is not bounded by anything: a
+ * crawler walking `?q=aaa`, `?q=aab`, … mints entries until the disk fills, on
+ * shared hosting, without authenticating or doing anything unusual.
+ *
+ * Normalising `q` narrows the space but cannot bound it — a 64-character cap
+ * still leaves more distinct terms than there are atoms worth caching. So a
+ * search does not go through `unstable_cache` at all.
+ *
+ * What that costs: a search query reaches MySQL on every request instead of
+ * once per five minutes. Accepted, because the alternative is unbounded disk,
+ * and because the paths that carry the traffic — the unfiltered list, the
+ * taxonomy pages, job detail, featured — are all still cached. The pool's
+ * `connectionLimit: 8` (ARCHITECTURE.md §8) is the reason to keep watching
+ * this, not a reason to prefer the disk failure.
+ */
 export async function getJobs(filters: JobFilters): Promise<{ jobs: Job[]; total: number }> {
+  if (normalizeSearchTerm(filters.q)) return queryJobs(filters);
   return cachedOrRaw(() => cachedJobs(filtersKey(filters)), () => queryJobs(filters));
 }
 

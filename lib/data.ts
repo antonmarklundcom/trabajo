@@ -1,4 +1,5 @@
 import type { Job, Category, City, JobFilters } from './types';
+import { normalizeSearchTerm } from './search-term';
 
 // Seed imports — used when DATA_SOURCE !== 'db'
 import rawJobs from './seed/jobs.json';
@@ -31,8 +32,8 @@ function matchesFilters(job: Job, filters: JobFilters): boolean {
     if (job.salaryHidden || job.salaryMin == null) return false;
     if (job.salaryMin < filters.salarioMin) return false;
   }
-  if (filters.q) {
-    const q = filters.q.toLowerCase();
+  const q = normalizeSearchTerm(filters.q);
+  if (q) {
     const searchable = `${job.title} ${job.company} ${job.description}`.toLowerCase();
     if (!searchable.includes(q)) return false;
   }
