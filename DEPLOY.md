@@ -50,8 +50,8 @@ your machine only.
 
 ## The `db:*` scripts
 
-These four npm scripts own every routine database operation (the fifth,
-`db:purge`, is documented below). Run them in this order against a
+The npm scripts below own every routine database operation (`db:purge` is
+documented separately below). Run them in this order against a
 fresh database; each one prints the host/database it is about to touch, so you
 can catch "oops, that was production" before it writes.
 
@@ -91,7 +91,9 @@ returning, and neither a `LIKE` search nor a bulk export has appeared in the
 file. A new export there fails this check until it is classified in the script,
 which is the point: adding one should be a decision, not a diff.
 
-All three run in CI on every push.
+The self-contained verify scripts run in CI on every push — see
+`.github/workflows/ci.yml` for the current list rather than trusting a count
+here (it has drifted before).
 
 `db:seed` enforces its own gate: it exits non-zero if the row counts do not
 match the seed files, so a broken upsert key shows up as a failure rather than
@@ -158,7 +160,9 @@ Two operational notes:
   reachable. A run that exits 0 deleted everything it listed.
 
 The periods above live in `lib/retention.ts`, in one place, because the same
-numbers are quoted in `/privacidad` — see open question §8 Q1, still unanswered.
+numbers are quoted in `/privacidad` — see `PLAN-PHASE2.md` §8 Q1, resolved in
+practice: the numbers are shipped and CI-locked, and changing them now is a
+migration + re-consent, not a doc edit.
 
 ### `drizzle-kit` connecting does NOT mean your scripts will
 

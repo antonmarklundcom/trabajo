@@ -975,3 +975,147 @@ femton-minuters beslut i stället för en ny utredning.
   "skribent" är inte en yta det här bygget öppnar.
 - Ingen bild i artikel-body. Frontmatter-fältet blev en kolumn, inte ett
   bildbibliotek — §9.4 gäller fortfarande, av samma skäl.
+
+---
+
+## 12. Audit findings — Sonnet + Fable 5 (2026-08-18)
+
+Two independent passes over the whole repo: first a Sonnet checklist audit
+(non-negotiables, doc/code drift, CI coverage), then a Fable 5 deep-read audit
+deliberately steered away from repeating it (races, transaction boundaries,
+cache behaviour, trust boundaries). Combined results below. The stale-doc items
+both passes found were fixed in the same commit as this section
+(`ARCHITECTURE.md` §4/§5, `MIGRATION.md` header, `DEPLOY.md` counts,
+`PLAN-PHASE2.md` §8 Q1); everything below is what remains. Code fixes are
+intentionally NOT applied here — this section is the record, the fixes are
+follow-up PRs.
+
+### 12.1 Pure engineering fixes — no owner decision needed
+
+**CI gaps**
+
+- No `npm run lint` step and no isolated `tsc --noEmit` step in
+  `.github/workflows/ci.yml` — typechecking happens only implicitly inside
+  `next build`. Fix: add both as explicit CI steps. Benefit: lint regressions
+  and type errors in non-built code paths (scripts) fail fast and visibly.
+
+**Correctness / atomicity**
+
+- Duplicate-application race: `createCandidateApplication()`
+  (`lib/db/candidate-applications.ts:57–62`) is check-then-insert with **no
+  unique index on `(candidate_id, job_id)`** — unlike `saved_jobs`, which has
+  exactly that guard (`lib/db/schema.ts:466`). Two concurrent submits both
+  pass the check. Fix: add the unique index (candidate rows only —
+  anonymous rows have NULL `candidate_id`, which MySQL unique indexes permit
+  repeatedly, so the lead form is unaffected) and treat the constraint
+  violation as `already_applied`. Benefit: the race becomes impossible
+  instead of unlikely.
+- No DB transaction around (a) the consent-insert → application-insert pair
+  (`lib/db/candidate-applications.ts:74–87`) and (b) steps 3–5 of
+  `deleteCandidateAccount()` (`lib/db/candidate-arco.ts:386–435`). A
+  mid-write crash can leave a consent row authorising a share that never
+  happened, or a half-deleted candidate. Fix: wrap each in
+  `db.transaction()`. Benefit: consent/application state and the ARCO purge
+  become all-or-nothing. (The CV *storage* delete stays outside the
+  transaction by design — bytes-before-rows is §4.4's ordering.)
+
+**Security**
+
+- Blog Markdown XSS gap: the `marked` renderer override in `lib/blog.ts:64–72`
+  escapes raw HTML but does **not** filter link destinations —
+  `[x](javascript:alert(1))` renders as a live anchor. Fix: allowlist link
+  href schemes (http/https/mailto only) in the renderer, and add a
+  corresponding assertion to `scripts/verify-blog.ts` so the property is
+  CI-locked like the raw-HTML escape already is. Benefit: closes the one
+  remaining script-injection path from the admin editor to every visitor.
+- Spoofable rate-limit key: the login limiter reads the client IP as the
+  **leftmost** `x-forwarded-for` entry (`app/api/admin/login/route.ts:20`,
+  same pattern in the empresa/postulante routes and `lib/leads.ts:249`). XFF
+  is client-appendable — an attacker prepending a random value gets a fresh
+  bucket per request, i.e. unlimited login attempts per account. Fix: take
+  the trusted hop (rightmost entry / the platform-provided real client IP)
+  in one shared helper. Benefit: the limiter actually limits an attacker,
+  not just an honest client.
+- No rate limiting on authenticated candidate write endpoints (e.g.
+  `POST /api/postulante/postulaciones`) while the anonymous leads route
+  already has it — §6.6 flagged the same for `guardados`. Fix: apply the
+  same `createAttemptLimiter` pattern. Benefit: a compromised or scripted
+  account can't spray writes.
+
+**Duplication / drift**
+
+- Two independent in-memory rate limiters: `lib/rate-limit.ts`
+  (`createAttemptLimiter`) and a second hand-rolled one in `lib/leads.ts:260`
+  (`requestTimestamps` Map). Same single-process fragility, implemented
+  twice. Fix: consolidate on one module. Benefit: one place to fix the XFF
+  issue above and one place to replace if the process model ever changes.
+- `cachedOrRaw()` is duplicated verbatim in `lib/db/queries.ts:380` and
+  `lib/blog.ts`, both string-matching `'incrementalCache missing'` against a
+  Next internal. Fix: extract one shared helper. Benefit: when the Next
+  internal message changes, it breaks in one place, loudly, not in two.
+- Unbounded cache cardinality: `cachedJobs` keys on `filtersKey(filters)`
+  including free-text `q` (`lib/db/queries.ts:316–326`). A crawler sending
+  random `?q=` values mints an unlimited number of cached entries on disk.
+  Fix: normalize/cap `q` in the key, or exclude `q`-carrying queries from
+  `unstable_cache` and serve them raw. Benefit: cache size is bounded by the
+  finite filter space again.
+- Seed-vs-DB sort drift: seed's `salario` sort ignores `featured`
+  (`lib/data.ts`) while the DB path keeps featured as a tiebreaker
+  (`lib/db/queries.ts`); `seedGetFeaturedJobs` returns file order while the
+  DB orders `asc(jobs.id)`. Fix: align both sides, or record the divergence
+  as accepted in `ARCHITECTURE.md` §3 — `db:parity` should not be quietly
+  tolerating it. Benefit: the parity guarantee stays a guarantee.
+
+**Docs**
+
+- `user:password` and `candidate:create` (`package.json`) are the only two
+  ops scripts documented nowhere. Fix: one line each in `DEPLOY.md`.
+  Benefit: the next operator doesn't rediscover them by reading
+  `package.json`.
+
+### 12.2 Requires an owner decision — recorded, not resolved
+
+- **CV storage driver (R2 vs disk) — PLAN-PHASE2.md §8 Q4, still open.**
+  `CV_STORAGE_DRIVER` has no default and throws if unset, so production has
+  chosen *something*, but the repo doesn't say what. `DEPLOY.md` already
+  spells out the stakes: disk means unscheduled manual backups, legal
+  exposure under Ley N° 7593/2025 if a CV is lost, and **no migration path
+  between drivers once CVs exist on one**. The cost of deferring rises with
+  every stored CV. Decision needed before real CV volume arrives.
+- **Transactional email (Resend) — PLAN-PHASE2.md §8 Q5, still entirely
+  unimplemented**, and §8 calls it "the one open question that changes PR
+  scope". Consequences of not deciding: password reset has no possible
+  implementation (see the `ARCHITECTURE.md` §5 note fixed in this commit);
+  the 23-month retention warning can only be *reported*, never sent
+  (`db:purge`); and `candidates.emailVerifiedAt` can never be set — meaning
+  every consent row is tied to an unverified address, which weakens its
+  evidentiary value for ARCO/legal purposes.
+- **Single-process assumption.** Both in-memory rate limiters and the
+  `revalidateTag`-based invalidation (`ARCHITECTURE.md` §8) assume one Node
+  process. Fine forever if Hostinger stays single-instance; breaks
+  *silently* under horizontal scaling — per-instance rate limits, and an
+  instance that never sees another's invalidations, so "editor publishes and
+  sees it immediately" stops being true. Owner should confirm whether
+  single-instance is a permanent assumption (then document it as one) or
+  whether scaling should be planned for (then these become real work).
+- **Ops hardening phase — candidate for a small new phase, priority is the
+  owner's call** since none of it gates a current PR:
+  - No error tracking — only stray `console.*` calls in `lib/`, while
+    `DEPLOY.md` itself describes production failures as an opaque
+    "Application error / Digest" page with no useful information.
+  - No MySQL backup/restore procedure documented anywhere — only the CV and
+    image *directories* are mentioned in backup terms.
+  - No monitoring that the monthly `db:purge` sweep actually runs. A
+    silently skipped month is non-compliance with the retention numbers
+    published in `/privacidad`.
+  - No auth audit trail beyond `lastLoginAt` — no record of logins, failed
+    logins, or password changes.
+
+### 12.3 Operational, not code
+
+- **The blog production cutover (§11.4 step 1) does not appear to have been
+  run**: `npm run db:migrate` then `npm run blog:import -- --write` against
+  production. This cannot be confirmed from the repo — that state lives in
+  the production database — but it is still listed as outstanding, and until
+  it runs, the deployed `/blog` is empty. Operational to-do for whoever holds
+  production access; nothing to fix in code.

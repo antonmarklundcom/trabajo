@@ -1,7 +1,15 @@
 # MIGRATION.md — WordPress/JetEngine → first-party MySQL
 
-> Runbook for Phase F of `PLAN.md`. Design lives in `ARCHITECTURE.md`;
+> Runbook for the production cutover — steps 10–11 of `PLAN.md` (this doc
+> predates the 2026-08-05 rewrite of `PLAN.md` into twelve numbered steps and
+> originally said "Phase F"). Design lives in `ARCHITECTURE.md`;
 > Hostinger/MySQL specifics in `DEPLOY.md`.
+>
+> **Status note (2026-08-18):** this doc is written as pre-cutover
+> instructions. Whether the cutover (steps 5–7 below) has actually been run
+> against production cannot be verified from the repo — that state lives in
+> hPanel and the production database, not in code. Treat the runbook as
+> current until the owner confirms otherwise.
 
 ## What is actually being migrated
 
