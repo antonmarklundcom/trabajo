@@ -23,6 +23,12 @@
 > förutsättning (ingen admin-yta att hänga en uppladdning på) gäller inte
 > längre. §9.2:s resonemang om *varför* committade bytes inte behövde
 > pipelinen står kvar som korrekt för den värld det skrevs i.
+>
+> **Tillägg 2026-08-18:** §12 är en genomgång av redan mergad kod — fyra
+> rättningar, ordnade efter risk, med modell per PR. §13 är fyra frågor som
+> ägaren måste svara på och som ingen session ska avgöra åt hen. §12.1 skriver
+> ut att det §12 uppdraget hänvisade till inte fanns i repot, och att fynden
+> därför är omgjorda mot koden.
 
 ## 1. Sparade jobb (favoriter) för postulantes
 
@@ -965,6 +971,10 @@ femton-minuters beslut i stället för en ny utredning.
    samma sittning.
 2. Efterkontroll i §4:s anda efter merge (särskilt punkt 5, `noindex`/sitemap,
    nu när artikel-URL:erna genereras från en tabell).
+3. Fristående från de två ovan: `/admin/blog` öppnade en skrivväg som §12.3 F2
+   hittade ett hål i (`javascript:`-URL:er i artikel-Markdown). Den rättningen
+   är PR **A2** i §12.4 och hör inte hemma i den här listan — den här listan
+   handlar om att bli klar med cutovern.
 
 ### 11.5 Vad som *inte* följer av det här beslutet
 
@@ -975,3 +985,348 @@ femton-minuters beslut i stället för en ny utredning.
   "skribent" är inte en yta det här bygget öppnar.
 - Ingen bild i artikel-body. Frontmatter-fältet blev en kolumn, inte ett
   bildbibliotek — §9.4 gäller fortfarande, av samma skäl.
+
+---
+
+## 12. Revisionsfynd: triage och PR-uppdelning (2026-08-18)
+
+### 12.1 Om underlaget: §12 fanns inte, fynden är omgjorda mot koden
+
+Uppdraget hänvisade till ett befintligt §12 *"Audit findings — Sonnet + Fable 5
+(2026-08-18)"* i det här dokumentet, och till rättningar i `ARCHITECTURE.md`,
+`MIGRATION.md`, `DEPLOY.md` och `PLAN-PHASE2.md` §8 Q1 "i samma commit".
+
+**Inget av det finns i repot.** Vid `f5403cf` (= `origin/main` = den här
+grenens utgångspunkt, arbetsträdet rent) slutar dokumentet vid §11.5, det finns
+ingen sektion som nämner en revision, och `PLAN-PHASE2.md` §8 Q1 står kvar
+oförändrad med sin 24/12-månaders retention som antagande. Ingen commit i
+historiken innehåller ordet "audit".
+
+Sektionen nedan är därför inte en triage av en lista som fanns, utan av fynd som
+är **omgjorda direkt mot koden** i den ordning uppdraget pekade ut: först de två
+namngivna säkerhetsluckorna, sedan cache- och dedup-frågorna. Varje fynd nedan
+är verifierat mot fil och rad, och där det gick att köra är det kört. Två av
+dem stämde, ett tredje visade sig vara något annat än vad rubriken antydde, och
+cache-halvan visade sig vara ren. Det står utskrivet vilket som är vilket, av
+samma skäl som §8.1 skrev ut att en kommentar i `lib/blog.ts` var faktafel:
+ett fynd som inte går att spåra tillbaka till kod är inte ett fynd.
+
+### 12.2 Var det här hör hemma, och varför inte `PLAN-PHASE4.md`
+
+Beslut: **§12 och §13 i det här dokumentet. Ingen ny plandokumentfil, och inte
+heller inbakat i §11.4.**
+
+1. **En ny `PLAN-PHASE4.md` skulle beskriva fel sorts arbete.** `PLAN.md` och
+   `PLAN-PHASE2.md` öppnar var sin *ny kropp av arbete* — ett schema, en flagga,
+   en yta som inte finns än. Fyra rättningar i redan mergad kod har inget av
+   det: inga nya tabeller, ingen ny route, ingen flagga att tända. Ett eget
+   plandokument skulle ge dem en tyngd de inte har och göra "planen" till en
+   plats där buggar bokförs.
+2. **"Phase 4" är dessutom ett upptaget namn.** `PLAN-PHASE2.md` §6 kallar
+   sökning, ranking och matchning av kandidater för *"Phase 4 — NOT NOW"*,
+   spärrat på juridisk granskning, och `AGENTS.md` upprepar det som en
+   icke-förhandlingsbar punkt. En `PLAN-PHASE4.md` om rate limiting skulle göra
+   varje framtida hänvisning till "fas 4" tvetydig — precis den sortens krock
+   som notisen "läs §11 innan §9–§10" i dokumenthuvudet finns till för att
+   varna för.
+3. **§11.4 är fel lista.** Den är svansen på *ett* PR: bloggens cutover-steg,
+   två kommandon som ska köras i samma sittning. Lägger man fyra
+   tvärgående rättningar där slutar den vara en checklista för att bli klar med
+   bloggen.
+4. **Det här dokumentet är däremot redan platsen där efterkontroller bor** —
+   §4, §6 och §8 är alla "vad hittade vi efter merge". §12 är samma genre, ett
+   snäpp större. §11.4 får en rad som pekar hit.
+
+### 12.3 Fynden
+
+| # | Fynd | Var | Status | Live idag? |
+|---|---|---|---|---|
+| **F1** | Login-limitern nyckas på en IP som klienten själv sätter | `lib/rate-limit.ts`, `app/api/admin/login/route.ts:16-21` m.fl. | Bekräftat | **Ja** — `/admin/login` ligger inte bakom någon flagga |
+| **F2** | `javascript:`-URL:er överlever blogg-Markdown | `lib/blog.ts:63-81` | Bekräftat, kört | **Ja** — `/admin/blog` mergades i PR #49 |
+| **F3** | Sju kopior av `clientIp`, som inte gör samma sak | 6 route-filer + `lib/leads.ts:249` | Bekräftat | — |
+| **F4** | `npm run lint` körs aldrig i CI | `.github/workflows/ci.yml` | Bekräftat | — |
+| **F5** | ARCO-raderingen delar budget med inloggningen | `app/api/postulante/mis-datos/eliminar/route.ts:56-57` | Bekräftat, men annan sort än det såg ut | Nej (flagga av) |
+| **F6** | Cache-invalidering | `lib/cache.ts`, `lib/cache-tags.ts` | **Rent — inget att laga** | — |
+
+#### F1 — `x-forwarded-for` är angriparens fält, inte proxyns
+
+`clientIp()` tar **första** hoppet i `x-forwarded-for` och skickar det till
+`checkLoginRateLimit(ip, email)`, som nyckar på `` `${ip}:${email}` ``
+(`lib/rate-limit.ts:33`). Första hoppet är det värde klienten själv skickade —
+Hostingers proxy *lägger till* sitt hopp, den ersätter inte det som redan står
+där. En angripare som vill prova lösenord mot en känd admin-adress skickar en ny
+`X-Forwarded-For` per försök och får en ny hink varje gång. Taket på fem försök
+per femton minuter finns kvar i koden och binder ingenting.
+
+Kommentaren på raden ovanför beskriver ett äkta problem (appen *står* bakom en
+proxy och `request.ip` finns inte), men lösningen tar fel ände av listan.
+
+Två saker till hör ihop med det här, och är skälet att fyndet inte är
+"bara" en limiter-bugg:
+
+- Samma spoofbara värde skrivs ned som bevis. `consents.ip` och
+  `data_access_logs` matas från samma header (`lib/db/candidates-admin.ts:90`,
+  routes under `/api/postulante/*`). En IP-kolumn i en samtyckesrad som vem som
+  helst kan sätta är inte bevisvärde, och det är den kolumnen ARCO-spåret vilar
+  på.
+- `lib/leads.ts:249` har samma konstruktion bakom lead-formulärets limiter, som
+  **är** publik idag.
+
+*Formen på rättningen* (inte implementationen — det här passet bygger
+ingenting): hoppet måste pinnas, alltså räknas bakifrån utifrån hur många
+proxies som faktiskt står framför appen, konfigurerat och inte gissat. Och det
+räcker inte: en angripare med riktiga IP:n har riktiga IP:n. Den halva som
+faktiskt stänger luckan är en hink till som **inte** beror på IP alls — per
+e-postadress, med ett eget, glesare tak — så att ett konto inte kan hamras oavsett
+varifrån. Nuvarande nyckel `ip:email` är medvetet vald för att en angripare inte
+ska kunna låsa ute en känd användare (`lib/rate-limit.ts:31-33`); den avvägningen
+ska stå kvar, och den nya hinken ska vara långsam snarare än utestängande.
+
+#### F2 — råa HTML-taggar är stängda, länk-scheman är öppna
+
+`lib/blog.ts` skriver över `marked`s `html`-renderare och escapar råa taggar.
+Det fungerar och `scripts/verify-blog.ts` bevakar det. Men Markdowns egen
+länksyntax går inte genom den renderaren. Kört mot repots egen `marked` (18.0.9)
+med exakt konfigurationen i `lib/blog.ts:63-69`:
+
+```
+[clic](javascript:alert(document.cookie))
+  → <p><a href="javascript:alert(document.cookie)">clic</a></p>
+![x](javascript:alert(1))
+  → <p><img src="javascript:alert(1)" alt="x"></p>
+[a](data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==)
+  → <p><a href="data:text/html;base64,…">a</a></p>
+```
+
+`AGENTS.md` formulerar escapen som "gränsen mellan *en redaktör skriver en
+artikel* och *en redaktör skriver JavaScript som körs i varje besökares
+webbläsare*". En `javascript:`-länk går runt gränsen utan att röra den.
+Artikelkroppen kommer numera över HTTP från en admin- eller editor-session
+(§11.2), så det här är inte längre en fråga om vad en committer kan skriva.
+
+Två avgränsningar, båda kontrollerade:
+
+- **Jobbannonser är inte drabbade.** `components/MarkdownContent.tsx` har ingen
+  länksyntax över huvud taget — den har inga `href` alls, och
+  `scripts/verify-jobs.ts:56` täcker attributfallet. Den handrullade renderaren
+  är här strikt säkrare än biblioteket.
+- **Utomstående kan inte nå det.** Det krävs `admin`- eller `editor`-session.
+  Det gör fyndet till "en kompromitterad redaktörssession blir persistent XSS
+  mot hela publiken", inte till en öppen dörr.
+
+*Formen på rättningen:* en scheme-allowlist i `link`- och `image`-renderarna
+(`http`, `https`, `mailto`, plus relativa URL:er), och assertionen in i
+`scripts/verify-blog.ts` — av exakt det skäl CI-kommentaren redan anger för
+den befintliga escapen: det är ett *default i ett beroende*, och en
+versionshöjning kan öppna det igen utan att någon rör vår kod.
+
+#### F3 — `clientIp` finns i sju exemplar, i tre varianter
+
+`app/api/admin/login`, `app/api/postulante/login`,
+`app/api/postulante/registro`, `app/api/postulante/postulaciones`,
+`app/api/postulante/mis-datos/eliminar`, `app/api/empresa/activar` och
+`lib/leads.ts` har var sin kopia. De är inte identiska: tre returnerar `null`,
+två `'unknown'`, och bara `lib/leads.ts` faller tillbaka på `x-real-ip`.
+
+Det här är inte en stilfråga i det här läget. Det är F1:s spridningsyta: en
+rättning som inte först slår ihop dem kommer att appliceras på fem av sju filer,
+och de två som blir kvar är de som ingen läste. Därför ligger F3 i samma PR som
+F1 och inte i en egen städ-PR.
+
+#### F4 — CI kör åtta verify-skript men inte eslint
+
+`.github/workflows/ci.yml` kör `build` plus `storage:verify`,
+`image-storage:verify`, `retention:verify`, `access:verify`, `cascade:verify`,
+`blog:verify` och `jobs:verify`. `npm run lint` finns i `package.json` och körs
+inte. Billigast möjliga rättning, och den hör hemma i samma anda som §8.6, där
+`cascade:verify` fanns men aldrig kördes.
+
+#### F5 — raderingsvägen lånar inloggningens hink
+
+`/api/postulante/mis-datos/eliminar` anropar `checkCandidateLoginRateLimit(ip,
+candidate.email)` — alltså **samma limiter-instans** som kandidatinloggningen.
+Fem misslyckade lösenordsbekräftelser på raderingssidan förbrukar därmed
+inloggningsbudgeten, och tvärtom.
+
+`lib/rate-limit.ts`:s eget dokumentationsblock säger vad som gäller: *"Each
+caller creates its OWN limiter instance. That is deliberate… Sharing the code is
+the point; sharing the counters is not."* Modulen har redan svaret; anropet
+följer det bara inte. Att det drabbar just ARCO-raderingen — den väg
+integritetspolicyn lovar ska vara självbetjäning — är vad som lyfter det över
+kosmetiskt.
+
+Fyndet är alltså mindre än rubriken "kvarvarande dedup-arbete" antyder, och
+mer specifikt: en rad, en ny instans.
+
+#### F6 — cachen är ren
+
+Genomgången jag faktiskt gjorde, så att nästa läsare vet vad som är kontrollerat:
+alla 22 anropsställen för `invalidatePublicContent()` och
+`invalidateBlogContent()`, mot `PUBLIC_PATHS`, `BLOG_PATHS`, `CACHE_TAGS` och
+samtliga `unstable_cache`-nycklar i `lib/db/queries.ts` och `lib/blog.ts`.
+
+Varje muterande handler som kan ändra vad publiken ser anropar en av de två.
+Uppdelningen jobb/taxonomier/blogg stämmer med vilka skrivningar som faktiskt
+finns, `/sitemap.xml` ligger korrekt i båda listorna, och `revalidatePath` med
+`'page'` på de dynamiska ruttmönstren täcker alla slugs — inklusive den gamla
+när en slug byter namn. Grovheten i `CACHE_TAGS` är dessutom argumenterad i
+`lib/cache-tags.ts` och argumentet håller.
+
+**Ingen PR föreslås här.** Att skriva om cachen för att den råkade stå på
+uppdragets lista vore att laga något som fungerar.
+
+### 12.4 PR-uppdelning, modell per PR
+
+Ordnade efter risk, inte efter storlek. A1 och A2 före A3 och A4.
+
+| PR | Titel | Modell | Innehåll |
+|---|---|---|---|
+| **A1** | Betrodd klient-IP + en enda `clientIp` | **Opus** | F1 + F3. En delad helper med konfigurerbart antal betrodda proxy-hopp; en identitetsbunden hink vid sidan av `ip:email`-hinken; alla sju anropsställen flyttade till helpern, inklusive `lib/leads.ts`. Ett verify-skript i `scripts/`-familjens anda som bevisar att en påhittad `x-forwarded-for` inte ger en ny hink. |
+| **A2** | Scheme-allowlist för länkar och bilder i blogg-Markdown | **Opus** | F2. `link`- och `image`-renderarna i `lib/blog.ts`; assertionerna in i `scripts/verify-blog.ts` bredvid de befintliga. Ingen ny renderingsväg, ingen sanitizer som beroende. |
+| **A3** | Egen limiter-instans för ARCO-raderingen | Sonnet | F5. En instans, ett anrop, en rad i `scripts/verify-retention.ts` eller närmaste befintliga skript. |
+| **A4** | `npm run lint` i CI | Sonnet | F4. Ett steg i `ci.yml`, plus de rättningar som krävs för att det ska bli grönt första gången. |
+
+**Varför Opus på A1.** Det är auth, alltså `PLAN.md` §4:s första kriterium
+ordagrant — "getting it subtly wrong leaks data". Två saker till: rättningen
+skriver om vad som hamnar i `consents.ip` och `data_access_logs`, som är
+ARCO-spårets bevisrader (`PLAN-PHASE2.md` §4), och avvägningen mellan "hindra
+credential stuffing" och "låt inte en angripare låsa ute en riktig användare"
+är den sorts beslut där ett rimligt utseende och ett riktigt beteende inte är
+samma sak. Felet syns inte i något UI när det är fel.
+
+**Varför Opus på A2.** Inte för att en allowlist är svår, utan för att den
+skrivs *i samma renderer-override* som håller den befintliga
+HTML-escapen. En override som råkar ersätta i stället för att komplettera
+stänger av escapen utan att något test som finns idag märker det — och
+`AGENTS.md` namnger just den escapen som en gräns. Det är samma klass som
+`PLAN.md` §4:s andra Opus-rad: fel gör inget oväsen.
+
+**Varför Sonnet på A3 och A4.** A3 är mekaniskt arbete mot en specifikation som
+redan står skriven i modulens eget dokumentationsblock. A4 är konfiguration.
+Ingen rör en invariant i `AGENTS.md`.
+
+*Komplexitet:* A1 medel, och den enda som behöver läsas mot
+`node_modules/next/dist/docs/` för header-hanteringen. A2 liten. A3 mycket
+liten. A4 liten, med en okänd svans i hur mycket eslint faktiskt klagar på
+första körningen — den svansen ska stanna i A4 och inte bli en formateringspass
+över hela repot.
+
+### 12.5 Vad som uttryckligen *inte* ligger i A1–A4
+
+- **Ingen distribuerad rate-limit-store.** Det förutsätter ett svar på §13 D3.
+  A1 gör limitern korrekt inom en process; den gör den inte delad mellan flera.
+- **Ingen CSP-header.** Den hör till §13 D4 och är ett andra försvarslager under
+  A2, inte en ersättning för det.
+- **Ingen captcha, ingen kontoutlåsning.** Båda ändrar vad en riktig användare
+  möter, och det är ett produktbeslut, inte en revisionsrättning.
+- **Inget omtag på cachen.** §12.3 F6.
+
+---
+
+## 13. Beslutsunderlag för ägaren: fyra frågor (2026-08-18)
+
+Samma form som `PLAN-PHASE2.md` §8: vad som frågas, vad alternativen kostar,
+och vad som går sönder om svaret dröjer. Antagen standard står utskriven **bara
+där planen redan har en** — på D4 har den ingen, och det är där hela frågan
+ligger.
+
+### D1. CV-lagring: Cloudflare R2 eller Hostingers disk?
+
+*Planens antagande: R2* (`PLAN-PHASE2.md` §3.1 och §8 Q4).
+
+**Vad som frågas.** Bara vilken av dem som ska köras. Båda drivrutinerna är
+byggda, ligger bakom ett gemensamt gränssnitt i `lib/storage.ts` och testas i CI
+vid varje push. Det här är ett konto och två till fyra miljövariabler, inte
+kod.
+
+**Vad de kostar.** R2: ett Cloudflare-konto, en privat bucket,
+`CV_R2_ACCOUNT_ID`, `CV_R2_BUCKET`, `CV_R2_ACCESS_KEY_ID`,
+`CV_R2_SECRET_ACCESS_KEY`. Volymen ryms i gratisnivån med marginal. Disk:
+noll nya konton, en katalog utanför byggroten, `CV_STORAGE_DIR` — och då blir
+Hostingers egen backup den enda backupen av alla CV:n, vilket betyder att
+frågan om backup-rutin flyttar hit i stället för att försvinna.
+
+**Om det skjuts upp.** Inget går sönder idag: `CANDIDATE_ACCOUNTS_ENABLED` är
+`false` och det finns inte ett enda CV i systemet. Exakt två saker blockeras.
+Att tända den flaggan, och `npm run db:purge --apply` när en kandidat är
+förfallen — den vägrar köra utan konfigurerad drivrutin (`DEPLOY.md`), avsiktligt.
+
+### D2. Transaktionsmejl: läggs Resend till, eller inte?
+
+*Planens antagande: ja, Resend, i PR 8* (`PLAN-PHASE2.md` §8 Q5).
+
+**Vad som frågas.** Detsamma som §8 Q5 frågade, och svaret har inte kommit. Det
+finns fortfarande ingen mejlleverantör i repot — inte Resend, inte nodemailer,
+ingen SMTP-kod alls.
+
+**Vad som inte finns utan det.** Tre saker, konkret:
+
+1. E-postverifiering vid registrering. En adress är idag ett påstående.
+2. Lösenordsåterställning. Det finns ingen `/postulante/recuperar`-route,
+   eftersom det inte går att bygga en. En kandidat som glömmer sitt lösenord har
+   ingen väg tillbaka till sitt konto — och sitt CV.
+3. Varningen före gallring. `findCandidatesToWarn()` i `lib/db/retention.ts`
+   *rapporterar* vilka som är i varningsfönstret och stannar där; kommentaren i
+   filen skriver ut varför. Utan mejl gallras data utan det förvarsel
+   integritetspolicyn lovar.
+
+**Vad det kostar.** Resends gratisnivå täcker den här volymen. En API-nyckel,
+en `lib/email.ts`, ungefär ett Sonnet-PR. Det verkliga arbetet är DNS: SPF och
+DKIM på domänen, annars hamnar posten i skräpkorgen och funktionen finns bara
+på pappret.
+
+**Om det skjuts upp.** Kandidatkonton kan inte gå live ärligt. Punkt 3 är
+skillnaden mellan en saknad funktion och en text på `/privacidad` som inte
+stämmer med vad systemet gör. Det här är fortfarande, precis som §8 Q5 skrev,
+den enda av frågorna som ändrar PR-omfattning.
+
+### D3. Får appen anta att den kör som exakt en process?
+
+**Vad som frågas.** Om enprocess-antagandet ska skrivas ned som en regel för
+driften, eller om koden ska sluta lita på det.
+
+**Vad som hänger på det.** Tre limiters, alla `Map` i minnet: personalens
+inloggning och kandidaternas (`lib/rate-limit.ts`) samt lead-formulärets
+(`lib/leads.ts`). Antagandet är sant idag — Hostinger kör appen som en
+persistent Node-process — och `lib/rate-limit.ts` skriver ut det självt,
+inklusive konsekvensen: det återställs vid deploy och håller inte vid
+horisontell skalning.
+
+**Vad alternativen kostar.** Behålla antagandet: noll. Släppa det: limitern
+flyttar till en tabell — en tabell, ett index, en skrivning per
+inloggningsförsök, ungefär ett Opus-PR, och `AGENTS.md`:s no-FK-regel plus
+`scripts/verify-cascades.ts` gäller för den nya tabellen.
+
+**Om det skjuts upp.** Ingenting går sönder — *förutsatt att antagandet står
+nedskrivet som ett villkor på hostingen och inte lever som en olycka i tre
+kommentarer*. Felmoden är obehaglig just för att den är tyst: någon skalar ut
+till två instanser en dag, limitern blir hälften så sträng, och ingenting
+loggar eller kraschar.
+
+**Rekommendation** (planen har ingen standard här, men skälen pekar åt ett
+håll): behåll antagandet, skriv in det i `DEPLOY.md` som en regel — *skala inte
+den här appen horisontellt utan att först flytta limitrarna* — och ta upp
+frågan igen först när det finns ett skäl att skala. A1 minskar beroendet av
+antagandet men tar inte bort det.
+
+### D4. Ops-härdning: hur långt ska den gå?
+
+**Vad som frågas.** Hur mycket utanför själva appen som ska byggas nu. Här
+finns ingen antagen standard att luta sig mot: planen har aldrig satt någon, och
+det är därför frågan ligger hos ägaren och inte hos den som skriver kod.
+
+**Menyn, med vad varje post kostar.**
+
+| | Vad | Kostnad | Vad den skyddar mot |
+|---|---|---|---|
+| a | CSP-header | Litet PR plus en genomgång av inline-script | Andra försvarslagret under A2; gör en framtida XSS mycket mindre användbar |
+| b | Schemalagd MySQL-dump **plus en repeterad återläsning** | Litet, men återläsningen är den enda delen som räknas | Den otestade backupen är den klassiska förlusten |
+| c | Uppetids- och felövervakning | En tjänst, en URL, en larmkanal | Idag får vi veta av en besökare |
+| d | Rutin för nyckelrotation (DB-lösenord, R2-nycklar) | Ingen kod, en nedskriven rutin | `DEPLOY.md` dokumenterar redan kraschen när lösenordet byts och appens variabel inte följer med |
+
+**Om det skjuts upp.** Ingenting går sönder en bra dag. Var och en av posterna
+syns bara en dålig dag, och (b) är den enda där uppskjutandet kan bli
+oåterkalleligt — de andra tre går att lägga till efteråt utan att något gått
+förlorat under tiden.
+
+---
