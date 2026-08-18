@@ -228,6 +228,21 @@ export const applications = mysqlTable(
     index('job_created_idx').on(table.jobId, table.createdAt),
     // "Mis postulaciones" for a logged-in candidate.
     index('candidate_created_idx').on(table.candidateId, table.createdAt),
+    // One application per candidate per job, enforced by the database rather
+    // than by the check-then-insert in createCandidateApplication()
+    // (PLAN-PHASE3-DRAFT.md §12.1). Two concurrent submits both passed that
+    // check and both inserted — and the duplicate is not cosmetic: each row
+    // carries its own consent record, so the employer saw the same person
+    // twice and the ARCO export listed a share that happened once.
+    //
+    // Anonymous lead-form rows are NOT affected. MySQL unique indexes ignore
+    // NULLs, so any number of rows with candidate_id IS NULL coexist, which is
+    // exactly the lead form's shape (ARCHITECTURE.md §7 — that path is not
+    // rewritten). saved_jobs has had the same guard since it was written.
+    //
+    // Still no foreign key, per AGENTS.md: this is a uniqueness constraint on
+    // two plain int columns, not a referential one.
+    uniqueIndex('candidate_job_application_unique_idx').on(table.candidateId, table.jobId),
   ],
 );
 

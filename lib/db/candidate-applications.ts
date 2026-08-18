@@ -71,34 +71,71 @@ export async function createCandidateApplication(
   const currentCv = await getCurrentCandidateCv(candidateId);
   const now = new Date();
 
-  const [consentResult] = await db.insert(consents).values({
-    subjectType: 'candidate',
-    subjectId: candidateId,
-    purpose: 'application_share',
-    granted: true,
-    policyVersion: POLICY_VERSION,
-    relatedCompanyId: job.companyId,
-    relatedJobId: job.id,
-    ip: input.ip,
-    userAgent: input.userAgent,
-    createdAt: now,
-  });
+  // One transaction, because these two rows are one fact.
+  //
+  // The consent row is what makes sharing this candidate's data with this
+  // employer lawful; the application row is the sharing. A crash between them
+  // used to leave a consent authorising a share that never happened — a record
+  // saying the candidate agreed to send their CV to a company that never
+  // received it. That is the wrong direction to fail in for an append-only
+  // consent log (AGENTS.md), because nothing later can tell it apart from a
+  // real one.
+  //
+  // The unique index on (candidate_id, job_id) is caught here rather than
+  // pre-checked: the SELECT above still runs, because it answers the common
+  // case without a failed write, but it cannot be the guarantee — two
+  // concurrent submits both pass it. The constraint is the guarantee, and the
+  // race now ends as `already_applied` instead of as two rows.
+  try {
+    return await db.transaction(async (tx) => {
+      const [consentResult] = await tx.insert(consents).values({
+        subjectType: 'candidate',
+        subjectId: candidateId,
+        purpose: 'application_share',
+        granted: true,
+        policyVersion: POLICY_VERSION,
+        relatedCompanyId: job.companyId,
+        relatedJobId: job.id,
+        ip: input.ip,
+        userAgent: input.userAgent,
+        createdAt: now,
+      });
 
-  const [appResult] = await db.insert(applications).values({
-    jobId: job.id,
-    candidateId,
-    consentId: consentResult.insertId,
-    cvId: currentCv?.id ?? null,
-    name: candidate.name,
-    phone: candidate.phone,
-    email: candidate.email,
-    message: input.message,
-    sourcePage: `/postulante/apply/${input.jobSlug}`,
-    status: 'new',
-    createdAt: now,
-  });
+      const [appResult] = await tx.insert(applications).values({
+        jobId: job.id,
+        candidateId,
+        consentId: consentResult.insertId,
+        cvId: currentCv?.id ?? null,
+        name: candidate.name,
+        phone: candidate.phone,
+        email: candidate.email,
+        message: input.message,
+        sourcePage: `/postulante/apply/${input.jobSlug}`,
+        status: 'new',
+        createdAt: now,
+      });
 
-  return { ok: true, applicationId: appResult.insertId };
+      return { ok: true, applicationId: appResult.insertId } as const;
+    });
+  } catch (err) {
+    // The loser of the race. Reported as the same refusal the pre-check gives,
+    // because from the candidate's side it is the same thing: they had already
+    // applied. Any other failure is a real one and must not be swallowed.
+    if (isDuplicateEntryError(err)) return { ok: false, reason: 'already_applied' };
+    throw err;
+  }
+}
+
+/**
+ * MySQL's duplicate-key error, by code rather than by message text.
+ *
+ * `errno` 1062 / `code` ER_DUP_ENTRY is stable across mysql2 versions and
+ * locales; the message is neither.
+ */
+function isDuplicateEntryError(err: unknown): boolean {
+  if (typeof err !== 'object' || err === null) return false;
+  const candidate = err as { code?: unknown; errno?: unknown };
+  return candidate.code === 'ER_DUP_ENTRY' || candidate.errno === 1062;
 }
 
 /** Whether this candidate has already applied to this job (drives the apply button). */

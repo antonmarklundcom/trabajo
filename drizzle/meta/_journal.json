@@ -43,6 +43,13 @@
       "when": 1786550586464,
       "tag": "0005_third_firebrand",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1787085713981,
+      "tag": "0006_luxuriant_glorian",
+      "breakpoints": true
     }
   ]
 }

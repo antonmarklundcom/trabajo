@@ -1,0 +1,14 @@
+-- One application per candidate per job (PLAN-PHASE3-DRAFT.md §12.1, PR B4).
+-- Replaces a check-then-insert that two concurrent submits both passed.
+--
+-- Anonymous lead-form rows have candidate_id IS NULL and MySQL unique indexes
+-- ignore NULLs, so that path is unaffected however many rows it has.
+--
+-- If this statement fails with ER_DUP_ENTRY, the table already holds duplicate
+-- (candidate_id, job_id) pairs from before the constraint existed. Find them
+-- with:
+--   SELECT candidate_id, job_id, COUNT(*) c FROM applications
+--    WHERE candidate_id IS NOT NULL GROUP BY 1,2 HAVING c > 1;
+-- and delete the later row of each pair (keeping the earliest created_at, whose
+-- consent row is the one the employer acted on) before re-running.
+ALTER TABLE `applications` ADD CONSTRAINT `candidate_job_application_unique_idx` UNIQUE(`candidate_id`,`job_id`);

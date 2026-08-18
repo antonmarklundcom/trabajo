@@ -383,65 +383,101 @@ export async function deleteCandidateAccount(
     throw err;
   }
 
-  // --- 3. The CV and work-history rows ------------------------------------
-  const [cvDelete] = await db
-    .delete(candidateCvs)
-    .where(eq(candidateCvs.candidateId, candidateId));
-  const [experienceDelete] = await db
-    .delete(candidateExperiences)
-    .where(eq(candidateExperiences.candidateId, candidateId));
-  // No FK ties saved_jobs to candidates either (schema.ts convention), so this
-  // hard delete must clean up bookmarks itself. Counted like every other table
-  // this function destroys: `deletion_requests.outcome` is the evidence of what
-  // a cancellation actually removed, and a table that is silently purged is a
-  // table nobody can later prove was purged.
-  const [savedJobsDelete] = await db
-    .delete(savedJobs)
-    .where(eq(savedJobs.candidateId, candidateId));
+  // --- 3-6. The database half, in one transaction -------------------------
+  //
+  // Steps 3, 4 and 5 destroy rows in three tables that no foreign key ties
+  // together (AGENTS.md: the cleanup is in code, deliberately). A crash between
+  // them left a candidate half-deleted — work history gone but the account row
+  // present, or applications redacted while the CV rows survived — and nothing
+  // in the schema would ever notice, because there is no constraint to violate.
+  // That is precisely why the atomicity has to be written here: the no-FK
+  // convention removes the database's ability to catch this for us.
+  //
+  // The CV OBJECTS are deleted in step 2, outside and before this, and that
+  // ordering is not an oversight — it is PLAN-PHASE2.md §4.4. Bytes first: a
+  // rolled-back transaction that leaves rows pointing at objects we already
+  // destroyed is recoverable bookkeeping, while committed deletions of the rows
+  // that name the objects would strand the bytes forever with nothing left to
+  // find them by.
+  const {
+    cvDelete,
+    experienceDelete,
+    savedJobsDelete,
+    freshRedaction,
+    alreadyRedacted,
+    consentRows,
+  } = await db.transaction(async (tx) => {
+    const [cvDelete] = await tx
+      .delete(candidateCvs)
+      .where(eq(candidateCvs.candidateId, candidateId));
+    const [experienceDelete] = await tx
+      .delete(candidateExperiences)
+      .where(eq(candidateExperiences.candidateId, candidateId));
+    // No FK ties saved_jobs to candidates either (schema.ts convention), so this
+    // hard delete must clean up bookmarks itself. Counted like every other table
+    // this function destroys: `deletion_requests.outcome` is the evidence of what
+    // a cancellation actually removed, and a table that is silently purged is a
+    // table nobody can later prove was purged.
+    const [savedJobsDelete] = await tx
+      .delete(savedJobs)
+      .where(eq(savedJobs.candidateId, candidateId));
 
-  // --- 4. Redact the applications, keep the husk --------------------------
-  // Two statements so that an application the candidate had already withdrawn
-  // (§4.2) keeps its original `redacted_at`. That date is when their data
-  // actually stopped being visible to the employer, and overwriting it with
-  // today's would misdate the record in the one direction that flatters us.
-  const [freshRedaction] = await db
-    .update(applications)
-    .set({
-      name: null,
-      phone: null,
-      email: null,
-      message: null,
-      cvId: null,
-      candidateId: null,
-      redactedAt: now,
-    })
-    .where(and(eq(applications.candidateId, candidateId), isNull(applications.redactedAt)));
+    // --- 4. Redact the applications, keep the husk --------------------------
+    // Two statements so that an application the candidate had already withdrawn
+    // (§4.2) keeps its original `redacted_at`. That date is when their data
+    // actually stopped being visible to the employer, and overwriting it with
+    // today's would misdate the record in the one direction that flatters us.
+    const [freshRedaction] = await tx
+      .update(applications)
+      .set({
+        name: null,
+        phone: null,
+        email: null,
+        message: null,
+        cvId: null,
+        candidateId: null,
+        redactedAt: now,
+      })
+      .where(and(eq(applications.candidateId, candidateId), isNull(applications.redactedAt)));
 
-  const [alreadyRedacted] = await db
-    .update(applications)
-    .set({
-      // The personal columns are already NULL on these rows; setting them again
-      // is free and means this statement does not depend on §4.2 having done
-      // its job perfectly.
-      name: null,
-      phone: null,
-      email: null,
-      message: null,
-      cvId: null,
-      candidateId: null,
-    })
-    .where(and(eq(applications.candidateId, candidateId), isNotNull(applications.redactedAt)));
+    const [alreadyRedacted] = await tx
+      .update(applications)
+      .set({
+        // The personal columns are already NULL on these rows; setting them again
+        // is free and means this statement does not depend on §4.2 having done
+        // its job perfectly.
+        name: null,
+        phone: null,
+        email: null,
+        message: null,
+        cvId: null,
+        candidateId: null,
+      })
+      .where(and(eq(applications.candidateId, candidateId), isNotNull(applications.redactedAt)));
 
-  // --- 5. The candidate row itself ----------------------------------------
-  await db.delete(candidates).where(eq(candidates.id, candidateId));
+    // --- 6. consents: read inside, so the count cannot describe a state the
+    // transaction did not commit --------------------------------------------
+    // Counted, never written. If a future edit adds a DELETE here, it is deleting
+    // the evidence that this deletion was authorised (§4.3 keeps them 5 years).
+    const consentRows = await tx
+      .select({ id: consents.id })
+      .from(consents)
+      .where(and(eq(consents.subjectType, 'candidate'), eq(consents.subjectId, candidateId)));
 
-  // --- 6. consents: untouched, on purpose ---------------------------------
-  // Counted, never written. If a future edit adds a DELETE here, it is deleting
-  // the evidence that this deletion was authorised (§4.3 keeps them 5 years).
-  const consentRows = await db
-    .select({ id: consents.id })
-    .from(consents)
-    .where(and(eq(consents.subjectType, 'candidate'), eq(consents.subjectId, candidateId)));
+    // --- 5. The candidate row itself ----------------------------------------
+    // Last inside the transaction: every statement above finds its rows by
+    // candidate_id, and this is the row that gives that id its meaning.
+    await tx.delete(candidates).where(eq(candidates.id, candidateId));
+
+    return {
+      cvDelete,
+      experienceDelete,
+      savedJobsDelete,
+      freshRedaction,
+      alreadyRedacted,
+      consentRows,
+    };
+  });
 
   const counts: DeletionCounts = {
     deletionRequestId,
