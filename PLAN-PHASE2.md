@@ -690,10 +690,14 @@ su proceso de selección". **Never use** "agencia", "seleccionamos candidatos",
 Defaults are assumed so implementation is not blocked; flipping any of them
 does not require rewriting this plan, except where noted.
 
-1. **Retention period.** *Assumed: 24 months of inactivity for profiles, 12
-   months after job close for application data.* Needs a real answer before
-   PR 11, because the number goes in the privacy policy. Changing it later
-   means re-consenting everyone.
+1. **Retention period.** *Resolved in practice (2026-08-18 audit note).* The
+   assumed numbers shipped: `lib/retention.ts` hardcodes 24 months of
+   inactivity for profiles, 12 months after job close for application data,
+   60 months for `consents`, 24 months for `data_access_logs` — and
+   `npm run retention:verify` locks them in CI. The same numbers are quoted in
+   `/privacidad`. This is no longer an open question: if the owner wants a
+   different number, that is a migration + re-consent exercise (per the intro
+   to this section), not a doc edit.
 2. **Employer accounts: admin-created or self-serve?** *Assumed:
    admin-created by invitation*, matching how admin/editor accounts work today.
    Self-serve means anyone can claim a company and read its applications, so it
