@@ -23,6 +23,12 @@
 > förutsättning (ingen admin-yta att hänga en uppladdning på) gäller inte
 > längre. §9.2:s resonemang om *varför* committade bytes inte behövde
 > pipelinen står kvar som korrekt för den värld det skrevs i.
+>
+> **Tillägg 2026-08-18:** §12 är två oberoende revisionspass över hela repot
+> (Sonnet + Fable 5) — fynden, inte rättningarna. §13 är triagen av §12.1:
+> sju PR:er, ordnade efter exponering, med modell per PR. §14 är §12.2:s fyra
+> frågor skrivna som beslutsunderlag för ägaren. §12–§14 är på engelska enligt
+> `AGENTS.md`; §1–§11 står kvar på svenska.
 
 ## 1. Sparade jobb (favoriter) för postulantes
 
@@ -965,6 +971,11 @@ femton-minuters beslut i stället för en ny utredning.
    samma sittning.
 2. Efterkontroll i §4:s anda efter merge (särskilt punkt 5, `noindex`/sitemap,
    nu när artikel-URL:erna genereras från en tabell).
+3. Fristående från de två ovan: `/admin/blog` öppnade en skrivväg som §12.1
+   hittade ett hål i (`javascript:`-URL:er i artikel-Markdown). Den rättningen
+   är PR **B3** i §13.4 och hör inte hemma i den här listan — den här listan
+   handlar om att bli klar med cutovern. Steg 1 ovan är samma sak som §12.3
+   noterar som ogjort.
 
 ### 11.5 Vad som *inte* följer av det här beslutet
 
@@ -1119,3 +1130,309 @@ follow-up PRs.
   the production database — but it is still listed as outstanding, and until
   it runs, the deployed `/blog` is empty. Operational to-do for whoever holds
   production access; nothing to fix in code.
+---
+
+## 13. Triage of §12 — PR breakdown and model per PR (2026-08-18)
+
+English, like §12 and unlike the rest of this document: this section is read
+against §12's finding list, and `AGENTS.md` puts docs in English anyway. §1–§11
+stay as they are.
+
+### 13.1 What this triage is, and how it was produced
+
+§12 is the record of what is wrong. This section is the plan for fixing it:
+§12.1's list cut into PR-sized units, each with a model, ordered by risk.
+Nothing here is implemented — that is deliberate, and it matches §12's own
+"the fixes are follow-up PRs".
+
+One thing about the provenance, because it affects how much weight the
+agreements below deserve. This triage was started while §12 was still an
+unmerged branch and was not visible in the repo, so the two named security
+findings were re-derived from the code independently rather than read off
+§12's list. Where this section and §12 agree, two passes that could not see
+each other reached the same place. Two consequences of that are worth keeping:
+
+- **The blog XSS was reproduced, not reasoned about.** Running the repo's own
+  `marked` (18.0.9) with the exact override in `lib/blog.ts:63-69`:
+  `[clic](javascript:alert(document.cookie))` →
+  `<a href="javascript:alert(document.cookie)">clic</a>`. Also
+  `![x](javascript:…)` → a live `img src`, and `data:text/html;base64,…`
+  survives as an href — so the allowlist §12.1 asks for has to cover the
+  `image` renderer too, not only `link`.
+- **Job descriptions are not affected, and that is not luck.**
+  `components/MarkdownContent.tsx` implements no link syntax at all — no `href`
+  is produced anywhere in that file — so the hand-rolled renderer is strictly
+  safer here than the library. Worth writing down so nobody "fixes" the job
+  path by moving it to `marked`.
+
+### 13.2 Correction to my own pass: the cache was not clean
+
+Before §12 was visible I audited the cache and reported it clean. That was
+answering a narrower question than the one that mattered. I checked
+*invalidation* — all 22 call sites of `invalidatePublicContent()` and
+`invalidateBlogContent()` against `PUBLIC_PATHS`, `BLOG_PATHS`, `CACHE_TAGS`
+and every `unstable_cache` key — and that half is genuinely fine: every
+mutating handler that can change public output calls one of the two, and
+`revalidatePath` with `'page'` on the dynamic patterns covers every slug,
+including the old one after a rename.
+
+I did not check *key cardinality*, and that is where the defect is. §12.1's
+finding stands, and it is verified: `filtersKey()` (`lib/db/queries.ts:316`)
+JSON-encodes the whole filter object including free-text `q`, and `q` reaches
+it straight from the public query string (`app/empleos/page.tsx:28,47`). Every
+distinct `?q=` mints a cache entry. On shared Hostinger disk that is a
+resource-exhaustion vector any crawler can trip by accident, and it is live in
+production today.
+
+So it is not a "cache cleanup" and it is not ranked with the tidying below —
+it is B2, above the blog XSS, because it needs no session at all.
+
+### 13.3 One finding not in §12
+
+`/api/postulante/mis-datos/eliminar` calls
+`checkCandidateLoginRateLimit(ip, candidate.email)` — the **same limiter
+instance** as candidate login (route line 56-57). Five failed password
+confirmations on the deletion page consume the login budget, and vice versa.
+
+`lib/rate-limit.ts`'s own header states the rule being broken: *"Each caller
+creates its OWN limiter instance. That is deliberate… Sharing the code is the
+point; sharing the counters is not."* The module already has the answer; the
+call site does not follow it. It lands in B1 because B1 is already rewriting
+every limiter call site, and it matters because the affected path is ARCO
+self-service deletion — the one `/privacidad` promises.
+
+Related, and already implied by §12.1's XFF finding but worth making explicit
+as a *requirement on the fix* rather than a separate item: the same spoofable
+value is what gets written to `consents.ip` and `data_access_logs`
+(`lib/db/candidates-admin.ts:90`). Those are the ARCO evidence rows. B1 is not
+only a limiter fix; it decides what those columns are worth.
+
+### 13.4 The PRs
+
+Ordered by exposure, not by size. The rule used: **live and reachable without
+any session first**, then live-but-authenticated, then work behind a dark
+feature flag. Flag-dark work is not low priority — B4 must land before
+`CANDIDATE_ACCOUNTS_ENABLED` is ever flipped — it just cannot hurt anyone this
+week.
+
+| PR | Title | Model | §12 items covered |
+|---|---|---|---|
+| **B1** | Trusted client IP + one limiter module | **Opus** | Spoofable XFF key; two independent limiter implementations; plus §13.3's shared ARCO instance and the seven divergent `clientIp` copies |
+| **B2** | Bounded cache key for free-text search | **Opus** | Unbounded cache cardinality |
+| **B3** | Link/image scheme allowlist in blog Markdown | **Opus** | Blog Markdown XSS gap |
+| **B4** | Application uniqueness + transaction boundaries | **Opus** | Duplicate-application race; missing transactions around consent→application and `deleteCandidateAccount()` steps 3–5 |
+| **B5** | Rate limits on authenticated candidate writes | Sonnet | No limiting on `postulaciones` / `guardados` (also §6.6) |
+| **B6** | CI: `lint` and `tsc --noEmit` | Sonnet | Both CI gaps |
+| **B7** | Shared `cachedOrRaw`, seed/DB sort parity, two undocumented scripts | Sonnet | `cachedOrRaw` duplication; seed-vs-DB sort drift; `user:password` / `candidate:create` in `DEPLOY.md` |
+
+**B1 — Opus.** `PLAN.md` §4's first criterion verbatim: auth, where subtly
+wrong leaks data. Three things have to be true at once and only one of them is
+mechanical. The hop must be counted from the trusted end, configured rather
+than guessed. A second bucket keyed on identity alone has to exist, because an
+attacker with a botnet has real IPs and pinning the hop does not stop them —
+while staying slow rather than locking-out, since the current `ip:email` key
+was chosen precisely so a stranger cannot lock a known-good account out
+(`lib/rate-limit.ts:31-33`). And it changes what lands in the consent evidence
+columns. None of that shows up in a UI when it is wrong.
+
+**B2 — Opus.** `PLAN.md` §4's other named Opus area, and for its stated
+reason. The failure mode of a badly normalized cache key is not a big cache;
+it is two different filter sets colliding on one key and one visitor's result
+set being served for another's query. That is "silently serves stale content"
+with a sharper edge. The two candidate fixes — normalize-and-cap `q`, or
+exclude `q`-carrying queries from `unstable_cache` entirely — differ in
+exactly this risk, and picking between them is the work.
+
+**B3 — Opus.** Not because an allowlist is hard, but because it is written
+*into the same renderer override* that currently holds the raw-HTML escape. An
+override that replaces where it should extend switches that escape off, and
+nothing in CI today would notice — `blog:verify` asserts the escape through
+`renderMarkdown()`, so it would keep passing if the escape were still there and
+fail usefully only if the new assertions land in the same PR. `AGENTS.md` names
+that escape as a boundary. Silent-when-wrong is the Opus line.
+
+**B4 — Opus.** A schema migration under the no-FK regime (`AGENTS.md`: plain
+columns and indexes, cross-table cleanup in code, and `verify-cascades.ts`
+kept in step), plus transactions on the ARCO purge — the destructive path
+`PLAN-PHASE2.md` §6 already made Opus for PR 10, for reasons that have not
+changed. The unique index needs the NULL-`candidate_id` behaviour §12.1
+describes to be correct in MySQL, or the anonymous lead form breaks; that is
+worth proving in the PR body, not asserting.
+
+**B5, B6, B7 — Sonnet.** B5 is applying an existing pattern once B1 has
+settled what the pattern is, so it is sequenced after B1 and is otherwise
+mechanical. B6 is configuration, with one unknown: how much eslint complains on
+its first green run. That tail stays inside B6 and must not become a
+repo-wide reformat. B7 is three small independent things; the only judgement in
+it is the sort drift, and the rule is *the DB path is the source of truth and
+seed follows it*, with `db:parity` run and pasted into the PR body — §12.1 is
+right that parity quietly tolerating a divergence is the actual problem.
+
+*Rough shape:* B1 medium and the one that needs
+`node_modules/next/dist/docs/` read for header handling; B2 medium; B3 small;
+B4 medium; B5 small; B6 small-with-a-tail; B7 small. Two Opus sessions and one
+Sonnet session, near enough.
+
+### 13.5 Deliberately not in B1–B7
+
+- **No distributed rate-limit store and no cross-instance invalidation.** Both
+  wait on §14 D3. B1 makes the limiter correct within one process; it does not
+  make it shared.
+- **No CSP header, no error tracking, no backup procedure, no purge-run
+  monitoring, no auth audit trail.** That is §12.2's ops-hardening list, which
+  §14 D4 leaves with the owner precisely because none of it gates a PR.
+- **No captcha and no account lockout.** Both change what a real user meets,
+  which makes them product decisions rather than audit fixes.
+- **Nothing about the blog production cutover.** §12.3 is right that it is
+  operational; §11.4 step 1 already owns it.
+
+### 13.6 Where this lands, and why not a `PLAN-PHASE4.md`
+
+Decision: **§13 and §14 in this document. No new plan file, and not folded
+into §11.4.**
+
+1. **A `PLAN-PHASE4.md` would describe the wrong kind of work.** `PLAN.md` and
+   `PLAN-PHASE2.md` each open a *new body of work* — a schema, a flag, a
+   surface that does not exist yet. Seven fixes to already-merged code have
+   none of that. A plan document of their own would give them a weight they do
+   not have and turn "the plan" into a bug tracker.
+2. **"Phase 4" is already taken.** `PLAN-PHASE2.md` §6 calls candidate search,
+   ranking and matching *"Phase 4 — NOT NOW"*, gated on legal review, and
+   `AGENTS.md` repeats it as a non-negotiable. A `PLAN-PHASE4.md` about rate
+   limiting would make every future reference to "phase 4" ambiguous — exactly
+   the collision the "read §11 before §9–§10" note in this document's header
+   exists to warn about.
+3. **§11.4 is the wrong list.** It is one PR's tail: the blog cutover's two
+   commands, run in one sitting. Seven cross-cutting fixes there stop it being
+   a checklist for finishing the blog.
+4. **This document is already where post-merge review lives** — §4, §6, §8 and
+   now §12 are all "what did we find after merge". §13 is the same genre one
+   size up, and it sits directly under the findings it triages, which is the
+   only place it can be read without cross-referencing.
+
+---
+
+## 14. Owner decisions: the four questions in §12.2 (2026-08-18)
+
+Same form as `PLAN-PHASE2.md` §8: what is being asked, what each option costs,
+and what breaks if the answer keeps waiting. An assumed default is written out
+**only where the plan already has one** — D4 has none, and that absence is the
+question.
+
+None of these are decided here. §12.2 records them; this section is what the
+owner needs in order to answer them.
+
+### D1. CV storage: Cloudflare R2 or Hostinger disk?
+
+*Plan's assumption: R2* (`PLAN-PHASE2.md` §3.1 and §8 Q4).
+
+**What is being asked.** Only which one runs. Both drivers are built, sit
+behind one interface in `lib/storage.ts`, and are exercised in CI on every
+push. This is an account and a few environment variables, not code.
+
+**What they cost.** R2: a Cloudflare account, a private bucket, and
+`CV_R2_ACCOUNT_ID`, `CV_R2_BUCKET`, `CV_R2_ACCESS_KEY_ID`,
+`CV_R2_SECRET_ACCESS_KEY`. The volume fits the free tier with room to spare.
+Disk: no new account, a directory outside the build root, `CV_STORAGE_DIR` —
+and then Hostinger's own backup is the only backup of every CV, which moves
+the backup question into D4 rather than removing it.
+
+**On the migration point.** §12.2 says there is no migration path between
+drivers once CVs exist. Precisely: no such script exists today, and none is
+planned. One could be written — the interface makes it a read-all/write-all
+loop — but it is real work that has to be scheduled, and its cost grows with
+the number of stored CVs. So the door is not locked; it gets heavier.
+
+**If deferred.** Nothing breaks today: `CANDIDATE_ACCOUNTS_ENABLED` is `false`
+and there is not one CV in the system. Exactly two things are blocked —
+flipping that flag, and `npm run db:purge --apply` once a candidate is due,
+which refuses to run without a configured driver, by design.
+
+### D2. Transactional email: is Resend added, or not?
+
+*Plan's assumption: yes, Resend, in PR 8* (`PLAN-PHASE2.md` §8 Q5).
+
+**What is being asked.** The same thing §8 Q5 asked, still unanswered. There is
+still no email provider in the repo — not Resend, not nodemailer, no SMTP code
+at all.
+
+**What does not exist without it.** Four things, and the fourth is the one
+that is easy to miss:
+
+1. Email verification at registration. An address is currently a claim.
+2. Password reset. There is no `/postulante/recuperar` route because one
+   cannot be built. A candidate who forgets their password has no way back to
+   their account, and their CV.
+3. The pre-purge warning. `findCandidatesToWarn()` (`lib/db/retention.ts:74`)
+   reports who is in the warning window and stops there; the comment in the
+   file says why. Without email, data is purged without the notice the privacy
+   policy promises.
+4. `candidates.emailVerifiedAt` can never be set — so every consent row is
+   attached to an unverified address. §12.2 is right that this weakens the
+   evidentiary value of the consent record, which is the same asset B1 is
+   protecting from the other side.
+
+**What it costs.** Resend's free tier covers this volume. An API key, a
+`lib/email.ts`, roughly one Sonnet PR. The real work is DNS — SPF and DKIM on
+the domain — without which the feature exists but the mail lands in spam.
+
+**If deferred.** Candidate accounts cannot honestly go live. Items 3 and 4 are
+the difference between a missing feature and text on `/privacidad` that does
+not match what the system does. Still, as §8 Q5 said, the one question that
+changes PR scope.
+
+### D3. May the app assume it runs as exactly one process?
+
+**What is being asked.** Whether single-instance is a permanent constraint to
+be written down, or an assumption the code should stop making.
+
+**What depends on it.** More than the limiters, which is the part worth
+correcting from my earlier framing. Two things:
+
+- Both login limiters and the lead limiter are in-memory `Map`s
+  (`lib/rate-limit.ts`, `lib/leads.ts:260`). Under two instances each becomes
+  half as strict, silently.
+- `revalidateTag`-based invalidation (`ARCHITECTURE.md` §8) is per-process
+  too. Under two instances, an editor publishes, one instance expires its
+  entries and the other does not — so "publish and see it immediately" becomes
+  a coin flip, and an unpublished job can keep being served by the instance
+  that never heard. That is the more serious half, because it touches the
+  visibility predicate's whole point.
+
+**What the options cost.** Keeping the assumption: nothing. It is true today —
+Hostinger runs this app as one persistent Node process, and
+`lib/rate-limit.ts` says so itself. Dropping it: the limiter moves to a table
+(one table, one index, a write per login attempt, `AGENTS.md`'s no-FK rule and
+`verify-cascades.ts` applying to it), and the cache needs a shared invalidation
+signal, which is a larger question than the limiter and not a one-PR change.
+
+**If deferred.** Nothing breaks — *provided the assumption is written down as
+a hosting constraint rather than living in three code comments*. The failure
+mode is quiet: someone scales to two instances one day and nothing logs, errors
+or looks different.
+
+**Recommendation** (the plan states no default here, but the reasons point one
+way): keep the assumption, record it in `DEPLOY.md` as a rule — *do not scale
+this app horizontally without first moving the limiters and the cache
+invalidation* — and reopen it only when there is a reason to scale.
+
+### D4. Ops hardening: how far?
+
+**What is being asked.** How much outside the app itself gets built now. There
+is no assumed default to fall back on: the plan has never set one, and that is
+why the question belongs to the owner rather than to whoever writes the code.
+§12.2 lists four gaps; a fifth belongs with them because B3 makes it relevant.
+
+| | Item | Cost | What it buys |
+|---|---|---|---|
+| a | Error tracking | A service, an env var, one wiring PR | `DEPLOY.md` describes production failures as an opaque "Application error / Digest" page; today the only trace is stray `console.*` in `lib/` |
+| b | MySQL backup **and one rehearsed restore** | Small — but only the restore counts | Nothing today documents a database backup; only the CV and image directories are discussed in those terms. The untested backup is the classic loss |
+| c | Monitoring that `db:purge` actually ran | A scheduled check and an alert | A silently skipped month is non-compliance with the retention numbers published on `/privacidad` — invisible until someone asks |
+| d | Auth audit trail beyond `lastLoginAt` | A table, or structured logs | No record of logins, failed logins or password changes; after an incident there would be nothing to read |
+| e | CSP header | Small PR plus a pass over inline scripts | Second layer under B3; makes a future XSS much less useful |
+
+**If deferred.** Nothing breaks on a good day — each of these is only visible
+on a bad one. Two asymmetries are worth weighing: (b) is the only one where
+deferring can become irreversible, and (d) is the only one that cannot be
+applied retroactively, because it is a record that either was or was not being
+kept at the time you need it.
