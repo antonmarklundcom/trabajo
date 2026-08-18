@@ -1217,10 +1217,10 @@ week.
 
 | PR | Title | Model | §12 items covered |
 |---|---|---|---|
-| **B1** | Trusted client IP + one limiter module | **Opus** | Spoofable XFF key; two independent limiter implementations; plus §13.3's shared ARCO instance and the seven divergent `clientIp` copies |
-| **B2** | Bounded cache key for free-text search | **Opus** | Unbounded cache cardinality |
-| **B3** | Link/image scheme allowlist in blog Markdown | **Opus** | Blog Markdown XSS gap |
-| **B4** | Application uniqueness + transaction boundaries | **Opus** | Duplicate-application race; missing transactions around consent→application and `deleteCandidateAccount()` steps 3–5 |
+| **B1** ✅ | Trusted client IP + one limiter module | **Opus** | Spoofable XFF key; two independent limiter implementations; plus §13.3's shared ARCO instance and the seven divergent `clientIp` copies |
+| **B2** ✅ | Bounded cache key for free-text search | **Opus** | Unbounded cache cardinality |
+| **B3** ✅ | Link/image scheme allowlist in blog Markdown | **Opus** | Blog Markdown XSS gap |
+| **B4** ✅ | Application uniqueness + transaction boundaries | **Opus** | Duplicate-application race; missing transactions around consent→application and `deleteCandidateAccount()` steps 3–5 |
 | **B5** | Rate limits on authenticated candidate writes | Sonnet | No limiting on `postulaciones` / `guardados` (also §6.6) |
 | **B6** | CI: `lint` and `tsc --noEmit` | Sonnet | Both CI gaps |
 | **B7** | Shared `cachedOrRaw`, seed/DB sort parity, two undocumented scripts | Sonnet | `cachedOrRaw` duplication; seed-vs-DB sort drift; `user:password` / `candidate:create` in `DEPLOY.md` |
@@ -1267,6 +1267,38 @@ repo-wide reformat. B7 is three small independent things; the only judgement in
 it is the sort drift, and the rule is *the DB path is the source of truth and
 seed follows it*, with `db:parity` run and pasted into the PR body — §12.1 is
 right that parity quietly tolerating a divergence is the actual problem.
+
+**Built 2026-08-18 (B1–B4).** Four decisions inside the builds that §13.4 did
+not settle in advance, recorded because each is a place a later reader could
+reasonably expect the opposite:
+
+1. **The identity bucket is 4x the per-IP allowance (20 per 15 min), not a
+   lockout.** §13.4 required a bucket that does not depend on IP and said it
+   must stay slow rather than excluding. 20 is the number that does both: an
+   ordinary user has already been stopped by the strict bucket at 5, and an
+   attacker with a proxy pool is bounded per account. The cost is explicit — an
+   attacker who knows an email can hold that account at 429 for the rest of the
+   window. Bounded, self-healing lockout of one account beats unbounded
+   guessing at it.
+2. **B2 does not cache searches at all.** Normalising `q` was the other
+   candidate. It cannot bound the space — a 64-character cap still leaves an
+   effectively infinite one — so the choice was between bounded disk and a
+   MySQL round trip per search. The cached paths are the ones that carry the
+   traffic; search is not one of them.
+3. **`new URL()`, not a scheme regex, in B3.** Browsers normalise leading
+   whitespace, control characters and `JaVaScRiPt:` before deciding what a
+   scheme is; hand-rolled matching is where these checks fail. Parsing makes
+   our answer and the browser's the same answer by construction.
+4. **B4's CV objects stay outside the transaction.** PLAN-PHASE2.md §4.4's
+   bytes-before-rows ordering wins over atomicity where the two conflict: a
+   rollback that leaves rows pointing at destroyed bytes is recoverable
+   bookkeeping, while committed row deletions would strand the bytes with
+   nothing left to find them by.
+
+Two CI scripts were added — `client-ip:verify` and `search:verify` — and
+`blog:verify` grew the link-scheme half. All three assert properties that were
+silent when broken, which is the same reason the eight scripts before them
+exist.
 
 *Rough shape:* B1 medium and the one that needs
 `node_modules/next/dist/docs/` read for header handling; B2 medium; B3 small;
