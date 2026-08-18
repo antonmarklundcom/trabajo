@@ -54,6 +54,64 @@ async function main() {
   check('real markdown still renders', renderMarkdown('**negrita** y `code`').includes('<strong>'));
 
   // -------------------------------------------------------------------------
+  // 1b. A link destination cannot carry a scheme the browser will execute.
+  // -------------------------------------------------------------------------
+  // The gap section 1 did NOT cover, found in PLAN-PHASE3-DRAFT.md §12.1 and
+  // closed by PR B3: the `html` renderer escapes raw tags, but Markdown's own
+  // link syntax never passes through it, so `[x](javascript:…)` rendered a
+  // live anchor while every assertion above stayed green.
+  //
+  // Asserted through renderMarkdown() for the same reason as section 1 — a
+  // re-imported `marked` is a different instance that never saw marked.use().
+  const dangerous = [
+    ['javascript: in a link', '[clic](javascript:alert(document.cookie))'],
+    ['javascript: in an image', '![x](javascript:alert(1))'],
+    ['data:text/html in a link', '[a](data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==)'],
+    ['mixed case scheme', '[JS](JaVaScRiPt:alert(1))'],
+    ['leading whitespace before the scheme', '[sp](   javascript:alert(1))'],
+    ['vbscript:', '[v](vbscript:msgbox(1))'],
+  ] as const;
+
+  for (const [name, markdown] of dangerous) {
+    const rendered = renderMarkdown(markdown);
+    check(
+      `blocked: ${name}`,
+      !/(href|src)\s*=/i.test(rendered) && !/javascript:|vbscript:|data:text\/html/i.test(rendered),
+      rendered,
+    );
+  }
+
+  // A rejected destination keeps its text: an editor who pasted something bad
+  // must see what happened rather than watch the words disappear.
+  check(
+    'a rejected link keeps its visible text',
+    renderMarkdown('[clic aqui](javascript:alert(1))').includes('clic aqui'),
+  );
+
+  // And the allowlist must not have eaten the links articles actually use.
+  const allowed = [
+    ['https', '[ok](https://example.com)', 'href="https://example.com"'],
+    ['http', '[ok](http://example.com)', 'href="http://example.com"'],
+    ['mailto', '[mail](mailto:hola@trabajo.com.py)', 'href="mailto:hola@trabajo.com.py"'],
+    ['site-relative', '[empleos](/empleos)', 'href="/empleos"'],
+    ['anchor', '[seccion](#requisitos)', 'href="#requisitos"'],
+    ['image', '![alt](/blog-covers/x.webp)', 'src="/blog-covers/x.webp"'],
+  ] as const;
+
+  for (const [name, markdown, expected] of allowed) {
+    check(`still works: ${name}`, renderMarkdown(markdown).includes(expected), renderMarkdown(markdown));
+  }
+
+  // The override extends marked's renderer rather than replacing it, so the
+  // two halves must both be live at once. If a future edit swaps `renderer`
+  // for a fresh object, section 1 catches the escape and this catches the rest.
+  check(
+    'title attributes are escaped, not passed through',
+    !renderMarkdown('[x](https://e.com "a\"onmouseover=\"evil()")').includes('onmouseover="evil'),
+    renderMarkdown('[x](https://e.com "a\"onmouseover=\"evil()")'),
+  );
+
+  // -------------------------------------------------------------------------
   // 2. A junk slug is refused before any query runs.
   // -------------------------------------------------------------------------
   // It no longer becomes a filesystem path, so this is not a traversal guard

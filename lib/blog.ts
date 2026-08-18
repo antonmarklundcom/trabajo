@@ -60,11 +60,82 @@ function escapeHtml(value: string): string {
     .replace(/"/g, '&quot;');
 }
 
+/**
+ * Schemes a link or image may point at.
+ *
+ * An allowlist, not a blocklist of `javascript:`: the set of things a browser
+ * will execute from a URL is not fixed and not enumerable — `data:text/html`,
+ * `vbscript:`, and whatever a future engine adds. The set of schemes an article
+ * legitimately needs is three, and it does not grow.
+ *
+ * Relative URLs (`/empleos`, `#seccion`, `imagen.webp`) carry no scheme at all
+ * and are always allowed; they cannot execute anything.
+ */
+const ALLOWED_URL_SCHEMES = new Set(['http:', 'https:', 'mailto:']);
+
+/**
+ * True when a destination is safe to put in an href or src.
+ *
+ * The parse is what does the work. Hand-written scheme matching is where these
+ * checks go wrong, because a browser ignores things a naive regex does not:
+ * leading whitespace and control characters, `JaVaScRiPt:`, and
+ * `java\tscript:` are all live in some engine or other. `new URL()` normalises
+ * exactly the way the browser will, so the two agree about what the scheme is.
+ */
+function isAllowedUrl(href: string): boolean {
+  const trimmed = href.trim();
+  if (trimmed.length === 0) return false;
+
+  // No scheme means relative. A bare `//host/path` is protocol-relative — it
+  // inherits https from the page, so it is resolvable and safe to allow.
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed, 'https://trabajo.com.py');
+  } catch {
+    // Unparseable is not a URL we should be emitting.
+    return false;
+  }
+  return ALLOWED_URL_SCHEMES.has(parsed.protocol);
+}
+
 marked.setOptions({ gfm: true });
 marked.use({
   renderer: {
+    // EXTENDS the default renderer, never replaces it. Anything not listed here
+    // keeps marked's own implementation — which is why the `html` escape below
+    // and these two can live in one object without one switching the other off.
     html(token) {
       return escapeHtml(typeof token === 'string' ? token : (token.raw ?? token.text ?? ''));
+    },
+
+    /**
+     * The gap PLAN-PHASE3-DRAFT.md §12.1 found: the `html` renderer above
+     * escapes raw tags, but Markdown's own link syntax never goes through it.
+     * `[x](javascript:alert(1))` produced a live anchor, and since 2026-08-12
+     * the body arrives over HTTP from an admin session (§11.2) — so this is the
+     * boundary AGENTS.md describes between an editor writing an article and an
+     * editor writing JavaScript that runs in every visitor's browser.
+     *
+     * A rejected destination keeps its text and loses its link. Dropping the
+     * text would make an attack look like a rendering bug to the editor who
+     * pasted it; leaving the words visible shows them what happened.
+     */
+    link({ href, title, tokens }) {
+      const text = this.parser.parseInline(tokens);
+      if (!isAllowedUrl(href)) return text;
+      const titleAttr = title ? ` title="${escapeHtml(title)}"` : '';
+      return `<a href="${escapeHtml(href.trim())}"${titleAttr}>${text}</a>`;
+    },
+
+    /**
+     * The same for images. `![x](javascript:…)` is less directly useful to an
+     * attacker than an anchor, but `src` is a URL context like any other and
+     * the allowlist costs nothing to apply twice.
+     */
+    image({ href, title, text }) {
+      if (!isAllowedUrl(href)) return escapeHtml(text);
+      const titleAttr = title ? ` title="${escapeHtml(title)}"` : '';
+      return `<img src="${escapeHtml(href.trim())}" alt="${escapeHtml(text)}"${titleAttr}>`;
     },
   },
 });
