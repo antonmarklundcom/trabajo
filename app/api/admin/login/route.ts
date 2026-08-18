@@ -7,19 +7,12 @@ import {
   homePathForRole,
   recordFailedLogin,
 } from '@/lib/auth';
+import { clientIp } from '@/lib/client-ip';
 
 const schema = z.object({
   email: z.string().min(1).email(),
   password: z.string().min(1),
 });
-
-function clientIp(request: Request): string {
-  // Hostinger sits behind a reverse proxy; x-forwarded-for is the real
-  // client. Falls back to a constant so rate limiting still groups
-  // unidentifiable requests together instead of throwing.
-  const forwarded = request.headers.get('x-forwarded-for');
-  return forwarded?.split(',')[0]?.trim() || 'unknown';
-}
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
@@ -29,7 +22,7 @@ export async function POST(request: Request) {
   }
 
   const { email, password } = parsed.data;
-  const ip = clientIp(request);
+  const ip = clientIp(request.headers);
 
   const rateLimit = checkLoginRateLimit(ip, email);
   if (!rateLimit.allowed) {

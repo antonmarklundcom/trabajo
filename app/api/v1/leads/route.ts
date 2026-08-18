@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { after } from 'next/server';
 import {
-  getClientIp,
   HONEYPOT_FIELD,
   isHoneypotFilled,
-  isRateLimited,
   leadSchema,
   processLead,
 } from '@/lib/leads';
 import { createApplication } from '@/lib/db/admin';
+import { clientIp } from '@/lib/client-ip';
+import { isLeadRateLimited } from '@/lib/rate-limit';
 
 const SILENT_OK = () => NextResponse.json({ ok: true }, { status: 201 });
 
@@ -26,12 +26,12 @@ export async function POST(req: NextRequest) {
 
   // Bot guard: a filled honeypot or a burst of requests from one IP gets a
   // SILENT 2xx — a non-2xx just teaches the bot to adapt (PLAN.md step 9).
-  const ip = getClientIp(req.headers);
+  const ip = clientIp(req.headers);
   if (isHoneypotFilled((body as Record<string, unknown> | null)?.[HONEYPOT_FIELD])) {
     console.warn('[leads] honeypot triggered — rejecting silently', { ip });
     return SILENT_OK();
   }
-  if (isRateLimited(ip)) {
+  if (isLeadRateLimited(ip)) {
     console.warn('[leads] rate limit exceeded — rejecting silently', { ip });
     return SILENT_OK();
   }

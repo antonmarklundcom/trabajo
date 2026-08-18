@@ -24,7 +24,8 @@
     "cascade:verify": "tsx scripts/verify-cascades.ts",
     "blog:verify": "tsx --conditions=react-server --env-file-if-exists=.env scripts/verify-blog.ts",
     "blog:import": "tsx --conditions=react-server --env-file-if-exists=.env scripts/blog-import.ts",
-    "jobs:verify": "tsx scripts/verify-jobs.ts"
+    "jobs:verify": "tsx scripts/verify-jobs.ts",
+    "client-ip:verify": "tsx --conditions=react-server scripts/verify-client-ip.ts"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

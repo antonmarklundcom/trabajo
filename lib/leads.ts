@@ -244,25 +244,16 @@ export function isHoneypotFilled(value: unknown): boolean {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
-/** First hop in X-Forwarded-For is the original client (Hostinger sits behind a proxy). */
-export function getClientIp(headers: Headers): string {
-  const forwarded = headers.get('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0]!.trim();
-  return headers.get('x-real-ip') ?? 'unknown';
-}
-
-const RATE_LIMIT_WINDOW_MS = 60_000;
-const RATE_LIMIT_MAX_REQUESTS = 5;
-
-// In-memory sliding window, keyed by IP. Correct for this app's deployment
-// (DEPLOY.md: one persistent Node process on Hostinger, not a serverless
-// fan-out) — a distributed store would be needed only if that changed.
-const requestTimestamps = new Map<string, number[]>();
-
-export function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const recent = (requestTimestamps.get(ip) ?? []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
-  recent.push(now);
-  requestTimestamps.set(ip, recent);
-  return recent.length > RATE_LIMIT_MAX_REQUESTS;
-}
+// The client IP helper and the submission rate limiter used to live here.
+// Both moved out in PR B1 (PLAN-PHASE3-DRAFT.md §13.4):
+//
+//   - reading the header is now lib/client-ip.ts, because this file read the
+//     LEFTMOST x-forwarded-for entry — the one the client supplies;
+//   - the sliding window is now lib/rate-limit.ts (`leadSubmissionLimiter`),
+//     which is where the other in-memory limiters already were.
+//
+// The second move is also why this file must stay free of `server-only`:
+// components/{LeadForm,EmployerForm,HoneypotField}.tsx import HONEYPOT_FIELD
+// from here, so anything imported into this module is imported into the
+// browser bundle too. That was already true of the limiter Map that used to
+// sit here — it was being shipped to every visitor.

@@ -7,16 +7,12 @@ import {
   recordFailedCandidateLogin,
 } from '@/lib/auth-candidate';
 import { candidateAccountsEnabled } from '@/lib/flags';
+import { clientIp } from '@/lib/client-ip';
 
 const schema = z.object({
   email: z.string().min(1).email(),
   password: z.string().min(1),
 });
-
-function clientIp(request: Request): string {
-  const forwarded = request.headers.get('x-forwarded-for');
-  return forwarded?.split(',')[0]?.trim() || 'unknown';
-}
 
 export async function POST(request: Request) {
   if (!candidateAccountsEnabled()) {
@@ -30,7 +26,7 @@ export async function POST(request: Request) {
   }
 
   const { email, password } = parsed.data;
-  const ip = clientIp(request);
+  const ip = clientIp(request.headers);
 
   const rateLimit = checkCandidateLoginRateLimit(ip, email);
   if (!rateLimit.allowed) {

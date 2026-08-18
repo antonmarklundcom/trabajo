@@ -10,31 +10,29 @@
 //     undone is a support case we cannot fix afterwards — by design, since
 //     there is no copy of the data left to restore.
 //
-// The password check goes through the login rate limiter, so this endpoint
-// cannot become an unthrottled password oracle that the login form isn't.
+// The password check goes through a rate limiter, so this endpoint cannot
+// become an unthrottled password oracle that the login form isn't. It has its
+// OWN limiter instance rather than the login one (§13.3): a candidate who
+// mistypes here must not lose the ability to log in, and vice versa.
 import { z } from 'zod';
 
 import { authErrorResponse } from '@/lib/auth';
 import {
   authenticateCandidate,
-  checkCandidateLoginRateLimit,
-  clearCandidateLoginAttempts,
+  checkCandidateDeletionRateLimit,
+  clearCandidateDeletionAttempts,
   destroyCandidateSession,
-  recordFailedCandidateLogin,
+  recordFailedCandidateDeletion,
   requireApiCandidate,
 } from '@/lib/auth-candidate';
 import { candidateAccountsEnabled } from '@/lib/flags';
 import { deleteCandidateAccount } from '@/lib/db/candidate-arco';
+import { clientIp } from '@/lib/client-ip';
 
 const schema = z.object({
   password: z.string().min(1).max(200),
   confirm: z.literal('ELIMINAR'),
 });
-
-function clientIp(request: Request): string {
-  const forwarded = request.headers.get('x-forwarded-for');
-  return forwarded?.split(',')[0]?.trim() || 'unknown';
-}
 
 export async function POST(request: Request) {
   if (!candidateAccountsEnabled()) {
@@ -53,8 +51,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const ip = clientIp(request);
-    const rateLimit = checkCandidateLoginRateLimit(ip, candidate.email);
+    const ip = clientIp(request.headers);
+    const rateLimit = checkCandidateDeletionRateLimit(ip, candidate.email);
     if (!rateLimit.allowed) {
       return Response.json(
         {
@@ -66,10 +64,10 @@ export async function POST(request: Request) {
 
     const verified = await authenticateCandidate(candidate.email, parsed.data.password);
     if (!verified || verified.id !== candidate.id) {
-      recordFailedCandidateLogin(ip, candidate.email);
+      recordFailedCandidateDeletion(ip, candidate.email);
       return Response.json({ error: 'Contraseña incorrecta.' }, { status: 401 });
     }
-    clearCandidateLoginAttempts(ip, candidate.email);
+    clearCandidateDeletionAttempts(ip, candidate.email);
 
     // Everything from here is PLAN-PHASE2.md §4.4, in order, inside one call.
     const counts = await deleteCandidateAccount(candidate.id, { requestedBy: 'candidate' });

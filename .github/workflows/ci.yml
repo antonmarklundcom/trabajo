@@ -83,3 +83,13 @@ jobs:
       # that escaped text stays visible instead of being dropped.
       - name: Verify job description rendering
         run: npm run jobs:verify
+
+      # PLAN-PHASE3-DRAFT.md §12.1's spoofable rate-limit key, closed in PR B1.
+      # The defect it guards against was invisible: seven handlers read the
+      # LEFTMOST x-forwarded-for entry — the one the client supplies — each with
+      # a correct-sounding comment about Hostinger's proxy, and the limiter's
+      # numbers looked identical to a working one. So the property is asserted
+      # the way an attacker would state it: forge a header, see whether you got
+      # a fresh bucket.
+      - name: Verify client IP and rate limiter
+        run: npm run client-ip:verify

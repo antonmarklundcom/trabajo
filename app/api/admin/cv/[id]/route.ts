@@ -17,7 +17,7 @@ import {
   ReasonRequiredError,
   viewCandidateCvAsAdmin,
 } from '@/lib/db/candidates-admin';
-import { getClientIp } from '@/lib/leads';
+import { clientIpForAudit } from '@/lib/client-ip';
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -36,12 +36,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
     // Role is re-checked inside (exactly `admin`, not `editor`); requireApiSession
     // only establishes who is asking.
-    // getClientIp() reports the string 'unknown' when no proxy header is
-    // present; the log column stores NULL for that rather than a word that
-    // reads like an address.
-    const ip = getClientIp(request.headers);
+    // clientIpForAudit() is NULL rather than a sentinel when the address is
+    // unknown: this column is evidence, and 'unknown' would be a claim
+    // (lib/client-ip.ts).
+    const ip = clientIpForAudit(request.headers);
     const cv = await viewCandidateCvAsAdmin(user, id, reason, {
-      ip: ip === 'unknown' ? null : ip,
+      ip,
     });
     if (!cv) return Response.json({ error: 'No encontrado.' }, { status: 404 });
 

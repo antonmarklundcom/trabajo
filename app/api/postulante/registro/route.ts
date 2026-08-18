@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { hashPassword, createCandidateSession } from '@/lib/auth-candidate';
 import { candidateAccountsEnabled } from '@/lib/flags';
 import { registerCandidate } from '@/lib/db/candidate-profile';
+import { clientIpForAudit } from '@/lib/client-ip';
 
 const schema = z.object({
   email: z.string().min(1).email(),
@@ -13,11 +14,6 @@ const schema = z.object({
   cityId: z.number().int().positive().nullable().optional(),
   consentAccepted: z.literal(true),
 });
-
-function clientIp(request: Request): string | null {
-  const forwarded = request.headers.get('x-forwarded-for');
-  return forwarded?.split(',')[0]?.trim() || null;
-}
 
 export async function POST(request: Request) {
   if (!candidateAccountsEnabled()) {
@@ -38,7 +34,7 @@ export async function POST(request: Request) {
     name,
     phone,
     cityId: cityId ?? null,
-    ip: clientIp(request),
+    ip: clientIpForAudit(request.headers),
     userAgent: request.headers.get('user-agent'),
   });
 

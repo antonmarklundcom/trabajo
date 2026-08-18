@@ -255,3 +255,36 @@ export function recordFailedCandidateLogin(ip: string, email: string): void {
 export function clearCandidateLoginAttempts(ip: string, email: string): void {
   candidateLoginLimiter.clear(ip, email);
 }
+
+/**
+ * A SEPARATE budget for the ARCO deletion confirmation
+ * (/api/postulante/mis-datos/eliminar), which re-asks for the password before
+ * destroying an account.
+ *
+ * It used to call checkCandidateLoginRateLimit() — the login limiter's own
+ * instance — so five mistyped confirmations locked the candidate out of
+ * logging in, and five failed logins locked them out of deleting their data
+ * (PLAN-PHASE3-DRAFT.md §13.3). That is the wrong coupling on the wrong path:
+ * self-service deletion is what /privacidad promises, and it should not be
+ * spendable from the login form.
+ *
+ * This module's own header already states the rule being restored here: each
+ * caller creates its OWN limiter instance; sharing the code is the point,
+ * sharing the counters is not.
+ */
+const candidateDeletionLimiter = createAttemptLimiter(MAX_LOGIN_ATTEMPTS, LOGIN_WINDOW_MS);
+
+export function checkCandidateDeletionRateLimit(
+  ip: string,
+  email: string,
+): { allowed: boolean; retryAfterSeconds: number } {
+  return candidateDeletionLimiter.check(ip, email);
+}
+
+export function recordFailedCandidateDeletion(ip: string, email: string): void {
+  candidateDeletionLimiter.recordFailure(ip, email);
+}
+
+export function clearCandidateDeletionAttempts(ip: string, email: string): void {
+  candidateDeletionLimiter.clear(ip, email);
+}

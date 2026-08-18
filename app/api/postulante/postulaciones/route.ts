@@ -6,17 +6,13 @@ import { authErrorResponse } from '@/lib/auth';
 import { requireApiCandidate } from '@/lib/auth-candidate';
 import { candidateAccountsEnabled } from '@/lib/flags';
 import { createCandidateApplication } from '@/lib/db/candidate-applications';
+import { clientIpForAudit } from '@/lib/client-ip';
 
 const schema = z.object({
   jobSlug: z.string().min(1),
   message: z.string().max(1000).nullable().optional(),
   consentAccepted: z.literal(true),
 });
-
-function clientIp(request: Request): string | null {
-  const forwarded = request.headers.get('x-forwarded-for');
-  return forwarded?.split(',')[0]?.trim() || null;
-}
 
 export async function POST(request: Request) {
   if (!candidateAccountsEnabled()) {
@@ -35,7 +31,7 @@ export async function POST(request: Request) {
     const result = await createCandidateApplication(candidate.id, {
       jobSlug: parsed.data.jobSlug,
       message: parsed.data.message ?? null,
-      ip: clientIp(request),
+      ip: clientIpForAudit(request.headers),
       userAgent: request.headers.get('user-agent'),
     });
 
