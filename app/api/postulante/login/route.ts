@@ -1,3 +1,4 @@
+import { clientIpOrUnknown } from '@/lib/client-ip';
 import { z } from 'zod';
 import {
   authenticateCandidate,
@@ -13,11 +14,6 @@ const schema = z.object({
   password: z.string().min(1),
 });
 
-function clientIp(request: Request): string {
-  const forwarded = request.headers.get('x-forwarded-for');
-  return forwarded?.split(',')[0]?.trim() || 'unknown';
-}
-
 export async function POST(request: Request) {
   if (!candidateAccountsEnabled()) {
     return Response.json({ error: 'No encontrado.' }, { status: 404 });
@@ -30,7 +26,7 @@ export async function POST(request: Request) {
   }
 
   const { email, password } = parsed.data;
-  const ip = clientIp(request);
+  const ip = clientIpOrUnknown(request.headers);
 
   const rateLimit = checkCandidateLoginRateLimit(ip, email);
   if (!rateLimit.allowed) {

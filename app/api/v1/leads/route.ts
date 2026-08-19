@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { after } from 'next/server';
+import { clientIpOrUnknown } from '@/lib/client-ip';
+import { isRateLimited } from '@/lib/public-write-limiter';
 import {
-  getClientIp,
   HONEYPOT_FIELD,
   isHoneypotFilled,
-  isRateLimited,
   leadSchema,
   processLead,
 } from '@/lib/leads';
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
 
   // Bot guard: a filled honeypot or a burst of requests from one IP gets a
   // SILENT 2xx — a non-2xx just teaches the bot to adapt (PLAN.md step 9).
-  const ip = getClientIp(req.headers);
+  const ip = clientIpOrUnknown(req.headers);
   if (isHoneypotFilled((body as Record<string, unknown> | null)?.[HONEYPOT_FIELD])) {
     console.warn('[leads] honeypot triggered — rejecting silently', { ip });
     return SILENT_OK();

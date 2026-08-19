@@ -1,5 +1,6 @@
 // POST /api/postulante/registro — candidate signup + consent #1
 // (PLAN-PHASE2.md §4.1). Blocking: no account is created without it.
+import { clientIp } from '@/lib/client-ip';
 import { z } from 'zod';
 import { hashPassword, createCandidateSession } from '@/lib/auth-candidate';
 import { candidateAccountsEnabled } from '@/lib/flags';
@@ -13,11 +14,6 @@ const schema = z.object({
   cityId: z.number().int().positive().nullable().optional(),
   consentAccepted: z.literal(true),
 });
-
-function clientIp(request: Request): string | null {
-  const forwarded = request.headers.get('x-forwarded-for');
-  return forwarded?.split(',')[0]?.trim() || null;
-}
 
 export async function POST(request: Request) {
   if (!candidateAccountsEnabled()) {
@@ -38,7 +34,7 @@ export async function POST(request: Request) {
     name,
     phone,
     cityId: cityId ?? null,
-    ip: clientIp(request),
+    ip: clientIp(request.headers),
     userAgent: request.headers.get('user-agent'),
   });
 

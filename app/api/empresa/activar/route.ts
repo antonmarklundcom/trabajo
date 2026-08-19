@@ -1,3 +1,4 @@
+import { clientIp } from '@/lib/client-ip';
 import { z } from 'zod';
 import { createSession, hashPassword } from '@/lib/auth';
 import { employerDashboardEnabled } from '@/lib/flags';
@@ -9,11 +10,6 @@ const schema = z.object({
   password: z.string().min(8).max(200),
   termsAccepted: z.literal(true),
 });
-
-function clientIp(request: Request): string | null {
-  const forwarded = request.headers.get('x-forwarded-for');
-  return forwarded?.split(',')[0]?.trim() || null;
-}
 
 export async function POST(request: Request) {
   if (!employerDashboardEnabled()) {
@@ -31,7 +27,7 @@ export async function POST(request: Request) {
   const userId = await acceptInvitation(token, {
     name,
     passwordHash,
-    ip: clientIp(request),
+    ip: clientIp(request.headers),
     userAgent: request.headers.get('user-agent'),
   });
 

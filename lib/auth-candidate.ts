@@ -27,7 +27,7 @@ import { redirect } from 'next/navigation';
 import { getIronSession, type SessionOptions } from 'iron-session';
 
 import { AuthError, DUMMY_HASH, hashPassword, verifyPassword } from './auth';
-import { createAttemptLimiter, LOGIN_WINDOW_MS, MAX_LOGIN_ATTEMPTS } from './rate-limit';
+import { createAttemptLimiter, LOGIN_LIMITS } from './rate-limit';
 
 /**
  * What the encrypted candidate cookie carries.
@@ -239,7 +239,7 @@ export async function authenticateCandidate(
 // Rate limiting — a separate budget from staff logins, same implementation.
 // ---------------------------------------------------------------------------
 
-const candidateLoginLimiter = createAttemptLimiter(MAX_LOGIN_ATTEMPTS, LOGIN_WINDOW_MS);
+const candidateLoginLimiter = createAttemptLimiter(LOGIN_LIMITS);
 
 export function checkCandidateLoginRateLimit(
   ip: string,
@@ -254,4 +254,27 @@ export function recordFailedCandidateLogin(ip: string, email: string): void {
 
 export function clearCandidateLoginAttempts(ip: string, email: string): void {
   candidateLoginLimiter.clear(ip, email);
+}
+
+// A SECOND instance, not the login one. The ARCO deletion page re-checks the
+// password, and until B1 it called the login limiter: five mistyped
+// confirmations there locked the account out of logging in, and five failed
+// logins locked the account out of deleting itself (PLAN-PHASE3-DRAFT.md
+// §13.3). Self-service deletion is what /privacidad promises, so it does not
+// share a budget with anything else.
+const candidateDeletionLimiter = createAttemptLimiter(LOGIN_LIMITS);
+
+export function checkCandidateDeletionRateLimit(
+  ip: string,
+  email: string,
+): { allowed: boolean; retryAfterSeconds: number } {
+  return candidateDeletionLimiter.check(ip, email);
+}
+
+export function recordFailedCandidateDeletion(ip: string, email: string): void {
+  candidateDeletionLimiter.recordFailure(ip, email);
+}
+
+export function clearCandidateDeletionAttempts(ip: string, email: string): void {
+  candidateDeletionLimiter.clear(ip, email);
 }

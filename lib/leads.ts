@@ -244,25 +244,6 @@ export function isHoneypotFilled(value: unknown): boolean {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
-/** First hop in X-Forwarded-For is the original client (Hostinger sits behind a proxy). */
-export function getClientIp(headers: Headers): string {
-  const forwarded = headers.get('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0]!.trim();
-  return headers.get('x-real-ip') ?? 'unknown';
-}
-
-const RATE_LIMIT_WINDOW_MS = 60_000;
-const RATE_LIMIT_MAX_REQUESTS = 5;
-
-// In-memory sliding window, keyed by IP. Correct for this app's deployment
-// (DEPLOY.md: one persistent Node process on Hostinger, not a serverless
-// fan-out) — a distributed store would be needed only if that changed.
-const requestTimestamps = new Map<string, number[]>();
-
-export function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const recent = (requestTimestamps.get(ip) ?? []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
-  recent.push(now);
-  requestTimestamps.set(ip, recent);
-  return recent.length > RATE_LIMIT_MAX_REQUESTS;
-}
+// The anonymous-write rate limiter moved to lib/public-write-limiter.ts in B1:
+// this module is imported by a client component for its Zod schema, so it may
+// not pull in `server-only` code.

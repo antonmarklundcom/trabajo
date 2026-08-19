@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { createPublicJobSubmission } from '@/lib/db/admin';
-import { getClientIp, HONEYPOT_FIELD, isHoneypotFilled, isRateLimited } from '@/lib/leads';
+import { clientIpOrUnknown } from '@/lib/client-ip';
+import { HONEYPOT_FIELD, isHoneypotFilled } from '@/lib/leads';
+import { isRateLimited } from '@/lib/public-write-limiter';
 
 // Public, unauthenticated by design — every row this creates lands as
 // `status = 'pending'`, which lib/db/queries.ts's visiblePredicate() already
@@ -20,7 +22,7 @@ export async function POST(request: Request) {
   // Same bot guard as POST /api/v1/leads (lib/leads.ts, PLAN.md step 9) —
   // this is the second public write on the /publicar submission path.
   // Rejections are a SILENT 2xx, logged server-side only.
-  const ip = getClientIp(request.headers);
+  const ip = clientIpOrUnknown(request.headers);
   if (isHoneypotFilled((body as Record<string, unknown> | null)?.[HONEYPOT_FIELD])) {
     console.warn('[publicar] honeypot triggered — rejecting silently', { ip });
     return Response.json({ ok: true }, { status: 201 });
