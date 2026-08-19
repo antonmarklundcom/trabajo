@@ -1,15 +1,43 @@
 name: CI
 
+# Budgeted-runner policy: this repo is private, so every Actions minute is
+# billed against a fixed monthly allowance. Four rules keep this workflow cheap,
+# and all four are load-bearing — see AGENTS.md:
+#
+#   1. `pull_request` ONLY. A `push` trigger on the same branches double-bills
+#      every commit that is part of a PR: one run for the push, one for the PR.
+#   2. `paths-ignore` so the documentation-only PRs (PLAN*.md, ARCHITECTURE.md,
+#      the audit write-ups) cost nothing — they cannot break a build.
+#   3. `concurrency` + `cancel-in-progress`, because an agent session pushes
+#      fix-ups in quick succession and only the last commit's result matters.
+#      Superseded runs die instead of each running to completion.
+#   4. `timeout-minutes`, because the GitHub default is 360 and one hung job
+#      would eat a fifth of the month.
+#
+# `workflow_dispatch` is free until someone clicks it, and is the escape hatch
+# for verifying main by hand after a merge.
+
 on:
-  push:
-    branches: [main, 'claude/**']
   pull_request:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.vscode/**'
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  # ONE job, deliberately. Actions rounds every job up to a whole minute, so
+  # splitting these steps across jobs would cost more than it saves in wall
+  # clock. No matrix, and ubuntu-latest only (Windows bills 2x, macOS 10x).
   build:
     name: Build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
