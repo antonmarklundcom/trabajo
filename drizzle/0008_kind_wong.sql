@@ -1,0 +1,1 @@
+ALTER TABLE `candidates` ADD `retention_warned_at` datetime;

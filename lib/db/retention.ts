@@ -20,7 +20,7 @@
 // exactly one implementation.
 import 'server-only';
 
-import { and, asc, eq, inArray, isNotNull, isNull, lt, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNotNull, isNull, lt, or, sql } from 'drizzle-orm';
 
 import {
   applications,
@@ -77,26 +77,75 @@ export async function findCandidatesInactiveSince(cutoff: Date): Promise<DueCand
  * repo yet (§8 Q5), and a purge that happens without the warning the policy
  * promised is worse than a late purge.
  */
+export type DueWarning = DueCandidate & { email: string; name: string };
+
+/**
+ * Candidates inside the warning window who have not already been warned about
+ * THIS spell of inactivity.
+ *
+ * The second half is the whole difference between a warning and a nuisance. The
+ * window is months wide and the sweep runs on a schedule, so a plain window
+ * query re-selects the same people every run. `retention_warned_at` is compared
+ * against last activity rather than merely tested for NULL: a candidate who
+ * logs back in leaves the window, and if they fall inactive again later, the
+ * stored timestamp now predates their return — so they are warned afresh rather
+ * than purged in silence on the strength of a warning sent before they last
+ * used the site.
+ *
+ * Returns the address and name because the caller has to send an email, and
+ * that is the one row-level read of candidate data this module does. It is
+ * covered by AGENTS.md's retention exception, and by nothing wider: the caller
+ * is the purge script, never a page.
+ */
 export async function findCandidatesToWarn(
   warnCutoff: Date,
   purgeCutoff: Date,
-): Promise<DueCandidate[]> {
+): Promise<DueWarning[]> {
   const db = await getDb();
   const rows = await db
     .select({
       id: candidates.id,
+      email: candidates.email,
+      name: candidates.name,
       lastActivityAt: lastActivity,
       lastLoginAt: candidates.lastLoginAt,
+      retentionWarnedAt: candidates.retentionWarnedAt,
     })
     .from(candidates)
-    .where(and(lt(lastActivity, warnCutoff), sql`${lastActivity} >= ${purgeCutoff}`))
+    .where(
+      and(
+        lt(lastActivity, warnCutoff),
+        sql`${lastActivity} >= ${purgeCutoff}`,
+        or(
+          isNull(candidates.retentionWarnedAt),
+          sql`${candidates.retentionWarnedAt} < ${lastActivity}`,
+        ),
+      ),
+    )
     .orderBy(asc(lastActivity));
 
   return rows.map((row) => ({
     id: row.id,
+    email: row.email,
+    name: row.name,
     lastActivityAt: new Date(row.lastActivityAt),
     hasLoggedIn: row.lastLoginAt !== null,
   }));
+}
+
+/**
+ * Records that the warning went out.
+ *
+ * Written only after a successful send, so a provider outage means the
+ * candidate is warned on the next run instead of being silently skipped until
+ * the day they are purged.
+ */
+export async function markRetentionWarned(candidateId: number, at: Date): Promise<void> {
+  const db = await getDb();
+  await db
+    .update(candidates)
+    .set({ retentionWarnedAt: at })
+    .where(eq(candidates.id, candidateId));
 }
 
 // ---------------------------------------------------------------------------
