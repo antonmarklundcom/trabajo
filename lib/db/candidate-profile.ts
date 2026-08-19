@@ -80,6 +80,70 @@ export async function registerCandidate(
   return { ok: true, candidateId: result.insertId };
 }
 
+/**
+ * The account behind an address, for the password-reset request path only.
+ *
+ * Returns null for an unknown address AND for a deactivated one, so the caller
+ * cannot tell those apart either — the route above it is built to give one
+ * answer regardless, and a function that distinguishes them invites a caller
+ * that does too.
+ */
+export async function findActiveCandidateByEmail(
+  rawEmail: string,
+): Promise<{ id: number; email: string; name: string } | null> {
+  const db = await getDb();
+  const email = rawEmail.trim().toLowerCase();
+
+  const [row] = await db
+    .select({
+      id: candidates.id,
+      email: candidates.email,
+      name: candidates.name,
+      isActive: candidates.isActive,
+    })
+    .from(candidates)
+    .where(eq(candidates.email, email))
+    .limit(1);
+
+  if (!row || !row.isActive) return null;
+  return { id: row.id, email: row.email, name: row.name };
+}
+
+/**
+ * Sets a new password hash and drops every outstanding token for the account.
+ *
+ * The invalidation is the point as much as the new hash: whoever just proved
+ * control of the inbox should end any other reset link that is still in flight,
+ * including one an attacker requested minutes earlier.
+ */
+export async function setCandidatePassword(
+  candidateId: number,
+  passwordHash: string,
+): Promise<void> {
+  const db = await getDb();
+  const { invalidateCandidateTokens } = await import('./candidate-tokens');
+
+  await db
+    .update(candidates)
+    .set({ passwordHash, updatedAt: new Date() })
+    .where(eq(candidates.id, candidateId));
+
+  await invalidateCandidateTokens(candidateId);
+}
+
+/**
+ * Stamps `email_verified_at`. Idempotent: a second redemption cannot happen
+ * (tokens are single-use), but a re-verification after an email change should
+ * not be an error either.
+ */
+export async function markCandidateEmailVerified(candidateId: number): Promise<void> {
+  const db = await getDb();
+  await db
+    .update(candidates)
+    .set({ emailVerifiedAt: new Date(), updatedAt: new Date() })
+    .where(eq(candidates.id, candidateId));
+}
+
 export type CandidateProfileInput = {
   name: string;
   phone: string;

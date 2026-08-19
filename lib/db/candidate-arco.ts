@@ -39,6 +39,7 @@ import {
   deletionRequests,
   jobs,
   savedJobs,
+  candidateTokens,
 } from './schema';
 import { getStorage } from '../storage';
 
@@ -284,6 +285,8 @@ export type DeletionCounts = {
   cvRowsDeleted: number;
   experiencesDeleted: number;
   savedJobsDeleted: number;
+  /** Verification and password-reset tokens destroyed with the account. */
+  tokensDeleted: number;
   applicationsRedacted: number;
   consentsKept: number;
 };
@@ -400,6 +403,7 @@ export async function deleteCandidateAccount(
     cvDelete,
     experienceDelete,
     savedJobsDelete,
+    tokenDelete,
     freshRedaction,
     alreadyRedacted,
   } = await db.transaction(async (tx) => {
@@ -452,10 +456,25 @@ export async function deleteCandidateAccount(
       })
       .where(and(eq(applications.candidateId, candidateId), isNotNull(applications.redactedAt)));
 
+    // Verification and password-reset tokens (PLAN-NEXT.md §2 E1). No FK ties
+    // them to candidates either, and a live reset token outliving the account
+    // it resets is the worst kind of orphan: still redeemable, pointing at an
+    // id that a future candidate could be issued.
+    const [tokenDelete] = await tx
+      .delete(candidateTokens)
+      .where(eq(candidateTokens.candidateId, candidateId));
+
     // --- 5. The candidate row itself ----------------------------------------
     await tx.delete(candidates).where(eq(candidates.id, candidateId));
 
-    return { cvDelete, experienceDelete, savedJobsDelete, freshRedaction, alreadyRedacted };
+    return {
+      cvDelete,
+      experienceDelete,
+      savedJobsDelete,
+      tokenDelete,
+      freshRedaction,
+      alreadyRedacted,
+    };
   });
 
   // --- 6. consents: untouched, on purpose ---------------------------------
@@ -472,6 +491,7 @@ export async function deleteCandidateAccount(
     cvRowsDeleted: cvDelete.affectedRows,
     experiencesDeleted: experienceDelete.affectedRows,
     savedJobsDeleted: savedJobsDelete.affectedRows,
+    tokensDeleted: tokenDelete.affectedRows,
     applicationsRedacted: freshRedaction.affectedRows + alreadyRedacted.affectedRows,
     consentsKept: consentRows.length,
   };
@@ -484,6 +504,7 @@ export async function deleteCandidateAccount(
       outcome:
         `OK: ${counts.cvObjectsDeleted} CV object(s) deleted, ${counts.cvRowsDeleted} cv row(s), ` +
         `${counts.experiencesDeleted} experience row(s), ${counts.savedJobsDeleted} saved job(s), ` +
+        `${counts.tokensDeleted} token(s), ` +
         `${counts.applicationsRedacted} application(s) redacted, ` +
         `${counts.consentsKept} consent row(s) kept.` +
         (options.note ? ` ${options.note}` : ''),

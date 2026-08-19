@@ -72,6 +72,12 @@ export default function LoginForm() {
         {submitting ? 'Ingresando...' : 'Ingresar'}
       </button>
 
+      <p className="text-center text-sm">
+        <Link href="/postulante/recuperar" className="text-[#57514A] hover:underline">
+          ¿Olvidaste tu contraseña?
+        </Link>
+      </p>
+
       <p className="text-center text-sm text-[#57514A]">
         ¿No tenés cuenta?{' '}
         <Link href="/postulante/registro" className="text-[#C0362A] hover:underline">

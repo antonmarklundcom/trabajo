@@ -507,6 +507,54 @@ export const employerInvitations = mysqlTable(
   (table) => [index('company_created_idx').on(table.companyId, table.createdAt)],
 );
 
+// ---------------------------------------------------------------------------
+// candidate_tokens
+//
+// Single-use, hashed, expiring tokens for the two flows a candidate can start
+// from outside a session: verifying their email and resetting their password
+// (PLAN-NEXT.md §2 E1).
+//
+// The shape copies employer_invitations deliberately, because the threat is the
+// same: only the sha256 is stored, so the raw token exists solely inside the
+// link in the inbox and a leaked database row cannot be redeemed. One table
+// with a `purpose` rather than two tables — the columns, the expiry sweep and
+// the ARCO cleanup would otherwise be duplicated with nothing distinguishing
+// them but the name.
+//
+// Retention stance (PLAN-NEXT.md §5): no sweep of its own, deliberately. A row
+// here is worthless the moment it is used or expires — it carries no personal
+// data beyond the candidate id, and the hash cannot be reversed into the token
+// it came from. Three things already bound the table: issuing supersedes the
+// candidate's outstanding tokens of that purpose, a password change deletes all
+// of theirs, and the ARCO purge destroys them with the account. If it ever
+// needs one, it belongs next to data_access_logs in lib/db/retention.ts.
+// ---------------------------------------------------------------------------
+
+export const candidateTokenPurposeEnum = ['email_verification', 'password_reset'] as const;
+
+export const candidateTokens = mysqlTable(
+  'candidate_tokens',
+  {
+    id: int('id').autoincrement().primaryKey(),
+    candidateId: int('candidate_id').notNull(),
+    purpose: mysqlEnum('purpose', candidateTokenPurposeEnum).notNull(),
+    // sha256 of a 32-byte random token, hex. Unique so a redemption is a single
+    // indexed lookup and never a scan.
+    tokenHash: varchar('token_hash', { length: 64 }).notNull().unique(),
+    expiresAt: datetime('expires_at').notNull(),
+    // Set on redemption. Single-use is enforced here rather than by deleting
+    // the row, so a second click on the same link can say "this link was
+    // already used" instead of the same message as a forged token.
+    usedAt: datetime('used_at'),
+    createdAt: datetime('created_at').notNull(),
+  },
+  (table) => [
+    // Invalidating a candidate's outstanding tokens of one kind — which every
+    // issue and every password change does.
+    index('candidate_purpose_idx').on(table.candidateId, table.purpose),
+  ],
+);
+
 // ===========================================================================
 // Phase 3 — blog (Väg B: bodies in the database, written from /admin/blog)
 //

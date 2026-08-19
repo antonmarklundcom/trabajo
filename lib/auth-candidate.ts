@@ -278,3 +278,24 @@ export function recordFailedCandidateDeletion(ip: string, email: string): void {
 export function clearCandidateDeletionAttempts(ip: string, email: string): void {
   candidateDeletionLimiter.clear(ip, email);
 }
+
+// A THIRD instance, for password-reset requests (PLAN-NEXT.md §2 E1). Same
+// reasoning as the deletion limiter: the reset form is an unauthenticated
+// endpoint that anyone can point at any address, and it must not be able to
+// spend the budget that stops credential stuffing against that account's login.
+//
+// There is no `clear` here on purpose. A reset request has no success the user
+// proves in the moment — the proof arrives later, in the inbox — so there is
+// nothing that should hand the budget back.
+const candidateResetLimiter = createAttemptLimiter(LOGIN_LIMITS);
+
+export function checkCandidateResetRateLimit(
+  ip: string,
+  email: string,
+): { allowed: boolean; retryAfterSeconds: number } {
+  return candidateResetLimiter.check(ip, email);
+}
+
+export function recordCandidateResetRequest(ip: string, email: string): void {
+  candidateResetLimiter.recordFailure(ip, email);
+}
