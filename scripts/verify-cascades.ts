@@ -68,6 +68,8 @@ const DEPENDENCIES: Dependency[] = [
  * decision rather than an omission — see candidate-arco.ts step 6.
  */
 const DELIBERATE_ORPHANS: Record<string, string> = {
+  authEvents:
+    'record of an attempt on our systems, not the subject\'s data; swept on its own 24-month clock',
   consents: 'proof of what was authorised; survives the candidate by design (§4.3, 5 years)',
   deletionRequests: 'the record that the candidate row was destroyed; cannot reference it',
   dataAccessLogs: 'audit of staff reads; purged on its own retention clock, not with the subject',

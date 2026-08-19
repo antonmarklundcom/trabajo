@@ -29,6 +29,7 @@ import {
   dataAccessLogs,
   deletionRequests,
   jobs,
+  authEvents,
 } from './schema';
 
 async function getDb() {
@@ -306,5 +307,41 @@ export async function deleteAccessLogs(ids: number[]): Promise<number> {
   if (ids.length === 0) return 0;
   const db = await getDb();
   const [result] = await db.delete(dataAccessLogs).where(inArray(dataAccessLogs.id, ids));
+  return result.affectedRows;
+}
+
+// ---------------------------------------------------------------------------
+// 5. auth_events — 24 months
+//
+// Same clock as data_access_logs and for the same reason: an authentication
+// trail is useful while an incident is investigable and is a liability after
+// that. Deliberately NOT tied to the candidate purge — a login attempt is a
+// record of an event on our systems rather than the candidate's personal data,
+// and the row carries no name or address to erase (PLAN-NEXT.md §2 A1).
+// ---------------------------------------------------------------------------
+
+export type DueAuthEvent = {
+  id: number;
+  event: string;
+  createdAt: Date;
+};
+
+export async function findAuthEventsToDelete(cutoff: Date): Promise<DueAuthEvent[]> {
+  const db = await getDb();
+  return db
+    .select({
+      id: authEvents.id,
+      event: authEvents.event,
+      createdAt: authEvents.createdAt,
+    })
+    .from(authEvents)
+    .where(lt(authEvents.createdAt, cutoff))
+    .orderBy(asc(authEvents.createdAt));
+}
+
+export async function deleteAuthEvents(ids: number[]): Promise<number> {
+  if (ids.length === 0) return 0;
+  const db = await getDb();
+  const [result] = await db.delete(authEvents).where(inArray(authEvents.id, ids));
   return result.affectedRows;
 }

@@ -1,4 +1,5 @@
-import { clientIpOrUnknown } from '@/lib/client-ip';
+import { clientIp, clientIpOrUnknown } from '@/lib/client-ip';
+import { recordAuthEvent } from '@/lib/db/auth-events';
 import { z } from 'zod';
 import {
   authenticateCandidate,
@@ -38,13 +39,27 @@ export async function POST(request: Request) {
     );
   }
 
+  const trustedIp = clientIp(request.headers);
+
   const candidate = await authenticateCandidate(email, password);
   if (!candidate) {
     recordFailedCandidateLogin(ip, email);
+    await recordAuthEvent({
+      surface: 'postulante',
+      event: 'login_fail',
+      identifier: email,
+      ip: trustedIp,
+    });
     return Response.json({ error: 'Email o contraseña incorrectos.' }, { status: 401 });
   }
 
   clearCandidateLoginAttempts(ip, email);
+  await recordAuthEvent({
+    surface: 'postulante',
+    event: 'login_ok',
+    candidateId: candidate.id,
+    ip: trustedIp,
+  });
   await createCandidateSession(candidate.id);
   return Response.json({ ok: true, redirectTo: '/postulante/perfil' });
 }

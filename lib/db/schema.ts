@@ -518,6 +518,62 @@ export const employerInvitations = mysqlTable(
 );
 
 // ---------------------------------------------------------------------------
+// auth_events
+//
+// Who tried to authenticate, on which surface, from where (PLAN-NEXT.md §2 A1).
+//
+// Distinct from data_access_logs, which answers "who READ a candidate's data".
+// This one answers "who tried to get in" — the question you have after a
+// password is suspected leaked, and the one nothing in this repo could answer
+// before. Both are needed and neither substitutes for the other.
+//
+// What is deliberately NOT here: passwords, obviously, but also the full
+// attempted identifier on a failure. A failed login carries a truncated address
+// (see lib/db/auth-events.ts) — enough to see one account being hammered,
+// not enough to turn this table into a harvest of every address someone tried.
+//
+// Retention: 24 months, the same clock data_access_logs runs on, swept by the
+// same script. Rows outlive the account they name, on purpose: after a
+// candidate is purged their id is orphaned here exactly as it is in `consents`,
+// because the evidence of a login attempt is not the candidate's personal data
+// to erase — it is the record of an event on our systems. There is no name or
+// address on the row to erase either way.
+// ---------------------------------------------------------------------------
+
+export const authSurfaceEnum = ['admin', 'empresa', 'postulante'] as const;
+
+export const authEventEnum = [
+  'login_ok',
+  'login_fail',
+  'logout',
+  'password_change',
+  'password_reset_request',
+  'password_reset_ok',
+] as const;
+
+export const authEvents = mysqlTable(
+  'auth_events',
+  {
+    id: int('id').autoincrement().primaryKey(),
+    surface: mysqlEnum('surface', authSurfaceEnum).notNull(),
+    // Plain ints, no FK (AGENTS.md). Exactly one is set on a successful event;
+    // both are NULL on a failure, because a failed attempt has no established
+    // identity — that is what makes it a failure.
+    userId: int('user_id'),
+    candidateId: int('candidate_id'),
+    event: mysqlEnum('event', authEventEnum).notNull(),
+    // Truncated identifier on failures, so one account being attacked is
+    // visible without storing every address anyone typed.
+    identifierHint: varchar('identifier_hint', { length: 64 }),
+    // The B1 trusted value. NULL when the request did not arrive through the
+    // expected proxy chain — never a client-supplied string.
+    ip: varchar('ip', { length: 45 }),
+    createdAt: datetime('created_at').notNull(),
+  },
+  (table) => [index('surface_created_idx').on(table.surface, table.createdAt)],
+);
+
+// ---------------------------------------------------------------------------
 // candidate_tokens
 //
 // Single-use, hashed, expiring tokens for the two flows a candidate can start
