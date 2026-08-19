@@ -14,6 +14,7 @@ import Link from 'next/link';
 
 import { requireSessionWithRole } from '@/lib/auth';
 import { listAccessLogs } from '@/lib/db/candidates-admin';
+import { listAuthEvents } from '@/lib/db/auth-events';
 
 export const metadata: Metadata = {
   title: 'Registros de acceso — trabajo.com.py',
@@ -25,6 +26,21 @@ type SearchParams = { [key: string]: string | string[] | undefined };
 function first(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
+
+const AUTH_EVENT_LABEL: Record<string, string> = {
+  login_ok: 'Ingreso',
+  login_fail: 'Ingreso fallido',
+  logout: 'Cierre de sesión',
+  password_change: 'Cambio de contraseña',
+  password_reset_request: 'Pidió restablecer',
+  password_reset_ok: 'Restableció la contraseña',
+};
+
+const SURFACE_LABEL: Record<string, string> = {
+  admin: 'Equipo',
+  empresa: 'Empresa',
+  postulante: 'Postulante',
+};
 
 const ACTION_LABEL: Record<string, string> = {
   list_candidates: 'Búsqueda de postulante',
@@ -47,8 +63,16 @@ export default async function RegistrosDeAccesoPage({
   const pageParam = first((await searchParams).page) ?? '1';
   const page = /^[0-9]+$/.test(pageParam) ? Math.max(1, Number(pageParam)) : 1;
 
+  const tab = first((await searchParams).tab) === 'auth' ? 'auth' : 'datos';
+
   const { rows, total, pageSize } = await listAccessLogs(user, page);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  // The second table answers a different question from the first: not "who read
+  // a candidate's data" but "who tried to get in" (PLAN-NEXT.md §2 A1). Read
+  // only when its tab is open, so the default view costs the same query it
+  // always did.
+  const auth = tab === 'auth' ? await listAuthEvents(page) : null;
 
   return (
     <div className="space-y-6">
@@ -60,6 +84,84 @@ export default async function RegistrosDeAccesoPage({
         </p>
       </div>
 
+      <div className="flex gap-2 border-b border-[#E7E1D6]">
+        <Link
+          href="/admin/registros-de-acceso"
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
+            tab === 'datos'
+              ? 'border-[#C0362A] text-[#1E1B17]'
+              : 'border-transparent text-[#57514A] hover:text-[#1E1B17]'
+          }`}
+        >
+          Acceso a datos
+        </Link>
+        <Link
+          href="/admin/registros-de-acceso?tab=auth"
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
+            tab === 'auth'
+              ? 'border-[#C0362A] text-[#1E1B17]'
+              : 'border-transparent text-[#57514A] hover:text-[#1E1B17]'
+          }`}
+        >
+          Ingresos y contraseñas
+        </Link>
+      </div>
+
+      {auth ? (
+        <div className="bg-white rounded-[10px] border border-[#E7E1D6] overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-[#F5F1EA] text-left text-[#57514A]">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Fecha</th>
+                  <th className="px-4 py-3 font-medium">Superficie</th>
+                  <th className="px-4 py-3 font-medium">Evento</th>
+                  <th className="px-4 py-3 font-medium">Quién</th>
+                  <th className="px-4 py-3 font-medium">IP</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#E7E1D6]">
+                {auth.rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-10 text-center text-[#57514A]">
+                      Todavía no hay registros de ingreso.
+                    </td>
+                  </tr>
+                ) : (
+                  auth.rows.map((row) => (
+                    <tr key={row.id} className="hover:bg-[#F5F1EA]">
+                      <td className="px-4 py-3 text-[#57514A] whitespace-nowrap">
+                        {new Date(row.createdAt).toLocaleString('es-PY')}
+                      </td>
+                      <td className="px-4 py-3 text-[#57514A]">
+                        {SURFACE_LABEL[row.surface] ?? row.surface}
+                      </td>
+                      <td className="px-4 py-3 text-[#1E1B17]">
+                        {AUTH_EVENT_LABEL[row.event] ?? row.event}
+                      </td>
+                      <td className="px-4 py-3 text-[#57514A]">
+                        {/* An identity when there was one, a truncated hint when
+                            the attempt failed — never the full address typed. */}
+                        {row.actorName ??
+                          (row.candidateId !== null
+                            ? `Postulante #${row.candidateId}`
+                            : row.userId !== null
+                              ? `Usuario #${row.userId}`
+                              : (row.identifierHint ?? '—'))}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-[#8A8378]">{row.ip ?? '—'}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          <div className="px-4 py-3 text-sm text-[#57514A] border-t border-[#E7E1D6]">
+            {auth.total.toLocaleString('es-PY')} registro(s). Sólo lectura, sin búsqueda ni
+            exportación.
+          </div>
+        </div>
+      ) : (
       <div className="bg-white rounded-[10px] border border-[#E7E1D6] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -121,8 +223,29 @@ export default async function RegistrosDeAccesoPage({
           </table>
         </div>
       </div>
+      )}
 
-      {totalPages > 1 && (
+      {auth !== null && auth.total > auth.pageSize && (
+        <div className="flex items-center justify-center gap-2">
+          {Array.from({ length: Math.ceil(auth.total / auth.pageSize) }, (_, i) => i + 1)
+            .filter((p) => p === 1 || Math.abs(p - page) <= 2)
+            .map((p) => (
+              <Link
+                key={p}
+                href={`/admin/registros-de-acceso?tab=auth&page=${p}`}
+                className={`px-3 py-1.5 rounded-[10px] text-sm font-medium transition-colors ${
+                  p === page
+                    ? 'bg-[#C0362A] text-white'
+                    : 'text-[#57514A] border border-[#E7E1D6] hover:border-[#C0362A]'
+                }`}
+              >
+                {p}
+              </Link>
+            ))}
+        </div>
+      )}
+
+      {totalPages > 1 && auth === null && (
         <div className="flex items-center justify-center gap-2">
           {Array.from({ length: totalPages }, (_, i) => i + 1)
             .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 2)

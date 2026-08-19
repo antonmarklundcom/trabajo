@@ -1,4 +1,5 @@
 import { clientIp } from '@/lib/client-ip';
+import { recordAuthEvent } from '@/lib/db/auth-events';
 import { z } from 'zod';
 import { createSession, hashPassword } from '@/lib/auth';
 import { employerDashboardEnabled } from '@/lib/flags';
@@ -37,6 +38,16 @@ export async function POST(request: Request) {
       { status: 410 },
     );
   }
+
+  // Accepting an invitation IS this account's first password being set, so it
+  // belongs in the same trail as a later change rather than in a category of
+  // its own.
+  await recordAuthEvent({
+    surface: 'empresa',
+    event: 'password_change',
+    userId,
+    ip: clientIp(request.headers),
+  });
 
   await createSession(userId);
   return Response.json({ ok: true, redirectTo: '/empresa' });

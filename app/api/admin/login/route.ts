@@ -1,4 +1,5 @@
-import { clientIpOrUnknown } from '@/lib/client-ip';
+import { clientIp, clientIpOrUnknown } from '@/lib/client-ip';
+import { recordAuthEvent } from '@/lib/db/auth-events';
 import { z } from 'zod';
 import {
   authenticate,
@@ -34,13 +35,19 @@ export async function POST(request: Request) {
     );
   }
 
+  const trustedIp = clientIp(request.headers);
+
   const user = await authenticate(email, password);
   if (!user) {
     recordFailedLogin(ip, email);
+    // A failure has no established identity, so no userId — only a truncated
+    // hint, which is enough to see one account being hammered.
+    await recordAuthEvent({ surface: 'admin', event: 'login_fail', identifier: email, ip: trustedIp });
     return Response.json({ error: 'Email o contraseña incorrectos.' }, { status: 401 });
   }
 
   clearLoginAttempts(ip, email);
+  await recordAuthEvent({ surface: 'admin', event: 'login_ok', userId: user.id, ip: trustedIp });
   await createSession(user.id);
   // The client navigates to redirectTo rather than to a hardcoded '/admin':
   // employers share this table and this cookie but not the admin route tree,

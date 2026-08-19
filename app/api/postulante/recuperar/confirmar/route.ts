@@ -12,6 +12,8 @@ import { hashPassword, createCandidateSession } from '@/lib/auth-candidate';
 import { candidateAccountsEnabled } from '@/lib/flags';
 import { redeemCandidateToken } from '@/lib/db/candidate-tokens';
 import { setCandidatePassword } from '@/lib/db/candidate-profile';
+import { clientIp } from '@/lib/client-ip';
+import { recordAuthEvent } from '@/lib/db/auth-events';
 
 const schema = z.object({
   token: z.string().min(1),
@@ -47,6 +49,13 @@ export async function POST(request: Request) {
   // Also drops every other outstanding token for this account, including a
   // reset link an attacker may have requested minutes earlier.
   await setCandidatePassword(redeemed.candidateId, passwordHash);
+
+  await recordAuthEvent({
+    surface: 'postulante',
+    event: 'password_reset_ok',
+    candidateId: redeemed.candidateId,
+    ip: clientIp(request.headers),
+  });
 
   // Signing them in is the point of having proved control of the inbox; making
   // them retype the password they just chose would be theatre.

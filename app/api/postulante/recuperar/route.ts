@@ -13,7 +13,8 @@
 // address so probing is bounded whether or not it hits.
 import { z } from 'zod';
 
-import { clientIpOrUnknown } from '@/lib/client-ip';
+import { clientIp, clientIpOrUnknown } from '@/lib/client-ip';
+import { recordAuthEvent } from '@/lib/db/auth-events';
 import {
   checkCandidateResetRateLimit,
   recordCandidateResetRequest,
@@ -61,7 +62,20 @@ export async function POST(request: Request) {
   // otherwise the limiter's own behaviour would leak which addresses exist.
   recordCandidateResetRequest(ip, email);
 
+  const trustedIp = clientIp(request.headers);
   const candidate = await findActiveCandidateByEmail(email);
+
+  // Logged for every request, hit or miss — a row only when an account was
+  // found would make the TABLE an enumeration oracle for anyone who can read
+  // it, which is the same leak the response body is careful to avoid.
+  await recordAuthEvent({
+    surface: 'postulante',
+    event: 'password_reset_request',
+    candidateId: candidate?.id ?? null,
+    identifier: email,
+    ip: trustedIp,
+  });
+
   if (candidate) {
     const token = await issueCandidateToken(candidate.id, 'password_reset', PASSWORD_RESET_TTL_MS);
     // Not awaited for its result: a provider outage must not change what this

@@ -8,6 +8,8 @@
 // checked the day someone reads lib/retention.ts.
 //
 // No database, no bucket, no env: pure functions only.
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   ACCESS_LOG_RETENTION_MONTHS,
   APPLICATION_REDACTION_MONTHS,
@@ -109,6 +111,34 @@ check(
 const original = new Date('2026-08-09T12:00:00.000Z');
 monthsAgo(24, original);
 check('monthsAgo does not mutate its input', iso(original), '2026-08-09T12:00:00.000Z');
+
+// ---------------------------------------------------------------------------
+// Every table with a stated retention period is actually swept.
+// ---------------------------------------------------------------------------
+// A retention period that exists only in a comment is the failure this checks
+// for: the query can be written and the purge script never call it, and the
+// only symptom is rows quietly living forever. Source-level, because the
+// alternative needs a database.
+{
+  const purgeSource = readFileSync(join(process.cwd(), 'scripts/db-purge.ts'), 'utf8');
+  const swept = [
+    ['candidates', 'findCandidatesInactiveSince'],
+    ['applications', 'findApplicationsToRedact'],
+    ['consents', 'findConsentsToDelete'],
+    ['data_access_logs', 'findAccessLogsToDelete'],
+    ['auth_events', 'findAuthEventsToDelete'],
+  ] as const;
+
+  for (const [table, fn] of swept) {
+    check(`${table} is swept by db-purge (${fn})`, purgeSource.includes(fn), true);
+  }
+
+  check(
+    'auth_events deletions are actually executed, not only listed',
+    purgeSource.includes('retention.deleteAuthEvents('),
+    true,
+  );
+}
 
 console.log('');
 if (failures > 0) {

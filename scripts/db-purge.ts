@@ -124,13 +124,16 @@ async function main() {
 
   // Read everything first, then act. The apply run therefore acts on exactly
   // the set it printed, and a read failure cannot leave a half-applied sweep.
-  const [dueCandidates, toWarn, dueApplications, dueConsents, dueAccessLogs] = await Promise.all([
-    retention.findCandidatesInactiveSince(candidateCutoff),
-    retention.findCandidatesToWarn(warningCutoff, candidateCutoff),
-    retention.findApplicationsToRedact(applicationCutoff),
-    retention.findConsentsToDelete(consentCutoff),
-    retention.findAccessLogsToDelete(accessLogCutoff),
-  ]);
+  const [dueCandidates, toWarn, dueApplications, dueConsents, dueAccessLogs, dueAuthEvents] =
+    await Promise.all([
+      retention.findCandidatesInactiveSince(candidateCutoff),
+      retention.findCandidatesToWarn(warningCutoff, candidateCutoff),
+      retention.findApplicationsToRedact(applicationCutoff),
+      retention.findConsentsToDelete(consentCutoff),
+      retention.findAccessLogsToDelete(accessLogCutoff),
+      // Same 24-month clock as the access logs (PLAN-NEXT.md §2 A1).
+      retention.findAuthEventsToDelete(accessLogCutoff),
+    ]);
 
   if (apply && dueCandidates.length > 0) {
     // Fail before the first candidate rather than between the third and the
@@ -273,12 +276,26 @@ async function main() {
   }
 
   // -------------------------------------------------------------------------
+  section(`5. auth_events — ${ACCESS_LOG_RETENTION_MONTHS} months (before ${fmt(accessLogCutoff)})`);
+  console.log(`  ${dueAuthEvents.length} authentication event(s) due for deletion`);
+  listIds(
+    'auth event',
+    dueAuthEvents.map((e) => ({ id: e.id, when: e.createdAt })),
+    verbose,
+  );
+  let authEventsDeleted = 0;
+  if (apply && dueAuthEvents.length > 0) {
+    authEventsDeleted = await retention.deleteAuthEvents(dueAuthEvents.map((e) => e.id));
+  }
+
+  // -------------------------------------------------------------------------
   section('Summary');
   const verb = apply ? 'done' : 'would do';
   console.log(`  candidates deleted        ${verb}: ${dueCandidates.length - failures}`);
   console.log(`  applications redacted     ${verb}: ${apply ? redacted : dueApplications.length}`);
   console.log(`  consent rows deleted      ${verb}: ${apply ? consentsDeleted : dueConsents.length}`);
   console.log(`  access log rows deleted   ${verb}: ${apply ? logsDeleted : dueAccessLogs.length}`);
+  console.log(`  auth event rows deleted   ${verb}: ${apply ? authEventsDeleted : dueAuthEvents.length}`);
   console.log(`  candidates warned         ${verb}: ${apply ? warned : toWarn.length}`);
   if (!apply) {
     console.log('\nNothing was changed. Re-run with --apply to execute.');
