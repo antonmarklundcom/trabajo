@@ -40,6 +40,8 @@ import {
   CONSENT_RETENTION_MONTHS,
   monthsAgo,
 } from '../lib/retention';
+import { sendEmail } from '../lib/email';
+import { retentionWarningMessage } from '../lib/emails/candidate';
 
 const DEFAULT_SAMPLE = 25;
 
@@ -179,15 +181,46 @@ async function main() {
   }
 
   // -------------------------------------------------------------------------
-  section(`   Warning window — inactive ${CANDIDATE_WARNING_MONTHS} months (report only)`);
-  console.log(`  ${toWarn.length} candidate(s) should be warned before their profile is purged`);
+  // The warning now actually sends (PLAN-NEXT.md §2 E2). --apply keeps its
+  // meaning exactly: a dry run lists who WOULD be warned and sends nothing,
+  // which matters more here than elsewhere in this script because the side
+  // effect leaves the database and lands in someone's inbox — the one action a
+  // dry run cannot take back.
+  section(`   Warning window — inactive ${CANDIDATE_WARNING_MONTHS} months`);
+  console.log(`  ${toWarn.length} candidate(s) to warn before their profile is purged`);
   listIds(
     'candidate',
     toWarn.map((c) => ({ id: c.id, when: c.lastActivityAt })),
     verbose,
   );
-  if (toWarn.length > 0) {
-    console.log('  (no transactional email provider in this repo yet — PLAN-PHASE2.md §8 Q5)');
+
+  let warned = 0;
+  let warnFailures = 0;
+
+  if (apply && toWarn.length > 0) {
+    const monthsUntilPurge = CANDIDATE_INACTIVITY_MONTHS - CANDIDATE_WARNING_MONTHS;
+
+    for (const candidate of toWarn) {
+      const result = await sendEmail(
+        retentionWarningMessage(candidate.email, candidate.name, monthsUntilPurge),
+      );
+
+      if (result.sent) {
+        // Stamped only after a successful send. A provider outage therefore
+        // means this candidate is warned on the NEXT run, rather than being
+        // marked warned and then purged having never heard from us — which is
+        // the exact failure /privacidad §4.3 would be describing falsely.
+        await retention.markRetentionWarned(candidate.id, now);
+        warned += 1;
+      } else {
+        warnFailures += 1;
+        console.error(`  candidate ${candidate.id}: warning NOT sent (${result.reason})`);
+      }
+    }
+  }
+
+  if (toWarn.length > 0 && !apply) {
+    console.log('  (dry run — no email sent)');
   }
 
   // -------------------------------------------------------------------------
@@ -246,10 +279,17 @@ async function main() {
   console.log(`  applications redacted     ${verb}: ${apply ? redacted : dueApplications.length}`);
   console.log(`  consent rows deleted      ${verb}: ${apply ? consentsDeleted : dueConsents.length}`);
   console.log(`  access log rows deleted   ${verb}: ${apply ? logsDeleted : dueAccessLogs.length}`);
-  console.log(`  candidates to warn        report only: ${toWarn.length}`);
+  console.log(`  candidates warned         ${verb}: ${apply ? warned : toWarn.length}`);
   if (!apply) {
     console.log('\nNothing was changed. Re-run with --apply to execute.');
   }
+  if (warnFailures > 0) {
+    // Not fatal: nothing was destroyed and nobody was marked warned, so the
+    // next run retries them. Reported loudly because a warning that never
+    // sends is a policy the site is not keeping.
+    console.error(`\n${warnFailures} retention warning(s) could not be sent. They will be retried on the next run.`);
+  }
+
   if (failures > 0) {
     console.error(`\n${failures} candidate deletion(s) FAILED and were left in place. See the errors above.`);
     process.exit(1);

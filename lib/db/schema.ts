@@ -288,6 +288,16 @@ export const candidates = mysqlTable('candidates', {
   isActive: boolean('is_active').notNull().default(true),
   emailVerifiedAt: datetime('email_verified_at'),
   lastLoginAt: datetime('last_login_at'),
+  // When the retention warning was last sent (PLAN-NEXT.md §2 E2). The warning
+  // window is months wide, so the sweep runs many times while a candidate sits
+  // inside it — without this column every run would re-send, and a monthly
+  // "your profile will be deleted" is not a warning, it is harassment.
+  //
+  // Compared against last activity rather than just tested for NULL: a
+  // candidate who logs back in leaves the window, and if they later fall
+  // inactive again the old timestamp predates their return, so they are warned
+  // afresh instead of being purged in silence.
+  retentionWarnedAt: datetime('retention_warned_at'),
   createdAt: datetime('created_at').notNull(),
   updatedAt: datetime('updated_at').notNull(),
 });
