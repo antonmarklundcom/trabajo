@@ -29,6 +29,10 @@
 > sju PR:er, ordnade efter exponering, med modell per PR. §14 är §12.2:s fyra
 > frågor skrivna som beslutsunderlag för ägaren. §12–§14 är på engelska enligt
 > `AGENTS.md`; §1–§11 står kvar på svenska.
+>
+> **Tillägg 2026-08-19:** §14:s frågor är besvarade. §15 är ägarens fjorton
+> beslut, och byggprogrammet som följer av dem står i **`PLAN-NEXT.md`** —
+> det är den fil nästa byggsession ska läsa, inte §13 ensam.
 
 ## 1. Sparade jobb (favoriter) för postulantes
 
@@ -1436,3 +1440,29 @@ on a bad one. Two asymmetries are worth weighing: (b) is the only one where
 deferring can become irreversible, and (d) is the only one that cannot be
 applied retroactively, because it is a record that either was or was not being
 kept at the time you need it.
+
+---
+
+## 15. Owner decisions taken (2026-08-19)
+
+The owner answered §14's four questions plus ten product/process questions in
+a structured session with Fable 5. Recorded here so no future session
+re-litigates them; the resulting build program is **`PLAN-NEXT.md`**, which
+orders B1–B7 (§13.4) together with the newly agreed work into two batches.
+
+| # | Question | Decision |
+|---|---|---|
+| 1 | D1, CV storage | **Cloudflare R2** technically. Owner additionally wants an independent legal research pass ("is storing CVs a problem for a non-recruiting job-ad platform?") before the candidate flag flips — a deep-research prompt was delivered; its outcome feeds decision 8's lawyer review, it does not reopen the driver choice. |
+| 2 | D2, transactional email | **Yes — Resend** (PR E1 in `PLAN-NEXT.md`). Owner handles SPF/DKIM DNS. |
+| 3 | D3, single-process assumption | **Keep it, documented** — now a stated constraint in `DEPLOY.md`. Reopen only if scaling ever becomes real. |
+| 4 | D4, ops hardening | **All five**: error tracking (O1), backup + rehearsed restore (D1 + owner rehearsal), purge-run monitoring (O2), auth audit trail (A1), CSP/security headers (folded into B3). |
+| 5 | Blog cutover (§11.4 step 1) | Owner runs it from a delivered command sheet. Still outstanding until then; live `/blog` is empty. |
+| 6 | `EMPLOYER_DASHBOARD_ENABLED` | Flip **after Chat 1 (B1–B4, E1–E2, A1) merges** — not before, the login limiter is spoofable until B1. |
+| 7 | `CANDIDATE_ACCOUNTS_ENABLED` | Flip only after **all three gates**: both build chats merged, email live (DNS verified), and legal review. Plus R2 configured and the decision-1 research clear. |
+| 8 | Lawyer review of `/privacidad`/`/terminos` | **Yes, before candidate launch.** Not required before the employer flag. |
+| 9 | Notification emails | **All three**: applicant confirmation (N1), employer new-application (N2), candidate status-change (N3). |
+| 10 | Job alerts / saved searches | **Deferred one round** — planned as its own phase after notification engagement data exists. |
+| 11 | Public UX pack | **All three**: job share buttons (U1), numbered pagination (U2), similar-jobs block (U3). |
+| 12 | Employer plan/featured card | **Yes** (P1). Read-only, manual-sales model unchanged. |
+| 13 | Second language | **Parked.** No i18n work. If it becomes strategic it gets its own Opus-scoped phase. |
+| 14 | Auto-merge for the build chats | **Yes, on green, both chats** — with the standing exceptions: production env/DB config and rollback-path removal always stop for the owner. |

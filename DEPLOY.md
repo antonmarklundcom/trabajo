@@ -34,6 +34,20 @@ Managed GitHub integration — no SSH, PM2 or Nginx.
 The live app connects to MySQL over `localhost`. The remote host below is for
 your machine only.
 
+### Process model: exactly one instance (owner-decided, 2026-08-19)
+
+This app assumes it runs as **one persistent Node process**, and Hostinger
+runs it that way. Two things depend on the assumption and break *silently*
+if it stops holding: the in-memory rate limiters (`lib/rate-limit.ts`) become
+per-instance — each instance half as strict — and `revalidateTag`-based cache
+invalidation becomes per-instance, so an editor's publish is only seen by the
+instance that handled the write while another keeps serving the stale page.
+
+**Do not scale this app horizontally without first moving the rate limiters
+to a shared store and giving cache invalidation a cross-instance signal.**
+That is real, planned work (see `PLAN-PHASE3-DRAFT.md` §14 D3) — not a
+config change.
+
 ## MySQL operations
 
 ### Run migrations and scripts from your local machine, not Hostinger SSH

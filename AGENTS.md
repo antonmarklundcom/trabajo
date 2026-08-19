@@ -13,6 +13,7 @@ Read before writing code:
 | `PLAN.md` | The WordPress → MySQL rebuild: 12 steps, gates, model tiering, open questions (all merged) |
 | `PLAN-PHASE2.md` | Next body of work: employer dashboard + job seeker profiles — schema, consent/ARCO model, 14 PRs with model per PR |
 | `PLAN-IMAGES.md` | The shared public image pipeline: backend decision, validation rules, key scheme, what PR 19–21 inherit |
+| `PLAN-NEXT.md` | The current build program (2026-08-19): audit fixes B1–B7 + email core + notifications + ops hardening + public UX, as two ordered PR batches with owner ops checklist |
 | `ARCHITECTURE.md` | Target backend design: the data seam, DB schema, auth, job lifecycle, caching |
 | `MIGRATION.md` | WordPress → MySQL cutover runbook and rollback |
 | `DEPLOY.md` | Hostinger + MySQL operations and their known traps |
