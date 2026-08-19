@@ -5,6 +5,12 @@ import { z } from 'zod';
 import { hashPassword, createCandidateSession } from '@/lib/auth-candidate';
 import { candidateAccountsEnabled } from '@/lib/flags';
 import { registerCandidate } from '@/lib/db/candidate-profile';
+import {
+  issueCandidateToken,
+  EMAIL_VERIFICATION_TTL_MS,
+} from '@/lib/db/candidate-tokens';
+import { sendEmail } from '@/lib/email';
+import { emailVerificationMessage } from '@/lib/emails/candidate';
 
 const schema = z.object({
   email: z.string().min(1).email(),
@@ -41,6 +47,17 @@ export async function POST(request: Request) {
   if (!result.ok) {
     return Response.json({ error: 'Ya existe una cuenta con ese email.' }, { status: 409 });
   }
+
+  // Verification email, best effort. sendEmail() never throws and an unset
+  // RESEND_API_KEY is a logged skip, so a registration cannot fail because the
+  // mail provider is not wired up — the account works either way
+  // (PLAN-NEXT.md §2 E1).
+  const token = await issueCandidateToken(
+    result.candidateId,
+    'email_verification',
+    EMAIL_VERIFICATION_TTL_MS,
+  );
+  await sendEmail(emailVerificationMessage(email, name, token));
 
   await createCandidateSession(result.candidateId);
   return Response.json({ ok: true, redirectTo: '/postulante/perfil' }, { status: 201 });
