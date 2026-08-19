@@ -54,6 +54,76 @@ async function main() {
   check('real markdown still renders', renderMarkdown('**negrita** y `code`').includes('<strong>'));
 
   // -------------------------------------------------------------------------
+  // 1b. Link and image destinations are scheme-allowlisted (B3).
+  // -------------------------------------------------------------------------
+  // The escape above closes `<script>`. It does nothing about a link
+  // DESTINATION, which is not HTML but a Markdown token the renderer turns into
+  // an href — so `[x](javascript:alert(1))` was a live anchor with the escape
+  // fully in place (PLAN-PHASE3-DRAFT.md §12.1).
+  //
+  // These run through the same renderMarkdown() for the same reason as §1, and
+  // they sit next to the escape assertions on purpose: both properties live in
+  // one marked.use() call, and an override that replaced that object instead of
+  // extending it would switch the escape off silently (§13.4 B3).
+  const blockedLinks = [
+    ['javascript:', '[x](javascript:alert(1))'],
+    ['JavaScript: with capitals', '[x](JavaScript:alert(1))'],
+    ['data:text/html', '[x](data:text/html,<script>alert(1)</script>)'],
+    ['vbscript:', '[x](vbscript:msgbox("x"))'],
+    ['file:', '[x](file:///etc/passwd)'],
+  ] as const;
+
+  for (const [label, markdown] of blockedLinks) {
+    const rendered = renderMarkdown(markdown);
+    check(`${label} does not become an anchor`, !/<a\s/i.test(rendered), rendered);
+    check(`${label} link text survives as visible text`, rendered.includes('x'), rendered);
+  }
+
+  const blockedImages = [
+    ['javascript: image', '![alt](javascript:alert(1))'],
+    ['data: image payload', '![alt](data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=)'],
+  ] as const;
+
+  for (const [label, markdown] of blockedImages) {
+    const rendered = renderMarkdown(markdown);
+    check(`${label} does not become an img`, !/<img/i.test(rendered), rendered);
+    check(`${label} alt text survives`, rendered.includes('alt'), rendered);
+  }
+
+  // The allowlist has to still allow the things articles actually use, or the
+  // fix is a different kind of breakage.
+  check(
+    'https links still render',
+    /<a href="https:\/\/example\.com"/.test(renderMarkdown('[x](https://example.com)')),
+    renderMarkdown('[x](https://example.com)'),
+  );
+  check(
+    'relative links still render',
+    /<a href="\/empleos"/.test(renderMarkdown('[x](/empleos)')),
+    renderMarkdown('[x](/empleos)'),
+  );
+  check(
+    'fragment links still render',
+    /<a href="#seccion"/.test(renderMarkdown('[x](#seccion)')),
+    renderMarkdown('[x](#seccion)'),
+  );
+  check(
+    'mailto links still render',
+    /<a href="mailto:hola@trabajo\.com\.py"/.test(renderMarkdown('[x](mailto:hola@trabajo.com.py)')),
+    renderMarkdown('[x](mailto:hola@trabajo.com.py)'),
+  );
+  check(
+    'https images still render',
+    /<img src="https:\/\/example\.com\/a\.png"/.test(renderMarkdown('![alt](https://example.com/a.png)')),
+    renderMarkdown('![alt](https://example.com/a.png)'),
+  );
+  check(
+    'a title attribute cannot break out of the tag',
+    !/<a [^>]*title="[^"]*"[^>]*"/.test(renderMarkdown('[x](https://e.com "a\"b")')),
+    renderMarkdown('[x](https://e.com "a\"b")'),
+  );
+
+  // -------------------------------------------------------------------------
   // 2. A junk slug is refused before any query runs.
   // -------------------------------------------------------------------------
   // It no longer becomes a filesystem path, so this is not a traversal guard
