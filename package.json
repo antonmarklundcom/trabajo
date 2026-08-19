@@ -22,6 +22,7 @@
     "retention:verify": "tsx scripts/verify-retention.ts",
     "access:verify": "tsx scripts/verify-candidate-access.ts",
     "clientip:verify": "tsx --conditions=react-server scripts/verify-client-ip.ts",
+    "cachekey:verify": "tsx scripts/verify-cache-key.ts",
     "cascade:verify": "tsx scripts/verify-cascades.ts",
     "blog:verify": "tsx --conditions=react-server --env-file-if-exists=.env scripts/verify-blog.ts",
     "blog:import": "tsx --conditions=react-server --env-file-if-exists=.env scripts/blog-import.ts",

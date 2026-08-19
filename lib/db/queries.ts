@@ -6,6 +6,7 @@ import { CACHE_TAGS, PUBLIC_CACHE_TTL_SECONDS } from '../cache-tags';
 import { imagePublicUrl } from '../image-storage';
 import { companyLogoSrc } from '../company-logo';
 import type { Job, Category, City, JobFilters } from '../types';
+import { isCacheable } from './job-cache-key';
 
 const PAGE_SIZE = 20;
 
@@ -392,6 +393,17 @@ async function cachedOrRaw<T>(cached: () => Promise<T>, raw: () => Promise<T>): 
 // unchanged — only the caching is new — so lib/data.ts needs no edit.
 
 export async function getJobs(filters: JobFilters): Promise<{ jobs: Job[]; total: number }> {
+  // The taxonomy lists are cached and the calling page loads them in the same
+  // render, so the membership check below is a warm read, not a second trip.
+  const [categoryList, cityList] = await Promise.all([getCategories(), getCities()]);
+  const cacheable = isCacheable(
+    filters,
+    new Set(categoryList.map((c) => c.slug)),
+    new Set(cityList.map((c) => c.slug)),
+  );
+
+  if (!cacheable) return queryJobs(filters);
+
   return cachedOrRaw(() => cachedJobs(filtersKey(filters)), () => queryJobs(filters));
 }
 

@@ -96,6 +96,13 @@ jobs:
       - name: Verify trusted client IP and limiters
         run: npm run clientip:verify
 
+      # Which public job queries may be cached at all. Too permissive and a
+      # crawler's random `?q=` fills the disk; too clever (truncating a value to
+      # bound the key) and two searches collide, serving one visitor's results
+      # for another's query. Pure function of a filter object — no database.
+      - name: Verify job cache key bounds
+        run: npm run cachekey:verify
+
       # The no-FK convention's other half: a module that hard-deletes a parent
       # must delete its dependents first. Written in PR 15b, but never wired
       # into CI, so it only ran when someone remembered to run it.
