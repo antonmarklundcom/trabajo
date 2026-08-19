@@ -152,6 +152,36 @@ for (const { child, parents } of DEPENDENCIES) {
 }
 
 // ---------------------------------------------------------------------------
+// 2b. The unique index on applications does not reach the anonymous lead form.
+// ---------------------------------------------------------------------------
+// B4 added UNIQUE(candidate_id, job_id) to `applications` to close the
+// duplicate-application race. The lead form writes to that same table, and the
+// only thing keeping it from tripping the constraint on the second application
+// to any one job is that MySQL permits repeated rows where an indexed column is
+// NULL — every anonymous application has a NULL candidate_id.
+//
+// That is a property of MySQL, which this script cannot execute. What it CAN
+// check is the half that is ours and the half that would actually change: that
+// the anonymous write path still never sets candidateId. If someone gives it
+// one, the constraint starts applying to the lead form and the second
+// application to a popular job fails in production.
+{
+  const adminSource = readFileSync(join(DB_DIR, 'admin.ts'), 'utf8');
+  const createApplication = adminSource.slice(
+    adminSource.indexOf('export async function createApplication'),
+  );
+  const body = createApplication.slice(0, createApplication.indexOf('\n}'));
+
+  check(
+    'the anonymous lead form still writes a NULL candidate_id',
+    body.includes('.insert(applications)') && !/candidateId\s*:/.test(body),
+    'createApplication() in admin.ts now sets candidateId, so the UNIQUE index ' +
+      'B4 added applies to anonymous applications too — the second lead on any ' +
+      'job would be rejected. Anonymous rows must keep a NULL candidate_id.',
+  );
+}
+
+// ---------------------------------------------------------------------------
 // 3. The deliberate orphans are still deliberate — printed, not asserted, so
 //    the run reads as a complete account of the schema's dangling references.
 // ---------------------------------------------------------------------------

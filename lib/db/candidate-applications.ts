@@ -71,34 +71,70 @@ export async function createCandidateApplication(
   const currentCv = await getCurrentCandidateCv(candidateId);
   const now = new Date();
 
-  const [consentResult] = await db.insert(consents).values({
-    subjectType: 'candidate',
-    subjectId: candidateId,
-    purpose: 'application_share',
-    granted: true,
-    policyVersion: POLICY_VERSION,
-    relatedCompanyId: job.companyId,
-    relatedJobId: job.id,
-    ip: input.ip,
-    userAgent: input.userAgent,
-    createdAt: now,
-  });
+  // One transaction, because these two rows are one fact. The consent row
+  // authorises sharing this candidate's data with this employer, and the
+  // application row is that sharing; a crash between them leaves a consent
+  // authorising a share that never happened — a record that overstates what the
+  // candidate agreed to, which is the wrong direction for an ARCO evidence
+  // table (§12.1).
+  try {
+    const applicationId = await db.transaction(async (tx) => {
+      const [consentResult] = await tx.insert(consents).values({
+        subjectType: 'candidate',
+        subjectId: candidateId,
+        purpose: 'application_share',
+        granted: true,
+        policyVersion: POLICY_VERSION,
+        relatedCompanyId: job.companyId,
+        relatedJobId: job.id,
+        ip: input.ip,
+        userAgent: input.userAgent,
+        createdAt: now,
+      });
 
-  const [appResult] = await db.insert(applications).values({
-    jobId: job.id,
-    candidateId,
-    consentId: consentResult.insertId,
-    cvId: currentCv?.id ?? null,
-    name: candidate.name,
-    phone: candidate.phone,
-    email: candidate.email,
-    message: input.message,
-    sourcePage: `/postulante/apply/${input.jobSlug}`,
-    status: 'new',
-    createdAt: now,
-  });
+      const [appResult] = await tx.insert(applications).values({
+        jobId: job.id,
+        candidateId,
+        consentId: consentResult.insertId,
+        cvId: currentCv?.id ?? null,
+        name: candidate.name,
+        phone: candidate.phone,
+        email: candidate.email,
+        message: input.message,
+        sourcePage: `/postulante/apply/${input.jobSlug}`,
+        status: 'new',
+        createdAt: now,
+      });
 
-  return { ok: true, applicationId: appResult.insertId };
+      return appResult.insertId;
+    });
+
+    return { ok: true, applicationId };
+  } catch (err) {
+    // The SELECT above is a fast path for the common case, not the guard. Two
+    // concurrent submits both pass it; the unique index is what makes the
+    // second one impossible rather than merely unlikely, and this is where that
+    // refusal becomes the same answer the user would have got a millisecond
+    // earlier. The transaction has already rolled the consent row back, so the
+    // loser leaves nothing behind.
+    if (isDuplicateApplication(err)) return { ok: false, reason: 'already_applied' };
+    throw err;
+  }
+}
+
+/**
+ * MySQL's duplicate-key error, narrowed to the constraint this module owns.
+ *
+ * Checking the constraint name matters: a bare ER_DUP_ENTRY test would also
+ * swallow a duplicate from some future index on this table and report it to the
+ * candidate as "you already applied", which would be a lie that looks like a
+ * feature.
+ */
+function isDuplicateApplication(err: unknown): boolean {
+  if (typeof err !== 'object' || err === null) return false;
+  const candidate = err as { code?: string; errno?: number; message?: string };
+  const isDuplicate = candidate.code === 'ER_DUP_ENTRY' || candidate.errno === 1062;
+  return isDuplicate && (candidate.message ?? '').includes('candidate_job_application_unique_idx');
 }
 
 /** Whether this candidate has already applied to this job (drives the apply button). */

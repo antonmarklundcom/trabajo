@@ -228,6 +228,19 @@ export const applications = mysqlTable(
     index('job_created_idx').on(table.jobId, table.createdAt),
     // "Mis postulaciones" for a logged-in candidate.
     index('candidate_created_idx').on(table.candidateId, table.createdAt),
+    // One application per candidate per job. This is the same guard saved_jobs
+    // has had since it was written, and its absence here made
+    // createCandidateApplication() a check-then-insert race: two concurrent
+    // submits both passed the "already applied?" SELECT (§12.1).
+    //
+    // It does NOT constrain the anonymous lead form, and that is a property of
+    // MySQL rather than of this line: a UNIQUE index permits repeated rows
+    // where any indexed column is NULL, and every anonymous application has a
+    // NULL candidate_id. scripts/verify-cascades.ts asserts the half that is
+    // ours and the half that could change — that the anonymous write path still
+    // never sets candidateId — because "the lead form still works" is not
+    // something to discover in production.
+    uniqueIndex('candidate_job_application_unique_idx').on(table.candidateId, table.jobId),
   ],
 );
 
