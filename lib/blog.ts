@@ -60,11 +60,69 @@ function escapeHtml(value: string): string {
     .replace(/"/g, '&quot;');
 }
 
+// The other half of the same boundary (PLAN-PHASE3-DRAFT.md §12.1). Escaping
+// raw HTML closes `<script>`; it does nothing about `[x](javascript:alert(1))`,
+// which marked renders as a live anchor because a link destination is not HTML
+// — it is a Markdown token that the renderer turns into an href. Same author,
+// same session, same result in the visitor's browser.
+//
+// Only these schemes may reach an href or a src. `data:` is excluded from both:
+// `data:text/html` is a script-execution vector in an anchor, and an inline
+// image payload has no business in an article body when the image pipeline
+// exists (PLAN-IMAGES.md). Relative and fragment URLs are same-origin and are
+// always allowed.
+const SAFE_LINK_SCHEMES = ['http:', 'https:', 'mailto:'];
+const SAFE_IMAGE_SCHEMES = ['http:', 'https:'];
+
+// Any absolute base works: it is never part of the output, it only lets the URL
+// parser resolve relative hrefs so their scheme can be read. The parser is what
+// does the real work here — it applies the WHATWG stripping rules, so the
+// tab-and-newline dodges (`java\tscript:`) resolve to `javascript:` and are
+// rejected rather than sneaking past a regex.
+const SCHEME_PROBE_BASE = 'https://trabajo.com.py';
+
+function hasSafeScheme(href: string, allowed: string[]): boolean {
+  const trimmed = href.trim();
+  if (trimmed === '') return false;
+  if (trimmed.startsWith('/') || trimmed.startsWith('#')) return true;
+  try {
+    return allowed.includes(new URL(trimmed, SCHEME_PROBE_BASE).protocol);
+  } catch {
+    // Unparseable is not safe.
+    return false;
+  }
+}
+
 marked.setOptions({ gfm: true });
+
+// One `use()` call, extending the renderer rather than replacing it. §13.4
+// named the risk precisely: the raw-HTML escape below lives in this same
+// object, and an override that replaces where it should extend would switch it
+// off with nothing in CI noticing. The assertions in scripts/verify-blog.ts
+// cover both properties together for that reason.
 marked.use({
   renderer: {
     html(token) {
       return escapeHtml(typeof token === 'string' ? token : (token.raw ?? token.text ?? ''));
+    },
+
+    link({ href, title, tokens }) {
+      const text = this.parser.parseInline(tokens);
+      // Degrade to the link's own text rather than dropping it. Same reasoning
+      // as escaping instead of stripping: the author sees that something did
+      // not become a link, instead of the phrase silently vanishing.
+      if (!hasSafeScheme(href, SAFE_LINK_SCHEMES)) return text;
+
+      const titleAttr = title ? ` title="${escapeHtml(title)}"` : '';
+      return `<a href="${escapeHtml(href.trim())}"${titleAttr}>${text}</a>`;
+    },
+
+    image({ href, title, text }) {
+      // Alt text survives a rejected image for the same reason.
+      if (!hasSafeScheme(href, SAFE_IMAGE_SCHEMES)) return escapeHtml(text);
+
+      const titleAttr = title ? ` title="${escapeHtml(title)}"` : '';
+      return `<img src="${escapeHtml(href.trim())}" alt="${escapeHtml(text)}"${titleAttr} />`;
     },
   },
 });
