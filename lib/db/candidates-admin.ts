@@ -87,7 +87,9 @@ function requireAdmin(actor: SessionUser): void {
 }
 
 export type AccessContext = {
-  /** From x-forwarded-for at the route boundary. Null when unknown. */
+  /** From `clientIp()` (lib/client-ip.ts) at the route boundary. Null when
+   *  the request did not arrive through the trusted proxy chain — never a
+   *  client-supplied value, since this column is ARCO evidence. */
   ip: string | null;
 };
 

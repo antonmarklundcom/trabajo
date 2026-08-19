@@ -372,9 +372,9 @@ export async function authenticate(email: string, password: string): Promise<Ses
 // the other's.
 // ---------------------------------------------------------------------------
 
-import { createAttemptLimiter, LOGIN_WINDOW_MS, MAX_LOGIN_ATTEMPTS } from './rate-limit';
+import { createAttemptLimiter, LOGIN_LIMITS } from './rate-limit';
 
-const staffLoginLimiter = createAttemptLimiter(MAX_LOGIN_ATTEMPTS, LOGIN_WINDOW_MS);
+const staffLoginLimiter = createAttemptLimiter(LOGIN_LIMITS);
 
 /** Call BEFORE checking the password. */
 export function checkLoginRateLimit(

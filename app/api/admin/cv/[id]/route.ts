@@ -17,7 +17,7 @@ import {
   ReasonRequiredError,
   viewCandidateCvAsAdmin,
 } from '@/lib/db/candidates-admin';
-import { getClientIp } from '@/lib/leads';
+import { clientIp } from '@/lib/client-ip';
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -36,12 +36,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
     // Role is re-checked inside (exactly `admin`, not `editor`); requireApiSession
     // only establishes who is asking.
-    // getClientIp() reports the string 'unknown' when no proxy header is
-    // present; the log column stores NULL for that rather than a word that
-    // reads like an address.
-    const ip = getClientIp(request.headers);
+    // clientIp() returns null when the request did not arrive through the
+    // expected proxy chain, and the log column stores that NULL rather than a
+    // word that reads like an address — or, worse, an attacker-chosen one.
     const cv = await viewCandidateCvAsAdmin(user, id, reason, {
-      ip: ip === 'unknown' ? null : ip,
+      ip: clientIp(request.headers),
     });
     if (!cv) return Response.json({ error: 'No encontrado.' }, { status: 404 });
 

@@ -21,7 +21,7 @@ import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 
 import { requireSessionWithRole } from '@/lib/auth';
-import { getClientIp } from '@/lib/leads';
+import { clientIp } from '@/lib/client-ip';
 import {
   ACCESS_REASON_CODES,
   ACCESS_REASON_LABELS,
@@ -142,9 +142,8 @@ export default async function PostulanteDetailPage({
     return <ReasonGate candidateId={candidateId} invalid={Boolean(motivo)} />;
   }
 
-  const ip = getClientIp(await headers());
   const profile = await viewCandidate(user, candidateId, reason, {
-    ip: ip === 'unknown' ? null : ip,
+    ip: clientIp(await headers()),
   });
   if (!profile) notFound();
 

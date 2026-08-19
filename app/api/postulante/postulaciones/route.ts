@@ -1,6 +1,7 @@
 // POST /api/postulante/postulaciones — one-click apply (PLAN-PHASE2.md §4.1
 // consent #2). The anonymous lead form (POST /api/v1/leads) is untouched;
 // this is a second, parallel write path for logged-in candidates only.
+import { clientIp } from '@/lib/client-ip';
 import { z } from 'zod';
 import { authErrorResponse } from '@/lib/auth';
 import { requireApiCandidate } from '@/lib/auth-candidate';
@@ -12,11 +13,6 @@ const schema = z.object({
   message: z.string().max(1000).nullable().optional(),
   consentAccepted: z.literal(true),
 });
-
-function clientIp(request: Request): string | null {
-  const forwarded = request.headers.get('x-forwarded-for');
-  return forwarded?.split(',')[0]?.trim() || null;
-}
 
 export async function POST(request: Request) {
   if (!candidateAccountsEnabled()) {
@@ -35,7 +31,7 @@ export async function POST(request: Request) {
     const result = await createCandidateApplication(candidate.id, {
       jobSlug: parsed.data.jobSlug,
       message: parsed.data.message ?? null,
-      ip: clientIp(request),
+      ip: clientIp(request.headers),
       userAgent: request.headers.get('user-agent'),
     });
 

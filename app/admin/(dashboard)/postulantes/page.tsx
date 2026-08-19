@@ -17,7 +17,7 @@ import Link from 'next/link';
 import { headers } from 'next/headers';
 
 import { requireSessionWithRole } from '@/lib/auth';
-import { getClientIp } from '@/lib/leads';
+import { clientIp } from '@/lib/client-ip';
 import { listCandidates, type LabeledCount } from '@/lib/db/candidates-admin';
 
 export const metadata: Metadata = {
@@ -95,12 +95,11 @@ export default async function PostulantesPage({
   const idParam = first(sp.id)?.trim() ?? '';
   const candidateId = /^[0-9]+$/.test(idParam) ? Number(idParam) : null;
 
-  const ip = getClientIp(await headers());
   const { aggregates, lookupAttempted, match } = await listCandidates(
     user,
     { email: email || null, candidateId },
     null,
-    { ip: ip === 'unknown' ? null : ip },
+    { ip: clientIp(await headers()) },
   );
 
   return (

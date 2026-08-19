@@ -88,6 +88,14 @@ jobs:
       - name: Verify candidate access construction
         run: npm run access:verify
 
+      # B1's properties, and the reason they are asserted rather than reviewed:
+      # a rate limiter keyed on a spoofable header still returns 429s, an
+      # evidence column still holds something that looks like an address, and
+      # two paths sharing one limiter instance still limit. None of it is
+      # visible in a browser. Pure functions and an in-memory map — no database.
+      - name: Verify trusted client IP and limiters
+        run: npm run clientip:verify
+
       # The no-FK convention's other half: a module that hard-deletes a parent
       # must delete its dependents first. Written in PR 15b, but never wired
       # into CI, so it only ran when someone remembered to run it.
