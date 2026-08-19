@@ -102,3 +102,14 @@ Non-negotiables:
   a soft delete, and no new soft-delete flag may be added.
 - **No search, ranking, scoring, matching or bulk export of candidates.**
   Phase 4, gated on legal review (`PLAN-PHASE2.md` §6 "Phase 4 — NOT NOW").
+- **GitHub Actions minutes are a budgeted resource.** This repo is private, so
+  every minute is billed against a fixed monthly allowance shared with every
+  other repo on the account. `.github/workflows/ci.yml` is the only workflow and
+  stays that way: one job, `pull_request`-only, with `paths-ignore` for
+  documentation, `concurrency` + `cancel-in-progress`, and an explicit
+  `timeout-minutes`. Never re-add an `on: push` trigger — combined with
+  `pull_request` it bills every commit on a PR branch twice. Never add a second
+  workflow, a matrix, or a non-Linux runner. New checks are new **steps** in the
+  existing job. Run `npm run build` and the relevant `*:verify` scripts locally
+  and get them green before pushing: a red CI run costs real minutes, and three
+  speculative pushes cost three builds.
