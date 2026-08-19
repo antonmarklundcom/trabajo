@@ -19,6 +19,12 @@ function param(sp: SearchParams, key: string): string | undefined {
   return typeof v === 'string' ? v : undefined;
 }
 
+function positiveNumber(raw: string | undefined): number | undefined {
+  if (!raw) return undefined;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
 export async function generateMetadata({
   searchParams,
 }: {
@@ -50,9 +56,12 @@ export default async function EmpleosPage({
     tipo: param(sp, 'tipo'),
     nivel: param(sp, 'nivel'),
     modality: param(sp, 'modalidad'),
-    salarioMin: param(sp, 'salario_min') ? Number(param(sp, 'salario_min')) : undefined,
+    // `Number()` on a non-numeric query string yields NaN, which used to reach
+    // the SQL comparison and the cache key intact. Anything that is not a
+    // usable number is simply no filter.
+    salarioMin: positiveNumber(param(sp, 'salario_min')),
     orden: (param(sp, 'orden') as JobFilters['orden']) ?? 'recientes',
-    page: param(sp, 'page') ? Number(param(sp, 'page')) : 1,
+    page: positiveNumber(param(sp, 'page')) ?? 1,
   };
 
   const [{ jobs, total }, categories, cities] = await Promise.all([
