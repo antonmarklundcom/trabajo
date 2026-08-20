@@ -1,7 +1,9 @@
+import { after } from 'next/server';
 import { z } from 'zod';
 import { authErrorResponse, requireApiCompanyScope } from '@/lib/auth';
 import { employerDashboardEnabled } from '@/lib/flags';
 import { setEmployerApplicationStatus, applicationStatusEnum } from '@/lib/db/employer';
+import { notifyCandidateOfContact } from '@/lib/notifications';
 
 const schema = z.object({ status: z.enum(applicationStatusEnum) });
 
@@ -28,9 +30,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return Response.json({ error: 'Datos inválidos.' }, { status: 400 });
     }
 
-    const changed = await setEmployerApplicationStatus(companyId, user.id, id, parsed.data.status);
-    if (!changed) {
+    const result = await setEmployerApplicationStatus(companyId, user.id, id, parsed.data.status);
+    if (!result.changed) {
       return Response.json({ error: 'Postulación no encontrada.' }, { status: 404 });
+    }
+
+    // N3, and only on the TRANSITION into `contacted`. Re-clicking the status
+    // the row is already on still counts as a changed row — this UPDATE always
+    // writes a fresh statusChangedAt — so without the previous status an
+    // employer tidying their list would mail the candidate once per click.
+    if (parsed.data.status === 'contacted' && result.previousStatus !== 'contacted') {
+      after(() => notifyCandidateOfContact({ companyId, applicationId: id }));
     }
 
     return Response.json({ ok: true });

@@ -19,8 +19,14 @@ import 'server-only';
 
 import { getJob } from './data';
 import { sendEmail } from './email';
-import { listEmployerNotificationRecipients } from './db/employer';
-import { applicationReceivedMessage } from './emails/candidate';
+import {
+  getStatusChangeNotificationTarget,
+  listEmployerNotificationRecipients,
+} from './db/employer';
+import {
+  applicationContactedMessage,
+  applicationReceivedMessage,
+} from './emails/candidate';
 import { newApplicationMessage } from './emails/employer';
 
 /**
@@ -91,6 +97,38 @@ export async function notifyEmployerOfApplication(params: {
     }
   } catch (err) {
     console.error('[notify] employer notification failed', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
+/**
+ * "La empresa quiere contactarte" to the applicant (N3).
+ *
+ * The caller decides that a transition to `contacted` actually happened; this
+ * function decides whether there is anyone to tell.
+ * `getStatusChangeNotificationTarget()` returns null for an anonymous lead, a
+ * deactivated account, an application belonging to another company, and a
+ * candidate who opted out — so the opt-out is enforced by the read rather than
+ * by every caller remembering it.
+ *
+ * Naturally dark until CANDIDATE_ACCOUNTS_ENABLED flips: only
+ * candidate-linked applications have an account behind them, and today there
+ * are none.
+ */
+export async function notifyCandidateOfContact(params: {
+  companyId: number;
+  applicationId: number;
+}): Promise<void> {
+  try {
+    const target = await getStatusChangeNotificationTarget(params.companyId, params.applicationId);
+    if (!target) return;
+
+    await sendEmail(
+      applicationContactedMessage(target.email, target.name, target.jobTitle, target.companyName),
+    );
+  } catch (err) {
+    console.error('[notify] status-change notification failed', {
       error: err instanceof Error ? err.message : String(err),
     });
   }

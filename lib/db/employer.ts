@@ -34,6 +34,7 @@ import {
   applications,
   applicationStatusEnum,
   candidateCvs,
+  candidates,
   categories,
   cities,
   companies,
@@ -572,13 +573,40 @@ export async function getEmployerApplicationCv(companyId: number, applicationId:
  * statusChangedAt/By are what make the funnel in PLAN-PHASE2.md §5.1
  * measurable at all — `status` alone has no time dimension.
  */
+export type StatusChangeResult = {
+  changed: boolean;
+  /**
+   * What the status was before this call, or null when nothing was updated.
+   *
+   * N3 needs it and cannot infer it: `changed` is not the answer, because this
+   * UPDATE always writes a fresh `statusChangedAt`, so MySQL reports a changed
+   * row even when the employer clicked the status it was already on. Notifying
+   * a candidate every time someone re-clicks "contactado" is the kind of
+   * mistake that is invisible here and loud in their inbox.
+   */
+  previousStatus: (typeof applicationStatusEnum)[number] | null;
+};
+
 export async function setEmployerApplicationStatus(
   companyId: number,
   actorUserId: number,
   applicationId: number,
   status: (typeof applicationStatusEnum)[number],
-): Promise<boolean> {
+): Promise<StatusChangeResult> {
   const db = await getDb();
+
+  // Read before write, scoped the same way the UPDATE is: a row this company
+  // does not own reads as absent here exactly as it fails to update below.
+  const [before] = await db
+    .select({ status: applications.status })
+    .from(applications)
+    .where(
+      and(
+        eq(applications.id, applicationId),
+        inArray(applications.jobId, ownedJobIds(companyId)),
+      ),
+    )
+    .limit(1);
 
   const [result] = await db
     .update(applications)
@@ -596,7 +624,7 @@ export async function setEmployerApplicationStatus(
       status,
     });
   }
-  return changed;
+  return { changed, previousStatus: changed ? (before?.status ?? null) : null };
 }
 
 // ---------------------------------------------------------------------------
@@ -640,6 +668,56 @@ export async function updateEmployerCompany(
   const changed = result.affectedRows > 0;
   if (changed) await logEmployerActivity(actorUserId, 'company', companyId, 'employer_update');
   return changed;
+}
+
+/**
+ * The candidate to email when this company marks their application as
+ * contacted (N3), or null when there is nobody to tell.
+ *
+ * Null covers four cases and deliberately does not distinguish them: the
+ * application is not this company's, it is an anonymous lead with no account,
+ * the account is gone or deactivated, or the candidate opted out. A caller that
+ * could tell them apart would be a caller that could be asked which one it was.
+ *
+ * This reads a candidate's name and address from inside lib/db/employer.ts,
+ * which AGENTS.md permits precisely here: "the candidate profile and CV
+ * attached to that company's own applications". The scoping is what makes it
+ * true, so it is in the WHERE clause, not in a comment.
+ */
+export async function getStatusChangeNotificationTarget(
+  companyId: number,
+  applicationId: number,
+): Promise<{ email: string; name: string; jobTitle: string; companyName: string } | null> {
+  const db = await getDb();
+
+  const [row] = await db
+    .select({
+      email: candidates.email,
+      name: candidates.name,
+      isActive: candidates.isActive,
+      notifyOnStatusChange: candidates.notifyOnStatusChange,
+      jobTitle: jobs.title,
+      companyName: companies.name,
+    })
+    .from(applications)
+    .innerJoin(candidates, eq(applications.candidateId, candidates.id))
+    .innerJoin(jobs, eq(applications.jobId, jobs.id))
+    .innerJoin(companies, eq(jobs.companyId, companies.id))
+    .where(
+      and(
+        eq(applications.id, applicationId),
+        inArray(applications.jobId, ownedJobIds(companyId)),
+      ),
+    )
+    .limit(1);
+
+  if (!row || !row.isActive || !row.notifyOnStatusChange) return null;
+  return {
+    email: row.email,
+    name: row.name,
+    jobTitle: row.jobTitle,
+    companyName: row.companyName,
+  };
 }
 
 /**

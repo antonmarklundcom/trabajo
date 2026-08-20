@@ -78,6 +78,13 @@
       "when": 1787217672446,
       "tag": "0010_worthless_miracleman",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1787218080854,
+      "tag": "0011_chemical_luckman",
+      "breakpoints": true
     }
   ]
 }

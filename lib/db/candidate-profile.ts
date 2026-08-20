@@ -149,6 +149,7 @@ export type CandidateProfileInput = {
   phone: string;
   cityId: number | null;
   headline: string | null;
+  notifyOnStatusChange: boolean;
 };
 
 /**

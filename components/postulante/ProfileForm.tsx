@@ -9,6 +9,7 @@ type Props = {
     phone: string;
     cityId: number | null;
     headline: string | null;
+    notifyOnStatusChange: boolean;
   };
   cities: { id: number; name: string }[];
 };
@@ -19,6 +20,7 @@ export default function ProfileForm({ initial, cities }: Props) {
   const [phone, setPhone] = useState(initial.phone);
   const [cityId, setCityId] = useState(initial.cityId ? String(initial.cityId) : '');
   const [headline, setHeadline] = useState(initial.headline ?? '');
+  const [notifyOnStatusChange, setNotifyOnStatusChange] = useState(initial.notifyOnStatusChange);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -37,6 +39,7 @@ export default function ProfileForm({ initial, cities }: Props) {
           phone,
           cityId: cityId ? Number(cityId) : null,
           headline: headline.trim() ? headline.trim() : null,
+          notifyOnStatusChange,
         }),
       });
       const data = await res.json();
@@ -106,6 +109,23 @@ export default function ProfileForm({ initial, cities }: Props) {
             </option>
           ))}
         </select>
+      </div>
+
+      <div>
+        <label className="flex items-start gap-3 text-sm text-[#1E1B17]">
+          <input
+            type="checkbox"
+            checked={notifyOnStatusChange}
+            onChange={(e) => setNotifyOnStatusChange(e.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-[#E7E1D6] accent-[#C0362A]"
+          />
+          <span>
+            Avisarme por correo cuando una empresa quiera contactarme
+            <span className="block text-xs text-[#8A8378] mt-0.5">
+              Es el único aviso que mandamos sobre tus postulaciones.
+            </span>
+          </span>
+        </label>
       </div>
 
       {error && (
