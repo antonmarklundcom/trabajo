@@ -11,6 +11,8 @@ import CompanyAvatar from '@/components/CompanyAvatar';
 import ApplySection from '@/components/postulante/ApplySection';
 import SaveJobSection from '@/components/postulante/SaveJobSection';
 import { candidateAccountsEnabled } from '@/lib/flags';
+import JobCard from '@/components/JobCard';
+import type { Job } from '@/lib/types';
 
 // Cached reads are invalidated on demand by every admin mutation
 // (lib/cache.ts), so this timer is only the safety net for job expiry and
@@ -49,6 +51,16 @@ export default async function JobDetailPage({ params }: { params: Params }) {
     getCategory(job.categorySlug),
     getCity(job.citySlug),
   ]);
+
+  // U3 — "empleos similares". Read through lib/data.ts like every other job
+  // read on this page, so it follows DATA_SOURCE and the visibility predicate
+  // rather than reimplementing either.
+  //
+  // Category first, city as the FALLBACK rather than as a second filter: an
+  // AND of both is empty for most postings outside Asunción, and an empty
+  // block is what this is trying not to be. Nothing here reads candidate or
+  // application data — it is the same public catalogue the page above it is.
+  const similarJobs = await findSimilarJobs(job);
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://trabajo.com.py';
   const jobUrl = `${siteUrl}/empleos/${job.slug}`;
@@ -226,6 +238,19 @@ export default async function JobDetailPage({ params }: { params: Params }) {
               url={jobUrl}
               className="mt-6"
             />
+
+            {/* Omitted entirely when empty — an "Empleos similares" heading
+                over nothing reads as a broken page. */}
+            {similarJobs.length > 0 && (
+              <div className="mt-10">
+                <h2 className="text-lg font-bold text-[#1E1B17] mb-4">Empleos similares</h2>
+                <div className="flex flex-col gap-4">
+                  {similarJobs.map((similar) => (
+                    <JobCard key={similar.slug} job={similar} />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Sidebar: Apply */}
@@ -327,4 +352,26 @@ function ContractIcon() {
 }
 function ModalityIcon() {
   return <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/></svg>;
+}
+
+const SIMILAR_JOBS_LIMIT = 5;
+
+/**
+ * Up to five other published jobs to show under this one.
+ *
+ * `getJobs` has no limit parameter — it returns a page — so the current job is
+ * filtered out of the page BEFORE the slice. Slicing first would have shown
+ * four whenever this job was among the five most recent in its own category,
+ * which is exactly when a new posting is being read.
+ *
+ * The city query only runs when the category produced nothing, so the common
+ * case is one read, and both go through the cached seam.
+ */
+async function findSimilarJobs(job: Job): Promise<Job[]> {
+  const byCategory = await getJobs({ categoria: job.categorySlug, orden: 'recientes' });
+  const fromCategory = byCategory.jobs.filter((j) => j.slug !== job.slug);
+  if (fromCategory.length > 0) return fromCategory.slice(0, SIMILAR_JOBS_LIMIT);
+
+  const byCity = await getJobs({ ciudad: job.citySlug, orden: 'recientes' });
+  return byCity.jobs.filter((j) => j.slug !== job.slug).slice(0, SIMILAR_JOBS_LIMIT);
 }
