@@ -9,7 +9,7 @@ import {
 } from '@/lib/blog';
 import { getJobs } from '@/lib/data';
 import JobCard from '@/components/JobCard';
-import CopyLinkButton from '@/components/blog/CopyLinkButton';
+import ShareLinks from '@/components/ShareLinks';
 
 type Params = Promise<{ slug: string }>;
 
@@ -166,28 +166,7 @@ export default async function BlogPostPage({ params }: { params: Params }) {
           />
         </article>
 
-        <div className="mt-6 bg-white rounded-[10px] border border-[#E7E1D6] p-6">
-          <h2 className="text-sm font-bold text-[#1E1B17] mb-3">Compartir</h2>
-          <div className="flex flex-wrap gap-4 text-sm">
-            <a
-              href={`https://wa.me/?text=${encodeURIComponent(`${post.title} ${postUrl}`)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[#C0362A] font-medium hover:underline"
-            >
-              WhatsApp
-            </a>
-            <a
-              href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(postUrl)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[#C0362A] font-medium hover:underline"
-            >
-              Facebook
-            </a>
-            <CopyLinkButton url={postUrl} />
-          </div>
-        </div>
+        <ShareLinks title={post.title} url={postUrl} className="mt-6" />
 
         {relatedJobs.length > 0 && (
           <div className="mt-10">
