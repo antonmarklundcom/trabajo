@@ -85,6 +85,13 @@
       "when": 1787218080854,
       "tag": "0011_chemical_luckman",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1787221659486,
+      "tag": "0012_premium_spot",
+      "breakpoints": true
     }
   ]
 }

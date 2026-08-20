@@ -309,7 +309,19 @@ async function main() {
 
   if (failures > 0) {
     console.error(`\n${failures} candidate deletion(s) FAILED and were left in place. See the errors above.`);
+    // Deliberately NOT stamped: a run that left candidates in place has not
+    // completed, and recording it would make /admin report the one thing this
+    // stamp exists to contradict — that the sweep is current when it is not.
     process.exit(1);
+  }
+
+  // O2 (PLAN-NEXT.md §3). Only on --apply, and only here, after everything
+  // succeeded: a dry run must not claim a purge happened, since a dry run is
+  // exactly what someone does when they are not sure whether to.
+  if (apply) {
+    const { recordPurgeRun } = await import('../lib/db/ops-state');
+    await recordPurgeRun(new Date());
+    console.log('\n  run recorded in ops_state — /admin will show it as current.');
   }
 
   process.exit(0);

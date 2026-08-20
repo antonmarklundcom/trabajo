@@ -726,3 +726,27 @@ export const blogPostRedirects = mysqlTable(
   },
   (table) => [index('post_idx').on(table.postId)],
 );
+
+// ---------------------------------------------------------------------------
+// ops_state
+//
+// A tiny key/value table for facts about OPERATING the site rather than about
+// its content: right now, when the retention sweep last completed
+// (PLAN-NEXT.md §3 O2).
+//
+// Hostinger gives us no cron, so `db:purge` is a script someone runs monthly.
+// Nothing recorded that it had happened, which meant a missed month looked
+// exactly like a done month — and the thing being missed is a deletion the
+// privacy policy promises. This makes the omission visible on /admin.
+//
+// Key/value rather than a one-row table with a named column: the next
+// operational timestamp (a backup, a restore rehearsal) is a row here instead
+// of a migration. It references no other table, so it has no place in the
+// dependency registry of scripts/verify-cascades.ts.
+// ---------------------------------------------------------------------------
+
+export const opsState = mysqlTable('ops_state', {
+  stateKey: varchar('state_key', { length: 64 }).primaryKey(),
+  value: varchar('value', { length: 255 }).notNull(),
+  updatedAt: datetime('updated_at').notNull(),
+});
