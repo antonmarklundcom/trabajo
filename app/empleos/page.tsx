@@ -6,6 +6,8 @@ import JobCard from '@/components/JobCard';
 import FilterPanel from '@/components/FilterPanel';
 import SortControl from '@/components/SortControl';
 import SearchBar from '@/components/SearchBar';
+import Pagination from '@/components/Pagination';
+import { JOBS_PAGE_SIZE } from '@/lib/pagination';
 
 // Cached reads are invalidated on demand by every admin mutation
 // (lib/cache.ts), so this timer is only the safety net for job expiry and
@@ -13,6 +15,7 @@ import SearchBar from '@/components/SearchBar';
 export const revalidate = 300;
 
 type SearchParams = { [key: string]: string | string[] | undefined };
+
 
 function param(sp: SearchParams, key: string): string | undefined {
   const v = sp[key];
@@ -142,64 +145,15 @@ export default async function EmpleosPage({
             )}
           </div>
 
-          {/* Pagination */}
-          {total > 20 && (
-            <Pagination
-              currentPage={filters.page ?? 1}
-              total={total}
-              pageSize={20}
-              searchParams={sp}
-            />
-          )}
+          {/* Pagination — the component renders nothing on a single page. */}
+          <Pagination
+            basePath="/empleos"
+            currentPage={filters.page ?? 1}
+            totalPages={Math.ceil(total / JOBS_PAGE_SIZE)}
+            searchParams={sp}
+          />
         </div>
       </div>
-    </div>
-  );
-}
-
-function Pagination({
-  currentPage,
-  total,
-  pageSize,
-  searchParams,
-}: {
-  currentPage: number;
-  total: number;
-  pageSize: number;
-  searchParams: SearchParams;
-}) {
-  const totalPages = Math.ceil(total / pageSize);
-
-  function pageUrl(page: number) {
-    const params = new URLSearchParams();
-    for (const [k, v] of Object.entries(searchParams)) {
-      if (typeof v === 'string') params.set(k, v);
-    }
-    params.set('page', String(page));
-    return `/empleos?${params.toString()}`;
-  }
-
-  return (
-    <div className="mt-8 flex items-center justify-center gap-2">
-      {currentPage > 1 && (
-        <a
-          href={pageUrl(currentPage - 1)}
-          className="px-4 py-2 rounded-[10px] border border-[#E7E1D6] text-sm font-medium text-[#1E1B17] hover:border-[#C0362A] hover:text-[#C0362A] transition-colors"
-        >
-          ← Anterior
-        </a>
-      )}
-      <span className="text-sm text-[#57514A]">
-        Página {currentPage} de {totalPages}
-      </span>
-      {currentPage < totalPages && (
-        <a
-          href={pageUrl(currentPage + 1)}
-          className="px-4 py-2 rounded-[10px] border border-[#E7E1D6] text-sm font-medium text-[#1E1B17] hover:border-[#C0362A] hover:text-[#C0362A] transition-colors"
-        >
-          Siguiente →
-        </a>
-      )}
     </div>
   );
 }

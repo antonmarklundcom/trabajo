@@ -3,13 +3,14 @@ import { unstable_cache } from 'next/cache';
 import { db } from './index';
 import { categories, cities, companies, jobImages, jobs } from './schema';
 import { CACHE_TAGS, PUBLIC_CACHE_TTL_SECONDS } from '../cache-tags';
+import { JOBS_PAGE_SIZE as PAGE_SIZE } from '../pagination';
 import { cachedOrRaw } from '../cached-or-raw';
 import { imagePublicUrl } from '../image-storage';
 import { companyLogoSrc } from '../company-logo';
 import type { Job, Category, City, JobFilters } from '../types';
 import { isCacheable } from './job-cache-key';
 
-const PAGE_SIZE = 20;
+
 
 // ---------------------------------------------------------------------------
 // The single visibility predicate. Every public query must use this — a
