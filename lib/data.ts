@@ -1,4 +1,5 @@
 import type { Job, Category, City, JobFilters } from './types';
+import { JOBS_PAGE_SIZE as PAGE_SIZE } from './pagination';
 
 // Seed imports — used when DATA_SOURCE !== 'db'
 import rawJobs from './seed/jobs.json';
@@ -102,7 +103,6 @@ function sortJobs(jobs: Job[], orden: JobFilters['orden']): Job[] {
 async function seedGetJobs(
   filters: JobFilters,
 ): Promise<{ jobs: Job[]; total: number }> {
-  const PAGE_SIZE = 20;
   const page = filters.page ?? 1;
 
   const matched = seedJobs.filter((j) => matchesFilters(j, filters));
