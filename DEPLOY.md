@@ -113,6 +113,34 @@ here (it has drifted before).
 match the seed files, so a broken upsert key shows up as a failure rather than
 as silently duplicated jobs.
 
+### Account scripts
+
+Two scripts create or repair accounts. Both prompt for the password rather than
+taking it as an argument — argv lands in shell history and in the process list —
+and both print the host and database before writing.
+
+```bash
+npm run user:create   -- --email a@b.py --name "Ana" --role admin
+npm run user:password -- --email a@b.py              # change a staff password
+npm run user:password -- --email a@b.py --activate   # ...and re-enable the account
+npm run candidate:create -- --email a@b.py --name "Ana" --phone 0981234567
+```
+
+`user:password` is the staff password-reset flow: an admin runs it out of band
+(`ARCHITECTURE.md` §5). There is deliberately no self-serve reset for staff or
+employer accounts — E1 built one for **candidates only**, because those accounts
+are created by the person themselves, while staff and employer accounts are
+provisioned by the team. `--activate` also clears the disabled flag set from
+`/admin/usuarios`, which is the one way back for an account locked out by
+mistake.
+
+`candidate:create` is **local development and testing only** — it refuses to run
+against a non-local database. It writes a `consents` row alongside the candidate
+with `policy_version = "script"`, not because a command-line flag is consent but
+because a candidate with no consent row is an impossible state in production,
+and test data modelling an impossible state hides bugs in every query that
+assumes the pair exists. The marker makes such rows greppable.
+
 ### `npm run blog:import` — the one-time Väg A → Väg B cutover
 
 Articles used to be Markdown files in `content/blog/`; since 2026-08-12 they are

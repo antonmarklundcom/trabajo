@@ -142,3 +142,12 @@ jobs:
       # that escaped text stays visible instead of being dropped.
       - name: Verify job description rendering
         run: npm run jobs:verify
+
+      # The half of seed↔DB parity that does not need a database. `db:parity`
+      # compares the two read paths' output, but only against a populated DB and
+      # only for the tie cases lib/seed/jobs.json happens to contain — so a
+      # dropped sort key can produce identical output and pass. This pins the DB
+      # path's ORDER BY as the source of truth and evaluates the seed path's
+      # output against those keys directly.
+      - name: Verify seed and DB sort keys
+        run: npm run sort:verify

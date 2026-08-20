@@ -39,27 +39,60 @@ function matchesFilters(job: Job, filters: JobFilters): boolean {
   return true;
 }
 
+// The seed path's stand-in for `jobs.id`. scripts/seed-import.ts inserts
+// lib/seed/jobs.json in file order, so the auto-increment id ascends with the
+// array index — which makes the index the seed-side equivalent of the
+// `asc(jobs.id)` that ends every ORDER BY in lib/db/queries.ts. Stated here
+// because it is an assumption about a different file, and an unstated
+// assumption is what the sort drift in PLAN-PHASE3-DRAFT.md §12.1 was made of.
+const seedOrder = new Map(seedJobs.map((job, index) => [job.slug, index]));
+
+function seedIndex(job: Job): number {
+  return seedOrder.get(job.slug) ?? Number.MAX_SAFE_INTEGER;
+}
+
+/** 0 for a live featured job, 1 otherwise — mirrors `isFeaturedSql()`. */
+function featuredRank(job: Job): number {
+  return isFeatured(job) ? 0 : 1;
+}
+
+/**
+ * Seed-side ORDER BY, mirroring lib/db/queries.ts key for key.
+ *
+ * The DB path is the source of truth (PLAN-PHASE3-DRAFT.md §13.4 B7) and has
+ * exactly two orderings:
+ *
+ *   orden=salario   desc(COALESCE(salary_min, 0)), asc(is_featured), asc(id)
+ *   everything else asc(is_featured), desc(published_at), asc(id)
+ *
+ * The previous version reached the same result for `salario` by concatenating
+ * `[...featured, ...regular]` and relying on `Array.prototype.sort` being
+ * stable. That was correct and invisible: nothing said the featured-first
+ * grouping was a sort key, so any later edit that sorted the whole array first
+ * would have silently dropped it, and `db:parity` only catches that if the seed
+ * fixture happens to contain a salary tie between a featured and a regular job.
+ * The keys are written out now instead of emerging from an ordering property of
+ * two lines further up.
+ */
 function sortJobs(jobs: Job[], orden: JobFilters['orden']): Job[] {
-  const featured = jobs.filter(isFeatured);
-  const regular = jobs.filter((j) => !isFeatured(j));
-
-  const byDate = (a: Job, b: Job) =>
-    new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime();
-
-  const bySalary = (a: Job, b: Job) => {
-    const sa = a.salaryMin ?? 0;
-    const sb = b.salaryMin ?? 0;
-    return sb - sa;
-  };
-
-  if (orden === 'destacados') {
-    return [...featured.sort(byDate), ...regular.sort(byDate)];
-  }
   if (orden === 'salario') {
-    return [...featured, ...regular].sort(bySalary);
+    return [...jobs].sort(
+      (a, b) =>
+        (b.salaryMin ?? 0) - (a.salaryMin ?? 0) ||
+        featuredRank(a) - featuredRank(b) ||
+        seedIndex(a) - seedIndex(b),
+    );
   }
-  // default: 'recientes' or 'relevancia' — featured float to top, then by date
-  return [...featured.sort(byDate), ...regular.sort(byDate)];
+
+  // 'recientes', 'destacados' and 'relevancia' all land here, exactly as they
+  // all land in the DB path's else branch — `destacados` floats featured jobs
+  // to the top rather than filtering the rest out.
+  return [...jobs].sort(
+    (a, b) =>
+      featuredRank(a) - featuredRank(b) ||
+      new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime() ||
+      seedIndex(a) - seedIndex(b),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -84,12 +117,23 @@ async function seedGetJob(slug: string): Promise<Job | null> {
 }
 
 async function seedGetFeaturedJobs(limit = 6): Promise<Job[]> {
-  return seedJobs.filter(isFeatured).slice(0, limit);
+  // `asc(jobs.id)` on the DB side. `filter` already preserves file order, so
+  // this sort changes nothing today — it states the key rather than inheriting
+  // it from how the array happens to be built.
+  return seedJobs
+    .filter(isFeatured)
+    .sort((a, b) => seedIndex(a) - seedIndex(b))
+    .slice(0, limit);
 }
 
 async function seedGetRecentJobs(limit = 8): Promise<Job[]> {
+  // `desc(jobs.published_at), asc(jobs.id)`. No featured float on either side.
   return [...seedJobs]
-    .sort((a, b) => new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime())
+    .sort(
+      (a, b) =>
+        new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime() ||
+        seedIndex(a) - seedIndex(b),
+    )
     .slice(0, limit);
 }
 
