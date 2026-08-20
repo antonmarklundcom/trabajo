@@ -171,6 +171,13 @@ npm run db:purge -- --apply   # executes it
 npm run db:purge -- --verbose # list every affected id, not the first 25
 ```
 
+A successful `--apply` run stamps `ops_state.last_purge_run`, and `/admin`
+shows it as "Última depuración". It turns red past 35 days, or if the sweep has
+never run — so a missed month is visible on the panel instead of only in
+someone's memory. A run that reports failed deletions is deliberately NOT
+stamped: it did not complete, and the card staying red is the correct answer.
+
+
 **Dry run is the default and `--apply` is required to change anything.** Read
 the dry run before you pass `--apply`: both runs use the same queries and the
 same cutoffs, so the list you read is the list that gets acted on. It prints ids

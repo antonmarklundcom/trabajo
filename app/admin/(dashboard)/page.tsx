@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getDashboardStats } from '@/lib/db/admin';
+import { daysSince, getLastPurgeRun, PURGE_STALE_AFTER_DAYS } from '@/lib/db/ops-state';
 
 export const metadata: Metadata = { title: 'Panel — trabajo.com.py' };
 
@@ -29,7 +30,7 @@ const ENTITY_LABELS: Record<string, string> = {
 };
 
 export default async function AdminDashboardPage() {
-  const stats = await getDashboardStats();
+  const [stats, lastPurgeRun] = await Promise.all([getDashboardStats(), getLastPurgeRun()]);
 
   return (
     <div className="space-y-8">
@@ -52,6 +53,8 @@ export default async function AdminDashboardPage() {
         />
         <StatCard label="Empresas" value={stats.companyCount} href="/admin/empresas" />
       </div>
+
+      <PurgeStatus lastRun={lastPurgeRun} />
 
       <div className="bg-white rounded-[10px] border border-[#E7E1D6]">
         <div className="px-5 py-4 border-b border-[#E7E1D6]">
@@ -77,6 +80,53 @@ export default async function AdminDashboardPage() {
           </ul>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * "Última depuración" (PLAN-NEXT.md §3 O2).
+ *
+ * Hostinger has no cron, so `npm run db:purge -- --apply` is a monthly chore a
+ * person does by hand — and until now a missed month looked exactly like a done
+ * month. What gets missed is a deletion /privacidad promises, so the panel says
+ * so out loud rather than waiting for someone to wonder.
+ *
+ * No external service and no cron dependency, per the brief: this reads one row
+ * the script itself wrote.
+ */
+function PurgeStatus({ lastRun }: { lastRun: Date | null }) {
+  const days = daysSince(lastRun);
+  const overdue = days === null || days > PURGE_STALE_AFTER_DAYS;
+
+  return (
+    <div
+      className={`rounded-[10px] border p-5 ${
+        overdue ? 'border-[#C0362A] bg-[#FBECE9]' : 'border-[#E7E1D6] bg-white'
+      }`}
+    >
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-sm text-[#57514A]">Última depuración de datos</p>
+        {overdue && (
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-[#C0362A] text-white">
+            Pendiente
+          </span>
+        )}
+      </div>
+      <p className={`text-base font-semibold mt-1 ${overdue ? 'text-[#C0362A]' : 'text-[#1E1B17]'}`}>
+        {lastRun === null
+          ? 'Nunca se ejecutó'
+          : `${lastRun.toLocaleDateString('es-PY', { year: 'numeric', month: 'long', day: 'numeric' })} (hace ${days} día${days === 1 ? '' : 's'})`}
+      </p>
+      {overdue && (
+        <p className="text-sm text-[#57514A] mt-1">
+          La política de privacidad promete eliminar los datos inactivos. Ejecutá{' '}
+          <code className="px-1 py-0.5 rounded bg-white border border-[#E7E1D6] text-xs">
+            npm run db:purge -- --apply
+          </code>{' '}
+          desde tu máquina.
+        </p>
+      )}
     </div>
   );
 }
