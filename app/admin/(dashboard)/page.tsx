@@ -35,8 +35,8 @@ export default async function AdminDashboardPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-[#1E1B17]">Panel</h1>
-        <p className="text-sm text-[#57514A] mt-1">Resumen de la actividad del sitio.</p>
+        <h1 className="text-2xl font-bold text-ink">Panel</h1>
+        <p className="text-sm text-ink-secondary mt-1">Resumen de la actividad del sitio.</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -56,22 +56,22 @@ export default async function AdminDashboardPage() {
 
       <PurgeStatus lastRun={lastPurgeRun} />
 
-      <div className="bg-white rounded-[10px] border border-[#E7E1D6]">
-        <div className="px-5 py-4 border-b border-[#E7E1D6]">
-          <h2 className="font-semibold text-[#1E1B17]">Actividad reciente</h2>
+      <div className="bg-white rounded-[10px] border border-border">
+        <div className="px-5 py-4 border-b border-border">
+          <h2 className="font-semibold text-ink">Actividad reciente</h2>
         </div>
         {stats.recentActivity.length === 0 ? (
-          <p className="px-5 py-8 text-center text-sm text-[#57514A]">
+          <p className="px-5 py-8 text-center text-sm text-ink-secondary">
             Todavía no hay actividad registrada.
           </p>
         ) : (
-          <ul className="divide-y divide-[#E7E1D6]">
+          <ul className="divide-y divide-border">
             {stats.recentActivity.map((item) => (
-              <li key={item.id} className="px-5 py-3 text-sm text-[#1E1B17]">
+              <li key={item.id} className="px-5 py-3 text-sm text-ink">
                 <span className="font-medium">{item.actorName ?? 'Sistema'}</span>{' '}
                 {ACTION_LABELS[item.action] ?? item.action}{' '}
                 {ENTITY_LABELS[item.entityType] ?? item.entityType} #{item.entityId}
-                <span className="text-[#8A8378]">
+                <span className="text-ink-3">
                   {' · '}
                   {new Date(item.createdAt).toLocaleString('es-PY')}
                 </span>
@@ -102,26 +102,26 @@ function PurgeStatus({ lastRun }: { lastRun: Date | null }) {
   return (
     <div
       className={`rounded-[10px] border p-5 ${
-        overdue ? 'border-[#C0362A] bg-[#FBECE9]' : 'border-[#E7E1D6] bg-white'
+        overdue ? 'border-brand bg-brand-tint' : 'border-border bg-white'
       }`}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-sm text-[#57514A]">Última depuración de datos</p>
+        <p className="text-sm text-ink-secondary">Última depuración de datos</p>
         {overdue && (
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-[#C0362A] text-white">
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-brand text-white">
             Pendiente
           </span>
         )}
       </div>
-      <p className={`text-base font-semibold mt-1 ${overdue ? 'text-[#C0362A]' : 'text-[#1E1B17]'}`}>
+      <p className={`text-base font-semibold mt-1 ${overdue ? 'text-brand' : 'text-ink'}`}>
         {lastRun === null
           ? 'Nunca se ejecutó'
           : `${lastRun.toLocaleDateString('es-PY', { year: 'numeric', month: 'long', day: 'numeric' })} (hace ${days} día${days === 1 ? '' : 's'})`}
       </p>
       {overdue && (
-        <p className="text-sm text-[#57514A] mt-1">
+        <p className="text-sm text-ink-secondary mt-1">
           La política de privacidad promete eliminar los datos inactivos. Ejecutá{' '}
-          <code className="px-1 py-0.5 rounded bg-white border border-[#E7E1D6] text-xs">
+          <code className="px-1 py-0.5 rounded bg-white border border-border text-xs">
             npm run db:purge -- --apply
           </code>{' '}
           desde tu máquina.
@@ -147,12 +147,12 @@ function StatCard({
       href={href}
       className={`block rounded-[10px] border p-5 transition-colors ${
         highlight
-          ? 'border-[#C0362A]/30 bg-[#FBECE9] hover:border-[#C0362A]'
-          : 'border-[#E7E1D6] bg-white hover:border-[#D8D0C2]'
+          ? 'border-brand/30 bg-brand-tint hover:border-brand'
+          : 'border-border bg-white hover:border-border-strong'
       }`}
     >
-      <p className="text-sm text-[#57514A]">{label}</p>
-      <p className="text-3xl font-bold text-[#1E1B17] mt-1">{value}</p>
+      <p className="text-sm text-ink-secondary">{label}</p>
+      <p className="text-3xl font-bold text-ink mt-1">{value}</p>
     </Link>
   );
 }

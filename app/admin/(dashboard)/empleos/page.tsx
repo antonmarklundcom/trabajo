@@ -33,12 +33,12 @@ export default async function AdminEmpleosPage({
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-[#1E1B17]">Empleos</h1>
-          <p className="text-sm text-[#57514A] mt-1">{total} empleo(s)</p>
+          <h1 className="text-2xl font-bold text-ink">Empleos</h1>
+          <p className="text-sm text-ink-secondary mt-1">{total} empleo(s)</p>
         </div>
         <Link
           href="/admin/empleos/nuevo"
-          className="px-4 py-2.5 rounded-[10px] bg-[#C0362A] hover:bg-[#9E2A20] text-white text-sm font-semibold transition-colors"
+          className="px-4 py-2.5 rounded-[10px] bg-brand hover:bg-brand-hover text-white text-sm font-semibold transition-colors"
         >
           + Nuevo empleo
         </Link>
@@ -46,10 +46,10 @@ export default async function AdminEmpleosPage({
 
       <EmpleosFilterBar status={statusParam ?? ''} q={q} />
 
-      <div className="bg-white rounded-[10px] border border-[#E7E1D6] overflow-x-auto">
+      <div className="bg-white rounded-[10px] border border-border overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-[#E7E1D6] text-left text-xs uppercase tracking-wider text-[#57514A]">
+            <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-ink-secondary">
               <th className="px-4 py-3 font-medium">Título</th>
               <th className="px-4 py-3 font-medium">Empresa</th>
               <th className="px-4 py-3 font-medium">Categoría / Ciudad</th>
@@ -58,44 +58,44 @@ export default async function AdminEmpleosPage({
               <th className="px-4 py-3 font-medium">Actualizado</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#E7E1D6]">
+          <tbody className="divide-y divide-border">
             {jobs.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-[#57514A]">
+                <td colSpan={6} className="px-4 py-10 text-center text-ink-secondary">
                   No se encontraron empleos con esos filtros.
                 </td>
               </tr>
             ) : (
               jobs.map((job) => (
-                <tr key={job.id} className="hover:bg-[#F5F1EA]">
+                <tr key={job.id} className="hover:bg-surface-2">
                   <td className="px-4 py-3">
                     <Link
                       href={`/admin/empleos/${job.id}`}
-                      className="font-medium text-[#1E1B17] hover:text-[#C0362A]"
+                      className="font-medium text-ink hover:text-brand"
                     >
                       {job.title}
                     </Link>
                   </td>
-                  <td className="px-4 py-3 text-[#57514A]">{job.company}</td>
-                  <td className="px-4 py-3 text-[#57514A]">
+                  <td className="px-4 py-3 text-ink-secondary">{job.company}</td>
+                  <td className="px-4 py-3 text-ink-secondary">
                     {job.category} · {job.city}
                   </td>
                   <td className="px-4 py-3">
                     <StatusBadge status={job.status} />
                   </td>
-                  <td className="px-4 py-3 text-[#57514A]">
+                  <td className="px-4 py-3 text-ink-secondary">
                     {job.applicantCount > 0 ? (
                       <Link
                         href={`/admin/postulaciones?job=${job.id}`}
-                        className="hover:text-[#C0362A] font-medium"
+                        className="hover:text-brand font-medium"
                       >
                         {job.applicantCount}
                       </Link>
                     ) : (
-                      <span className="text-[#8A8378]">0</span>
+                      <span className="text-ink-3">0</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-[#8A8378]">
+                  <td className="px-4 py-3 text-ink-3">
                     {new Date(job.createdAt).toLocaleDateString('es-PY')}
                   </td>
                 </tr>
@@ -118,8 +118,8 @@ export default async function AdminEmpleosPage({
                 href={`/admin/empleos?${params.toString()}`}
                 className={`w-9 h-9 flex items-center justify-center rounded-[10px] text-sm font-medium transition-colors ${
                   p === page
-                    ? 'bg-[#C0362A] text-white'
-                    : 'bg-white border border-[#E7E1D6] text-[#57514A] hover:border-[#C0362A]'
+                    ? 'bg-brand text-white'
+                    : 'bg-white border border-border text-ink-secondary hover:border-brand'
                 }`}
               >
                 {p}

@@ -20,8 +20,8 @@ export default async function EmpresaDashboardPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-[#1E1B17]">Panel</h1>
-        <p className="text-sm text-[#57514A] mt-1">Resumen de tu actividad en trabajo.com.py.</p>
+        <h1 className="text-2xl font-bold text-ink">Panel</h1>
+        <p className="text-sm text-ink-secondary mt-1">Resumen de tu actividad en trabajo.com.py.</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -75,12 +75,12 @@ function StatCard({
       href={href}
       className={`block rounded-[10px] border p-5 transition-colors ${
         highlight
-          ? 'border-[#C0362A]/30 bg-[#FBECE9] hover:border-[#C0362A]'
-          : 'border-[#E7E1D6] bg-white hover:border-[#D8D0C2]'
+          ? 'border-brand/30 bg-brand-tint hover:border-brand'
+          : 'border-border bg-white hover:border-border-strong'
       }`}
     >
-      <p className="text-sm text-[#57514A]">{label}</p>
-      <p className="text-3xl font-bold text-[#1E1B17] mt-1">{value}</p>
+      <p className="text-sm text-ink-secondary">{label}</p>
+      <p className="text-3xl font-bold text-ink mt-1">{value}</p>
     </Link>
   );
 }

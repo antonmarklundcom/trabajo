@@ -37,7 +37,7 @@ export default function CompanyAvatar({ company, logo, size = 48, className = ''
   if (logo) {
     return (
       <div
-        className={`flex-shrink-0 overflow-hidden border border-[#E7E1D6] bg-white ${className}`}
+        className={`flex-shrink-0 overflow-hidden border border-border bg-white ${className}`}
         style={{ width: size, height: size, borderRadius: radius }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -38,32 +38,32 @@ export default async function EditarEmpresaPage({
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-[#1E1B17] mb-6">Editar empresa</h1>
-      <div className="bg-white rounded-[10px] border border-[#E7E1D6] p-6 sm:p-8 max-w-2xl">
+      <h1 className="text-2xl font-bold text-ink mb-6">Editar empresa</h1>
+      <div className="bg-white rounded-[10px] border border-border p-6 sm:p-8 max-w-2xl">
         <CompanyForm initial={initial} />
       </div>
 
       {user.role === 'admin' && (
-        <div className="bg-white rounded-[10px] border border-[#E7E1D6] p-6 sm:p-8 max-w-2xl mt-6">
-          <h2 className="font-semibold text-[#1E1B17] mb-1">Acceso de la empresa</h2>
-          <p className="text-sm text-[#57514A] mb-4">
+        <div className="bg-white rounded-[10px] border border-border p-6 sm:p-8 max-w-2xl mt-6">
+          <h2 className="font-semibold text-ink mb-1">Acceso de la empresa</h2>
+          <p className="text-sm text-ink-secondary mb-4">
             Invitá a alguien de esta empresa a usar el panel de empleadores. El enlace vence a los 7
             días y solo puede usarse una vez.
           </p>
           <EmployerInvitationForm companyId={id} />
 
           {invitations.length > 0 && (
-            <ul className="divide-y divide-[#E7E1D6] mt-6">
+            <ul className="divide-y divide-border mt-6">
               {invitations.map((inv) => (
                 <li key={inv.id} className="py-3 text-sm flex items-center justify-between gap-4">
-                  <span className="text-[#1E1B17]">{inv.email}</span>
+                  <span className="text-ink">{inv.email}</span>
                   <span
                     className={`px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${
                       inv.acceptedAt
-                        ? 'bg-[#E8F3EC] text-[#2E7D50]'
+                        ? 'bg-success-tint text-success'
                         : new Date(inv.expiresAt) < new Date()
-                          ? 'bg-[#F5F1EA] text-[#8A8378]'
-                          : 'bg-[#FAF1DC] text-[#8F6620]'
+                          ? 'bg-surface-2 text-ink-3'
+                          : 'bg-gold-tint text-gold-strong'
                     }`}
                   >
                     {inv.acceptedAt

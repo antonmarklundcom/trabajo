@@ -92,7 +92,7 @@ export default function FilterPanel({ categories, cities, currentFilters }: Prop
       {hasActiveFilters && (
         <button
           onClick={clearAll}
-          className="text-xs text-[#C0362A] hover:underline font-medium"
+          className="text-xs text-brand hover:underline font-medium"
         >
           Limpiar filtros
         </button>
@@ -102,7 +102,7 @@ export default function FilterPanel({ categories, cities, currentFilters }: Prop
         <select
           value={currentFilters.categoria ?? ''}
           onChange={(e) => updateFilter('categoria', e.target.value)}
-          className="w-full px-3 py-2 rounded-[10px] border border-[#E7E1D6] text-sm text-[#1E1B17] bg-white focus:outline-none focus:border-[#C0362A] focus:ring-1 focus:ring-[#C0362A]"
+          className="w-full px-3 py-2 rounded-[10px] border border-border text-sm text-ink bg-white focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand"
         >
           <option value="">Todas</option>
           {categories.map((c) => (
@@ -117,7 +117,7 @@ export default function FilterPanel({ categories, cities, currentFilters }: Prop
         <select
           value={currentFilters.ciudad ?? ''}
           onChange={(e) => updateFilter('ciudad', e.target.value)}
-          className="w-full px-3 py-2 rounded-[10px] border border-[#E7E1D6] text-sm text-[#1E1B17] bg-white focus:outline-none focus:border-[#C0362A] focus:ring-1 focus:ring-[#C0362A]"
+          className="w-full px-3 py-2 rounded-[10px] border border-border text-sm text-ink bg-white focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand"
         >
           <option value="">Todas</option>
           {cities.map((c) => (
@@ -132,7 +132,7 @@ export default function FilterPanel({ categories, cities, currentFilters }: Prop
         <select
           value={currentFilters.tipo ?? ''}
           onChange={(e) => updateFilter('tipo', e.target.value)}
-          className="w-full px-3 py-2 rounded-[10px] border border-[#E7E1D6] text-sm text-[#1E1B17] bg-white focus:outline-none focus:border-[#C0362A] focus:ring-1 focus:ring-[#C0362A]"
+          className="w-full px-3 py-2 rounded-[10px] border border-border text-sm text-ink bg-white focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand"
         >
           <option value="">Todos</option>
           {CONTRATO_OPTIONS.map((o) => (
@@ -147,7 +147,7 @@ export default function FilterPanel({ categories, cities, currentFilters }: Prop
         <select
           value={currentFilters.nivel ?? ''}
           onChange={(e) => updateFilter('nivel', e.target.value)}
-          className="w-full px-3 py-2 rounded-[10px] border border-[#E7E1D6] text-sm text-[#1E1B17] bg-white focus:outline-none focus:border-[#C0362A] focus:ring-1 focus:ring-[#C0362A]"
+          className="w-full px-3 py-2 rounded-[10px] border border-border text-sm text-ink bg-white focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand"
         >
           <option value="">Todos</option>
           {NIVEL_OPTIONS.map((o) => (
@@ -162,7 +162,7 @@ export default function FilterPanel({ categories, cities, currentFilters }: Prop
         <select
           value={currentFilters.modalidad ?? ''}
           onChange={(e) => updateFilter('modalidad', e.target.value)}
-          className="w-full px-3 py-2 rounded-[10px] border border-[#E7E1D6] text-sm text-[#1E1B17] bg-white focus:outline-none focus:border-[#C0362A] focus:ring-1 focus:ring-[#C0362A]"
+          className="w-full px-3 py-2 rounded-[10px] border border-border text-sm text-ink bg-white focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand"
         >
           <option value="">Todas</option>
           {MODALIDAD_OPTIONS.map((o) => (
@@ -177,7 +177,7 @@ export default function FilterPanel({ categories, cities, currentFilters }: Prop
         <select
           value={currentFilters.salario_min ?? ''}
           onChange={(e) => updateFilter('salario_min', e.target.value)}
-          className="w-full px-3 py-2 rounded-[10px] border border-[#E7E1D6] text-sm text-[#1E1B17] bg-white focus:outline-none focus:border-[#C0362A] focus:ring-1 focus:ring-[#C0362A]"
+          className="w-full px-3 py-2 rounded-[10px] border border-border text-sm text-ink bg-white focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand"
         >
           <option value="">Sin mínimo</option>
           {SALARIO_OPTIONS.map((o) => (
@@ -196,22 +196,22 @@ export default function FilterPanel({ categories, cities, currentFilters }: Prop
       <div className="lg:hidden mb-4">
         <button
           onClick={() => setDrawerOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-[10px] border border-[#E7E1D6] bg-white text-sm font-medium text-[#1E1B17] hover:border-[#C0362A] transition-colors"
+          className="flex items-center gap-2 px-4 py-2 rounded-[10px] border border-border bg-white text-sm font-medium text-ink hover:border-brand transition-colors"
         >
           <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
           </svg>
           Filtros
           {hasActiveFilters && (
-            <span className="ml-1 w-2 h-2 rounded-full bg-[#C0362A]" aria-hidden="true" />
+            <span className="ml-1 w-2 h-2 rounded-full bg-brand" aria-hidden="true" />
           )}
         </button>
       </div>
 
       {/* Desktop sidebar */}
       <aside className="hidden lg:block w-64 flex-shrink-0">
-        <div className="bg-white rounded-[10px] border border-[#E7E1D6] p-5 sticky top-24">
-          <h2 className="text-sm font-semibold text-[#1E1B17] mb-4">Filtros</h2>
+        <div className="bg-white rounded-[10px] border border-border p-5 sticky top-24">
+          <h2 className="text-sm font-semibold text-ink mb-4">Filtros</h2>
           {filterContent}
         </div>
       </aside>
@@ -226,10 +226,10 @@ export default function FilterPanel({ categories, cities, currentFilters }: Prop
           />
           <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-xl p-6 lg:hidden max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="font-semibold text-[#1E1B17]">Filtros</h2>
+              <h2 className="font-semibold text-ink">Filtros</h2>
               <button
                 onClick={() => setDrawerOpen(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-full bg-[#F5F1EA] text-[#57514A] hover:bg-[#E7E1D6] transition-colors"
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-2 text-ink-secondary hover:bg-border transition-colors"
                 aria-label="Cerrar filtros"
               >
                 <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
@@ -240,7 +240,7 @@ export default function FilterPanel({ categories, cities, currentFilters }: Prop
             {filterContent}
             <button
               onClick={() => setDrawerOpen(false)}
-              className="mt-6 w-full py-3 rounded-[10px] bg-[#C0362A] text-white font-semibold hover:bg-[#9E2A20] transition-colors"
+              className="mt-6 w-full py-3 rounded-[10px] bg-brand text-white font-semibold hover:bg-brand-hover transition-colors"
             >
               Ver resultados
             </button>
@@ -260,7 +260,7 @@ function FilterSection({
 }) {
   return (
     <div>
-      <label className="block text-xs font-semibold uppercase tracking-wider text-[#57514A] mb-2">
+      <label className="block text-xs font-semibold uppercase tracking-wider text-ink-secondary mb-2">
         {label}
       </label>
       {children}

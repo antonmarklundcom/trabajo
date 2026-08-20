@@ -60,27 +60,27 @@ function BucketCard({
   note?: string;
 }) {
   return (
-    <div className="bg-white rounded-[10px] border border-[#E7E1D6] p-6">
+    <div className="bg-white rounded-[10px] border border-border p-6">
       <div className="flex items-baseline justify-between gap-4">
-        <h2 className="text-sm font-semibold text-[#1E1B17]">{title}</h2>
-        <span className="text-xs text-[#8A8378] whitespace-nowrap">{bucket.months} meses</span>
+        <h2 className="text-sm font-semibold text-ink">{title}</h2>
+        <span className="text-xs text-ink-3 whitespace-nowrap">{bucket.months} meses</span>
       </div>
-      <p className="mt-3 text-3xl font-bold text-[#1E1B17]">
+      <p className="mt-3 text-3xl font-bold text-ink">
         {bucket.count.toLocaleString('es-PY')}
       </p>
-      <p className="mt-1 text-xs text-[#8A8378]">{action}</p>
+      <p className="mt-1 text-xs text-ink-3">{action}</p>
       <dl className="mt-4 space-y-1.5 text-sm">
         <div className="flex justify-between gap-3">
-          <dt className="text-[#57514A]">{oldestLabel}</dt>
-          <dd className="font-medium text-[#1E1B17]">{fmtDate(bucket.oldest)}</dd>
+          <dt className="text-ink-secondary">{oldestLabel}</dt>
+          <dd className="font-medium text-ink">{fmtDate(bucket.oldest)}</dd>
         </div>
         <div className="flex justify-between gap-3">
-          <dt className="text-[#57514A]">Corte</dt>
-          <dd className="font-medium text-[#1E1B17]">{fmtDate(bucket.cutoff)}</dd>
+          <dt className="text-ink-secondary">Corte</dt>
+          <dd className="font-medium text-ink">{fmtDate(bucket.cutoff)}</dd>
         </div>
       </dl>
-      <p className="mt-3 text-xs text-[#57514A]">{trigger}</p>
-      {note && <p className="mt-2 text-xs text-[#C0362A]">{note}</p>}
+      <p className="mt-3 text-xs text-ink-secondary">{trigger}</p>
+      {note && <p className="mt-2 text-xs text-brand">{note}</p>}
     </div>
   );
 }
@@ -100,16 +100,16 @@ export default async function RetencionPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-[#1E1B17]">Retención de datos</h1>
-        <p className="text-sm text-[#57514A] mt-1">
+        <h1 className="text-2xl font-bold text-ink">Retención de datos</h1>
+        <p className="text-sm text-ink-secondary mt-1">
           Lo que borraría la próxima limpieza de retención. Solo cantidades y fechas: esta página no
           muestra nombres, correos ni identificadores de postulantes, y por eso no queda registrada
           en <span className="font-medium">Registros de acceso</span>.
         </p>
       </div>
 
-      <div className="bg-white rounded-[10px] border border-[#E7E1D6] p-6">
-        <p className="text-sm text-[#1E1B17]">
+      <div className="bg-white rounded-[10px] border border-border p-6">
+        <p className="text-sm text-ink">
           {totalDue === 0 ? (
             <>
               No hay nada pendiente de borrar en este momento. Los{' '}
@@ -124,7 +124,7 @@ export default async function RetencionPage() {
             </>
           )}
         </p>
-        <p className="mt-2 text-xs text-[#8A8378]">
+        <p className="mt-2 text-xs text-ink-3">
           Calculado el {fmtDateTime(summary.computedAt)}. Los datos se actualizan cada 5 minutos.
         </p>
       </div>
@@ -168,30 +168,30 @@ export default async function RetencionPage() {
         />
       </div>
 
-      <div className="bg-white rounded-[10px] border border-[#E7E1D6] p-6">
-        <h2 className="text-sm font-semibold text-[#1E1B17]">Cómo se ejecuta</h2>
-        <p className="mt-2 text-sm text-[#57514A]">
+      <div className="bg-white rounded-[10px] border border-border p-6">
+        <h2 className="text-sm font-semibold text-ink">Cómo se ejecuta</h2>
+        <p className="mt-2 text-sm text-ink-secondary">
           La limpieza no es automática: no hay cron en el servidor. Alguien la ejecuta manualmente,
           una vez por mes, desde el servidor:
         </p>
         <div className="mt-3 space-y-2 font-mono text-xs">
-          <p className="rounded-[8px] bg-[#F5F1EA] px-3 py-2 text-[#1E1B17]">npm run db:purge</p>
-          <p className="text-[#57514A]">
+          <p className="rounded-[8px] bg-surface-2 px-3 py-2 text-ink">npm run db:purge</p>
+          <p className="text-ink-secondary">
             Simulación: lee, imprime todo lo que tocaría y no cambia nada. Es el modo por defecto.
           </p>
-          <p className="rounded-[8px] bg-[#F5F1EA] px-3 py-2 text-[#1E1B17]">
+          <p className="rounded-[8px] bg-surface-2 px-3 py-2 text-ink">
             npm run db:purge -- --apply
           </p>
-          <p className="text-[#57514A]">Ejecuta el borrado listado por la simulación.</p>
+          <p className="text-ink-secondary">Ejecuta el borrado listado por la simulación.</p>
         </div>
-        <p className="mt-3 text-sm text-[#57514A]">
+        <p className="mt-3 text-sm text-ink-secondary">
           Leé siempre la simulación antes de usar <span className="font-mono text-xs">--apply</span>
           : las dos ejecuciones usan las mismas consultas y los mismos cortes que esta página. El
           procedimiento completo, incluidos los casos de error, está en{' '}
           <span className="font-medium">DEPLOY.md</span>, sección{' '}
           <span className="font-mono text-xs">npm run db:purge</span>.
         </p>
-        <p className="mt-2 text-xs text-[#8A8378]">
+        <p className="mt-2 text-xs text-ink-3">
           Los plazos ({summary.candidates.months} / {summary.applications.months} /{' '}
           {summary.consents.months} / {summary.accessLogs.months} meses) se leen de{' '}
           <span className="font-mono">lib/retention.ts</span>, el mismo archivo que usa el script.{' '}

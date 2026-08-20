@@ -35,14 +35,14 @@ export default function PlanCard({
   return (
     <div
       className={`rounded-[10px] border p-5 ${
-        isFeatured ? 'border-[#C0362A]/30 bg-[#FBECE9]' : 'border-[#E7E1D6] bg-white'
+        isFeatured ? 'border-brand/30 bg-brand-tint' : 'border-border bg-white'
       }`}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-sm text-[#57514A]">Plan actual</p>
+        <p className="text-sm text-ink-secondary">Plan actual</p>
         <span
           className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-            isFeatured ? 'bg-[#C0362A] text-white' : 'bg-[#F5F1EA] text-[#57514A]'
+            isFeatured ? 'bg-brand text-white' : 'bg-surface-2 text-ink-secondary'
           }`}
         >
           {isFeatured ? 'Destacado' : 'Básico'}
@@ -51,10 +51,10 @@ export default function PlanCard({
 
       {isFeatured ? (
         <>
-          <p className="text-base font-semibold text-[#1E1B17] mt-2">
+          <p className="text-base font-semibold text-ink mt-2">
             Destacado activo hasta {formatDate(featuredUntil)}
           </p>
-          <p className="text-sm text-[#57514A] mt-1">
+          <p className="text-sm text-ink-secondary mt-1">
             {activeFeaturedCount === 1
               ? '1 empleo aparece primero en los resultados.'
               : `${activeFeaturedCount} empleos aparecen primero en los resultados.`}
@@ -64,7 +64,7 @@ export default function PlanCard({
               href={renewHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block mt-3 text-sm font-semibold text-[#C0362A] hover:underline"
+              className="inline-block mt-3 text-sm font-semibold text-brand hover:underline"
             >
               Renovar por WhatsApp →
             </a>
@@ -72,16 +72,16 @@ export default function PlanCard({
         </>
       ) : (
         <>
-          <p className="text-base font-semibold text-[#1E1B17] mt-2">
+          <p className="text-base font-semibold text-ink mt-2">
             Tus empleos se publican gratis
           </p>
-          <p className="text-sm text-[#57514A] mt-1">
+          <p className="text-sm text-ink-secondary mt-1">
             {lastFeaturedUntil
               ? // Named rather than glossed as "expired": an employer who paid
                 // once should be able to see when, without opening a chat.
                 `Tu último Destacado venció el ${formatDate(lastFeaturedUntil)}. Con Destacado tus empleos aparecen primero.`
               : 'Con el plan Destacado tus empleos aparecen primero en los resultados.'}{' '}
-            <Link href="/planes" className="font-semibold text-[#C0362A] hover:underline">
+            <Link href="/planes" className="font-semibold text-brand hover:underline">
               Ver planes
             </Link>
           </p>
@@ -90,7 +90,7 @@ export default function PlanCard({
               href={renewHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block mt-3 text-sm font-semibold text-[#C0362A] hover:underline"
+              className="inline-block mt-3 text-sm font-semibold text-brand hover:underline"
             >
               Renovar por WhatsApp →
             </a>

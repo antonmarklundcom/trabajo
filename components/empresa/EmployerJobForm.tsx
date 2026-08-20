@@ -121,7 +121,7 @@ export default function EmployerJobForm({ categories, cities, initial }: Props) 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {values.status && (
-        <div className="flex items-center gap-2 text-sm text-[#57514A]">
+        <div className="flex items-center gap-2 text-sm text-ink-secondary">
           Estado actual: <StatusBadge status={values.status} />
         </div>
       )}
@@ -230,12 +230,12 @@ export default function EmployerJobForm({ categories, cities, initial }: Props) 
             className={inputCls()}
           />
         </Field>
-        <label className="flex items-center gap-2 pb-2.5 text-sm text-[#1E1B17]">
+        <label className="flex items-center gap-2 pb-2.5 text-sm text-ink">
           <input
             type="checkbox"
             checked={values.salaryHidden}
             onChange={(e) => setField('salaryHidden', e.target.checked)}
-            className="w-4 h-4 rounded border-[#E7E1D6] text-[#C0362A] focus:ring-[#C0362A]"
+            className="w-4 h-4 rounded border-border text-brand focus:ring-brand"
           />
           Ocultar salario
         </label>
@@ -262,13 +262,13 @@ export default function EmployerJobForm({ categories, cities, initial }: Props) 
       </Field>
 
       {values.status && values.status !== 'published' && (
-        <p className="text-sm text-[#8F6620] bg-[#FAF1DC] rounded-[10px] px-4 py-3">
+        <p className="text-sm text-gold-strong bg-gold-tint rounded-[10px] px-4 py-3">
           Este empleo va a quedar pendiente de revisión por el equipo de trabajo.com.py antes de
           publicarse.
         </p>
       )}
       {values.status === 'published' && (
-        <p className="text-xs text-[#8A8378]">
+        <p className="text-xs text-ink-3">
           Cambiar el título, la descripción, el salario, la categoría, la ciudad, el tipo de
           contrato, el nivel o la modalidad devuelve este empleo a revisión. El WhatsApp se
           actualiza sin afectar la publicación.
@@ -276,21 +276,21 @@ export default function EmployerJobForm({ categories, cities, initial }: Props) 
       )}
 
       {error && (
-        <p className="text-sm text-[#B42318] bg-[#FCEBEA] rounded-[10px] px-4 py-3">{error}</p>
+        <p className="text-sm text-error bg-error-tint rounded-[10px] px-4 py-3">{error}</p>
       )}
 
       <div className="flex gap-3">
         <button
           type="submit"
           disabled={submitting}
-          className="px-6 py-3 rounded-[10px] bg-[#C0362A] hover:bg-[#9E2A20] text-white font-semibold text-sm transition-colors disabled:opacity-60"
+          className="px-6 py-3 rounded-[10px] bg-brand hover:bg-brand-hover text-white font-semibold text-sm transition-colors disabled:opacity-60"
         >
           {submitting ? 'Guardando...' : 'Guardar'}
         </button>
         <button
           type="button"
           onClick={() => router.push('/empresa/empleos')}
-          className="px-6 py-3 rounded-[10px] border border-[#E7E1D6] text-sm font-medium text-[#57514A] hover:border-[#C0362A] hover:text-[#C0362A] transition-colors"
+          className="px-6 py-3 rounded-[10px] border border-border text-sm font-medium text-ink-secondary hover:border-brand hover:text-brand transition-colors"
         >
           Cancelar
         </button>
@@ -300,7 +300,7 @@ export default function EmployerJobForm({ categories, cities, initial }: Props) 
 }
 
 function inputCls() {
-  return 'w-full px-4 py-2.5 rounded-[10px] border border-[#E7E1D6] text-sm text-[#1E1B17] bg-white focus:outline-none focus:border-[#C0362A] focus:ring-2 focus:ring-[#C0362A]/20';
+  return 'w-full px-4 py-2.5 rounded-[10px] border border-border text-sm text-ink bg-white focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20';
 }
 
 function Field({
@@ -314,9 +314,9 @@ function Field({
 }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-[#1E1B17] mb-1.5">
+      <label className="block text-sm font-medium text-ink mb-1.5">
         {label}
-        {required && <span className="text-[#B42318] ml-0.5">*</span>}
+        {required && <span className="text-error ml-0.5">*</span>}
       </label>
       {children}
     </div>

@@ -14,10 +14,10 @@ export default async function PublicarPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div className="text-center mb-10">
-        <h1 className="text-3xl sm:text-4xl font-bold text-[#1E1B17]">
+        <h1 className="text-3xl sm:text-4xl font-bold text-ink">
           Publicá tu empleo gratis
         </h1>
-        <p className="mt-4 text-base text-[#57514A] max-w-xl mx-auto">
+        <p className="mt-4 text-base text-ink-secondary max-w-xl mx-auto">
           Completá el formulario y nuestro equipo te contactará en menos de 24 horas para publicar tu oferta.
           Gratuito para comenzar.
         </p>
@@ -29,17 +29,17 @@ export default async function PublicarPage() {
           ].map((item) => (
             <div key={item.label} className="flex flex-col items-center gap-1">
               <span className="text-2xl">{item.icon}</span>
-              <span className="text-xs font-medium text-[#57514A]">{item.label}</span>
+              <span className="text-xs font-medium text-ink-secondary">{item.label}</span>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="bg-white rounded-[10px] border border-[#E7E1D6] p-6 sm:p-8">
+      <div className="bg-white rounded-[10px] border border-border p-6 sm:p-8">
         <EmployerForm categories={categories} cities={cities} />
       </div>
 
-      <p className="mt-6 text-center text-xs text-[#57514A]">
+      <p className="mt-6 text-center text-xs text-ink-secondary">
         Al enviar este formulario, nuestro equipo revisará tu solicitud y te contactará para coordinar la publicación.
         No publicamos datos de contacto de empleadores sin su consentimiento.
       </p>

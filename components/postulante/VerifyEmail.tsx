@@ -44,14 +44,14 @@ export default function VerifyEmail({ token }: { token: string }) {
     })();
   }, [token]);
 
-  if (state === 'working') return <p className="text-sm text-[#57514A]">Confirmando…</p>;
+  if (state === 'working') return <p className="text-sm text-ink-secondary">Confirmando…</p>;
 
   return (
     <div className="space-y-4">
-      <p className={`text-sm ${state === 'done' ? 'text-[#1E1B17]' : 'text-[#C0362A]'}`}>
+      <p className={`text-sm ${state === 'done' ? 'text-ink' : 'text-brand'}`}>
         {state === 'done' ? 'Listo, tu email quedó confirmado.' : error}
       </p>
-      <Link href="/postulante/perfil" className="block text-sm text-[#C0362A] hover:underline">
+      <Link href="/postulante/perfil" className="block text-sm text-brand hover:underline">
         Ir a mi perfil
       </Link>
     </div>

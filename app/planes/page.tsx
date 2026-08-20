@@ -66,8 +66,8 @@ export default function PlanesPage() {
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div className="text-center mb-12">
-        <h1 className="text-3xl sm:text-4xl font-bold text-[#1E1B17]">Planes para empleadores</h1>
-        <p className="mt-4 text-base text-[#57514A] max-w-xl mx-auto">
+        <h1 className="text-3xl sm:text-4xl font-bold text-ink">Planes para empleadores</h1>
+        <p className="mt-4 text-base text-ink-secondary max-w-xl mx-auto">
           Empezá gratis. Escalá cuando lo necesites. Nuestro equipo te acompaña en todo momento.
         </p>
       </div>
@@ -79,23 +79,23 @@ export default function PlanesPage() {
               key={plan.name}
               className={`bg-white rounded-[10px] border p-6 flex flex-col ${
                 plan.featured
-                  ? 'border-[#C0362A] shadow-sm ring-2 ring-[#C0362A]/20'
-                  : 'border-[#E7E1D6]'
+                  ? 'border-brand shadow-sm ring-2 ring-brand/20'
+                  : 'border-border'
               }`}
             >
               {plan.featured && (
                 <div className="mb-4">
-                  <span className="text-xs font-semibold px-3 py-1 rounded-full bg-[#FBECE9] text-[#C0362A]">
+                  <span className="text-xs font-semibold px-3 py-1 rounded-full bg-brand-tint text-brand">
                     Más popular
                   </span>
                 </div>
               )}
-              <h2 className="text-xl font-bold text-[#1E1B17]">{plan.name}</h2>
+              <h2 className="text-xl font-bold text-ink">{plan.name}</h2>
               <div className="mt-3 mb-4">
-                <span className="text-3xl font-bold text-[#1E1B17]">{plan.price}</span>
-                <span className="text-sm text-[#57514A] ml-1">{plan.priceNote}</span>
+                <span className="text-3xl font-bold text-ink">{plan.price}</span>
+                <span className="text-sm text-ink-secondary ml-1">{plan.priceNote}</span>
               </div>
-              <p className="text-sm text-[#57514A] mb-6">{plan.description}</p>
+              <p className="text-sm text-ink-secondary mb-6">{plan.description}</p>
               <ul className="space-y-3 flex-1">
                 {plan.features.map((f) => (
                   <li key={f} className="flex items-start gap-2 text-sm text-[#44403A]">
@@ -104,7 +104,7 @@ export default function PlanesPage() {
                       height="16"
                       viewBox="0 0 20 20"
                       fill="currentColor"
-                      className="text-[#2E7D50] flex-shrink-0 mt-0.5"
+                      className="text-success flex-shrink-0 mt-0.5"
                     >
                       <path
                         fillRule="evenodd"
@@ -120,8 +120,8 @@ export default function PlanesPage() {
                 href={plan.ctaHref}
                 className={`mt-8 w-full py-3 px-4 rounded-[10px] text-center font-semibold text-sm transition-colors ${
                   plan.featured
-                    ? 'bg-[#C0362A] hover:bg-[#9E2A20] text-white'
-                    : 'border-2 border-[#C0362A] text-[#C0362A] hover:bg-[#FBECE9]'
+                    ? 'bg-brand hover:bg-brand-hover text-white'
+                    : 'border-2 border-brand text-brand hover:bg-brand-tint'
                 }`}
               >
                 {plan.cta}
@@ -133,7 +133,7 @@ export default function PlanesPage() {
 
       {/* FAQ */}
       <div className="mt-16">
-        <h2 className="text-2xl font-bold text-[#1E1B17] mb-6">Preguntas frecuentes</h2>
+        <h2 className="text-2xl font-bold text-ink mb-6">Preguntas frecuentes</h2>
         <div className="space-y-4">
           {[
             {
@@ -153,9 +153,9 @@ export default function PlanesPage() {
               a: 'Los candidatos se contactan directamente por WhatsApp o a través del formulario de postulación integrado en cada empleo.',
             },
           ].map((item) => (
-            <div key={item.q} className="bg-white rounded-[10px] border border-[#E7E1D6] p-5">
-              <h3 className="font-semibold text-[#1E1B17] mb-2">{item.q}</h3>
-              <p className="text-sm text-[#57514A] leading-relaxed">{item.a}</p>
+            <div key={item.q} className="bg-white rounded-[10px] border border-border p-5">
+              <h3 className="font-semibold text-ink mb-2">{item.q}</h3>
+              <p className="text-sm text-ink-secondary leading-relaxed">{item.a}</p>
             </div>
           ))}
         </div>

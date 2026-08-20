@@ -15,13 +15,13 @@ export default async function EmpresaDashboardLayout({
   const company = await getEmployerCompany(companyId);
 
   return (
-    <div className="min-h-screen bg-[#FBF9F6] flex flex-col">
+    <div className="min-h-screen bg-page-bg flex flex-col">
       <EmpresaNav name={user.name} companyName={company?.name ?? 'trabajo.com.py'} />
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex-1 w-full">{children}</main>
       {/* PLAN-PHASE2.md §7 item 6 — persistent, on every /empresa/(dashboard)
           page, not just the activation screen. */}
-      <footer className="border-t border-[#E7E1D6] bg-white">
-        <p className="max-w-6xl mx-auto px-4 sm:px-6 py-4 text-xs text-[#8A8378]">
+      <footer className="border-t border-border bg-white">
+        <p className="max-w-6xl mx-auto px-4 sm:px-6 py-4 text-xs text-ink-3">
           Los datos de los postulantes se comparten únicamente para la vacante a la que se
           postularon. trabajo.com.py no selecciona, evalúa ni recomienda candidatos.
         </p>

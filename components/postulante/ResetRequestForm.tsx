@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 
 const INPUT =
-  'w-full px-4 py-2.5 rounded-[10px] border border-[#E7E1D6] text-base text-[#1E1B17] bg-white focus:outline-none focus:border-[#C0362A] focus:ring-2 focus:ring-[#C0362A]/20';
+  'w-full px-4 py-2.5 rounded-[10px] border border-border text-base text-ink bg-white focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20';
 
 export default function ResetRequestForm() {
   const [email, setEmail] = useState('');
@@ -41,11 +41,11 @@ export default function ResetRequestForm() {
   if (sent) {
     return (
       <div className="space-y-4">
-        <p className="text-sm text-[#1E1B17]">{sent}</p>
-        <p className="text-sm text-[#57514A]">
+        <p className="text-sm text-ink">{sent}</p>
+        <p className="text-sm text-ink-secondary">
           Revisá tu correo. El enlace vence en 30 minutos.
         </p>
-        <Link href="/postulante/login" className="block text-sm text-[#C0362A] hover:underline">
+        <Link href="/postulante/login" className="block text-sm text-brand hover:underline">
           Volver a ingresar
         </Link>
       </div>
@@ -54,11 +54,11 @@ export default function ResetRequestForm() {
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-4">
-      <p className="text-sm text-[#57514A]">
+      <p className="text-sm text-ink-secondary">
         Escribí tu email y te enviamos un enlace para elegir una contraseña nueva.
       </p>
       <div>
-        <label className="block text-sm font-medium text-[#1E1B17] mb-1.5">Email</label>
+        <label className="block text-sm font-medium text-ink mb-1.5">Email</label>
         <input
           type="email"
           required
@@ -68,15 +68,15 @@ export default function ResetRequestForm() {
           className={INPUT}
         />
       </div>
-      {error && <p className="text-sm text-[#C0362A]">{error}</p>}
+      {error && <p className="text-sm text-brand">{error}</p>}
       <button
         type="submit"
         disabled={submitting}
-        className="w-full py-2.5 rounded-[10px] bg-[#C0362A] text-white text-sm font-semibold disabled:opacity-60"
+        className="w-full py-2.5 rounded-[10px] bg-brand text-white text-sm font-semibold disabled:opacity-60"
       >
         {submitting ? 'Enviando…' : 'Enviar enlace'}
       </button>
-      <Link href="/postulante/login" className="block text-center text-sm text-[#57514A] hover:underline">
+      <Link href="/postulante/login" className="block text-center text-sm text-ink-secondary hover:underline">
         Volver a ingresar
       </Link>
     </form>

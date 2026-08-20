@@ -2,6 +2,9 @@
   "name": "trabajo",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -37,7 +40,7 @@
     "iron-session": "^8.0.4",
     "marked": "^18.0.9",
     "mysql2": "^3.23.2",
-    "next": "16.2.9",
+    "next": "16.3.1",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "server-only": "^0.0.1",

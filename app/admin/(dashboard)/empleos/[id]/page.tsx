@@ -69,12 +69,12 @@ export default async function EditarEmpleoPage({
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-[#1E1B17] mb-6">Editar empleo</h1>
-      <div className="bg-white rounded-[10px] border border-[#E7E1D6] p-6 sm:p-8 max-w-3xl">
+      <h1 className="text-2xl font-bold text-ink mb-6">Editar empleo</h1>
+      <div className="bg-white rounded-[10px] border border-border p-6 sm:p-8 max-w-3xl">
         <JobForm companies={companies} categories={categories} cities={cities} initial={initial} />
       </div>
-      <div className="bg-white rounded-[10px] border border-[#E7E1D6] p-6 sm:p-8 max-w-3xl mt-6">
-        <h2 className="text-lg font-bold text-[#1E1B17] mb-4">Imágenes del empleo</h2>
+      <div className="bg-white rounded-[10px] border border-border p-6 sm:p-8 max-w-3xl mt-6">
+        <h2 className="text-lg font-bold text-ink mb-4">Imágenes del empleo</h2>
         <JobImageUploader jobId={job.id} initialImages={initialImages} />
       </div>
     </div>

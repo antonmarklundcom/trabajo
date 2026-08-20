@@ -24,14 +24,14 @@ export default async function PostulantePerfilPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-[#1E1B17]">Mi perfil</h1>
-        <p className="text-sm text-[#57514A] mt-1">
+        <h1 className="text-2xl font-bold text-ink">Mi perfil</h1>
+        <p className="text-sm text-ink-secondary mt-1">
           Tu perfil es privado. Solo lo ven las empresas a las que decidas postularte.
         </p>
       </div>
 
-      <section className="bg-white rounded-[10px] border border-[#E7E1D6] p-6">
-        <h2 className="text-lg font-semibold text-[#1E1B17] mb-4">Datos personales</h2>
+      <section className="bg-white rounded-[10px] border border-border p-6">
+        <h2 className="text-lg font-semibold text-ink mb-4">Datos personales</h2>
         <ProfileForm
           initial={{
             name: candidate.name,
@@ -44,13 +44,13 @@ export default async function PostulantePerfilPage() {
         />
       </section>
 
-      <section className="bg-white rounded-[10px] border border-[#E7E1D6] p-6">
-        <h2 className="text-lg font-semibold text-[#1E1B17] mb-4">CV</h2>
+      <section className="bg-white rounded-[10px] border border-border p-6">
+        <h2 className="text-lg font-semibold text-ink mb-4">CV</h2>
         <CvUploader currentCv={currentCv ? { id: currentCv.id, originalFilename: currentCv.originalFilename, sizeBytes: currentCv.sizeBytes } : null} />
       </section>
 
-      <section className="bg-white rounded-[10px] border border-[#E7E1D6] p-6">
-        <h2 className="text-lg font-semibold text-[#1E1B17] mb-4">Experiencia laboral</h2>
+      <section className="bg-white rounded-[10px] border border-border p-6">
+        <h2 className="text-lg font-semibold text-ink mb-4">Experiencia laboral</h2>
         <ExperienceManager experiences={experiences} />
       </section>
     </div>

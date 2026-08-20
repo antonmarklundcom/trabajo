@@ -14,7 +14,7 @@ export default function JobCard({ job }: Props) {
       className={`relative rounded-[14px] border transition-shadow hover:shadow-[0_4px_12px_-2px_rgba(30,27,23,.12)] ${
         featured
           ? 'border-[#EDDCB4] bg-[#FDF8EC] shadow-[0_12px_30px_-16px_rgba(176,129,44,.4)]'
-          : 'border-[#E7E1D6] bg-white'
+          : 'border-border bg-white'
       }`}
     >
       <Link href={`/empleos/${job.slug}`} className="block p-5">
@@ -30,15 +30,15 @@ export default function JobCard({ job }: Props) {
                 gutter is a guess about the width of a translated, uppercase
                 string; a flow element cannot be guessed wrong. */}
             {featured && (
-              <span className="mb-1.5 inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full bg-[#B0812C] text-white">
+              <span className="mb-1.5 inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full bg-gold text-white">
                 <StarIcon />
                 Destacado
               </span>
             )}
-            <h2 className="text-[17px] font-bold text-[#1E1B17] leading-snug line-clamp-2 break-words">
+            <h2 className="text-[17px] font-bold text-ink leading-snug line-clamp-2 break-words">
               {job.title}
             </h2>
-            <p className="mt-0.5 text-sm text-[#57514A] truncate">{job.company}</p>
+            <p className="mt-0.5 text-sm text-ink-secondary truncate">{job.company}</p>
 
             <div className="mt-3 flex flex-wrap gap-2">
               <Chip>{cityLabel(job.citySlug)}</Chip>
@@ -46,15 +46,15 @@ export default function JobCard({ job }: Props) {
               <Chip>{modalityLabel(job.modality)}</Chip>
             </div>
 
-            <div className="mt-4 pt-3 border-t border-[#EFE9DF] flex items-center justify-between flex-wrap gap-2">
-              <span className="text-sm font-bold text-[#1E1B17]">
+            <div className="mt-4 pt-3 border-t border-surface-3 flex items-center justify-between flex-wrap gap-2">
+              <span className="text-sm font-bold text-ink">
                 {job.salaryHidden ? (
-                  <span className="italic font-semibold text-[#57514A]">A convenir</span>
+                  <span className="italic font-semibold text-ink-secondary">A convenir</span>
                 ) : (
                   formatSalary(job.salaryMin, job.salaryMax)
                 )}
               </span>
-              <span className="text-xs text-[#8A8378]">
+              <span className="text-xs text-ink-3">
                 {formatRelativeDate(job.postedAt)}
               </span>
             </div>
@@ -67,7 +67,7 @@ export default function JobCard({ job }: Props) {
 
 function Chip({ children }: { children: React.ReactNode }) {
   return (
-    <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-[#F5F1EA] text-[#57514A] border border-[#E7E1D6]">
+    <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-surface-2 text-ink-secondary border border-border">
       {children}
     </span>
   );

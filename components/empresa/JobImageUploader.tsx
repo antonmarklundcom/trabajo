@@ -59,12 +59,12 @@ export default function JobImageUploader({
               <img
                 src={img.url}
                 alt=""
-                className="w-full aspect-video object-cover rounded-[10px] border border-[#E7E1D6]"
+                className="w-full aspect-video object-cover rounded-[10px] border border-border"
               />
               <button
                 type="button"
                 onClick={() => handleDelete(img.id)}
-                className="absolute top-1.5 right-1.5 bg-white/90 hover:bg-white text-[#B42318] rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow-sm"
+                className="absolute top-1.5 right-1.5 bg-white/90 hover:bg-white text-error rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold shadow-sm"
                 aria-label="Eliminar imagen"
               >
                 ×
@@ -75,7 +75,7 @@ export default function JobImageUploader({
       )}
 
       {images.length < MAX_IMAGES && (
-        <label className="inline-flex items-center gap-2 cursor-pointer text-sm font-medium text-[#C0362A] hover:underline">
+        <label className="inline-flex items-center gap-2 cursor-pointer text-sm font-medium text-brand hover:underline">
           <input
             ref={inputRef}
             type="file"
@@ -90,11 +90,11 @@ export default function JobImageUploader({
           {uploading ? 'Subiendo...' : 'Agregar imagen'}
         </label>
       )}
-      <p className="text-xs text-[#8A8378] mt-1">
+      <p className="text-xs text-ink-3 mt-1">
         JPG, PNG o WebP. Máximo 4 MB. Hasta {MAX_IMAGES} imágenes.
       </p>
 
-      {error && <p className="text-sm text-[#B42318] mt-2">{error}</p>}
+      {error && <p className="text-sm text-error mt-2">{error}</p>}
     </div>
   );
 }

@@ -29,12 +29,12 @@ export default function SearchBar({ initialQ }: Props) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex gap-2 bg-white border border-[#E7E1D6] rounded-[10px] p-2"
+      className="flex gap-2 bg-white border border-border rounded-[10px] p-2"
       role="search"
     >
       <div className="flex-1 min-w-0 flex items-center gap-2 px-2">
         <svg
-          className="text-[#57514A] flex-shrink-0"
+          className="text-ink-secondary flex-shrink-0"
           width="18"
           height="18"
           viewBox="0 0 20 20"
@@ -48,14 +48,14 @@ export default function SearchBar({ initialQ }: Props) {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Cargo, empresa o palabra clave..."
-          className="flex-1 min-w-0 py-2 text-base text-[#1E1B17] placeholder-[#8A8378] bg-transparent border-none outline-none"
+          className="flex-1 min-w-0 py-2 text-base text-ink placeholder-ink-3 bg-transparent border-none outline-none"
           aria-label="Buscar empleos"
         />
         {q && (
           <button
             type="button"
             onClick={() => setQ('')}
-            className="text-[#8A8378] hover:text-[#57514A] transition-colors"
+            className="text-ink-3 hover:text-ink-secondary transition-colors"
             aria-label="Limpiar búsqueda"
           >
             <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
@@ -66,7 +66,7 @@ export default function SearchBar({ initialQ }: Props) {
       </div>
       <button
         type="submit"
-        className="flex-shrink-0 px-5 py-2 rounded-[8px] bg-[#C0362A] hover:bg-[#9E2A20] text-white font-semibold text-sm whitespace-nowrap transition-colors"
+        className="flex-shrink-0 px-5 py-2 rounded-[8px] bg-brand hover:bg-brand-hover text-white font-semibold text-sm whitespace-nowrap transition-colors"
       >
         Buscar
       </button>

@@ -71,22 +71,22 @@ export default async function CategoriaciudadPage({ params }: { params: Params }
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumb */}
-        <nav className="flex items-center gap-2 text-sm text-[#57514A] mb-6 flex-wrap" aria-label="Ruta">
-          <Link href="/" className="hover:text-[#C0362A]">Inicio</Link>
+        <nav className="flex items-center gap-2 text-sm text-ink-secondary mb-6 flex-wrap" aria-label="Ruta">
+          <Link href="/" className="hover:text-brand">Inicio</Link>
           <span>›</span>
-          <Link href="/empleos" className="hover:text-[#C0362A]">Empleos</Link>
+          <Link href="/empleos" className="hover:text-brand">Empleos</Link>
           <span>›</span>
-          <Link href={`/trabajo/${categoria}`} className="hover:text-[#C0362A]">{category.name}</Link>
+          <Link href={`/trabajo/${categoria}`} className="hover:text-brand">{category.name}</Link>
           <span>›</span>
-          <span className="text-[#1E1B17] font-medium">{city.name}</span>
+          <span className="text-ink font-medium">{city.name}</span>
         </nav>
 
         {/* Hero */}
         <div className="mb-8">
-          <h1 className="text-3xl sm:text-4xl font-bold text-[#1E1B17]">
+          <h1 className="text-3xl sm:text-4xl font-bold text-ink">
             Trabajo de {category.name.toLowerCase()} en {city.name}
           </h1>
-          <p className="mt-3 text-base text-[#57514A] max-w-2xl">
+          <p className="mt-3 text-base text-ink-secondary max-w-2xl">
             {jobs.length > 0
               ? `${jobs.length} ${jobs.length === 1 ? 'empleo disponible' : 'empleos disponibles'} en ${category.name.toLowerCase()} en ${city.name}. Postulate gratis y encontrá el trabajo ideal.`
               : `Todavía no hay empleos de ${category.name.toLowerCase()} publicados en ${city.name}.`}
@@ -95,20 +95,20 @@ export default async function CategoriaciudadPage({ params }: { params: Params }
 
         {/* Jobs or empty state */}
         {jobs.length === 0 ? (
-          <div className="text-center py-16 bg-white rounded-[10px] border border-[#E7E1D6]">
-            <p className="text-[#57514A] mb-4">
+          <div className="text-center py-16 bg-white rounded-[10px] border border-border">
+            <p className="text-ink-secondary mb-4">
               No hay empleos disponibles en esta ubicación por el momento.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link
                 href={`/trabajo/${categoria}`}
-                className="px-5 py-2.5 rounded-[10px] border-2 border-[#C0362A] text-[#C0362A] font-medium text-sm hover:bg-[#FBECE9] transition-colors"
+                className="px-5 py-2.5 rounded-[10px] border-2 border-brand text-brand font-medium text-sm hover:bg-brand-tint transition-colors"
               >
                 Ver {category.name.toLowerCase()} en todo el país
               </Link>
               <Link
                 href="/empleos"
-                className="px-5 py-2.5 rounded-[10px] bg-[#C0362A] text-white font-medium text-sm hover:bg-[#9E2A20] transition-colors"
+                className="px-5 py-2.5 rounded-[10px] bg-brand text-white font-medium text-sm hover:bg-brand-hover transition-colors"
               >
                 Ver todos los empleos
               </Link>

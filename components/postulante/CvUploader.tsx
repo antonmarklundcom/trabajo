@@ -52,28 +52,28 @@ export default function CvUploader({ currentCv }: { currentCv: CurrentCv }) {
   return (
     <div>
       {currentCv ? (
-        <div className="flex items-center justify-between gap-3 border border-[#E7E1D6] rounded-[10px] px-4 py-3">
+        <div className="flex items-center justify-between gap-3 border border-border rounded-[10px] px-4 py-3">
           <div>
-            <p className="text-sm font-medium text-[#1E1B17]">{currentCv.originalFilename}</p>
-            <p className="text-xs text-[#8A8378]">{formatSize(currentCv.sizeBytes)}</p>
+            <p className="text-sm font-medium text-ink">{currentCv.originalFilename}</p>
+            <p className="text-xs text-ink-3">{formatSize(currentCv.sizeBytes)}</p>
           </div>
           <div className="flex gap-3 flex-shrink-0">
             <a
               href={`/api/postulante/cv/${currentCv.id}`}
-              className="text-xs text-[#57514A] hover:text-[#C0362A]"
+              className="text-xs text-ink-secondary hover:text-brand"
             >
               Ver
             </a>
-            <button onClick={handleDelete} className="text-xs text-[#B42318] hover:underline">
+            <button onClick={handleDelete} className="text-xs text-error hover:underline">
               Eliminar
             </button>
           </div>
         </div>
       ) : (
-        <p className="text-sm text-[#57514A] mb-2">Todavía no subiste tu CV.</p>
+        <p className="text-sm text-ink-secondary mb-2">Todavía no subiste tu CV.</p>
       )}
 
-      <label className="mt-3 inline-flex items-center gap-2 cursor-pointer text-sm font-medium text-[#C0362A] hover:underline">
+      <label className="mt-3 inline-flex items-center gap-2 cursor-pointer text-sm font-medium text-brand hover:underline">
         <input
           ref={inputRef}
           type="file"
@@ -87,9 +87,9 @@ export default function CvUploader({ currentCv }: { currentCv: CurrentCv }) {
         />
         {uploading ? 'Subiendo...' : currentCv ? 'Reemplazar CV' : 'Subir CV'}
       </label>
-      <p className="text-xs text-[#8A8378] mt-1">PDF, DOC o DOCX. Máximo 5 MB.</p>
+      <p className="text-xs text-ink-3 mt-1">PDF, DOC o DOCX. Máximo 5 MB.</p>
 
-      {error && <p className="text-sm text-[#B42318] mt-2">{error}</p>}
+      {error && <p className="text-sm text-error mt-2">{error}</p>}
     </div>
   );
 }

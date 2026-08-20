@@ -97,28 +97,28 @@ const sections = [
 export default function PrivacidadPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <h1 className="text-3xl sm:text-4xl font-bold text-[#1E1B17]">
+      <h1 className="text-3xl sm:text-4xl font-bold text-ink">
         Política de privacidad
       </h1>
-      <p className="mt-3 text-sm text-[#8A8378]">Última actualización: julio de 2026</p>
+      <p className="mt-3 text-sm text-ink-3">Última actualización: julio de 2026</p>
 
       <div className="mt-8 space-y-8">
         {sections.map((s) => (
           <section key={s.title}>
-            <h2 className="text-lg font-semibold text-[#1E1B17]">{s.title}</h2>
+            <h2 className="text-lg font-semibold text-ink">{s.title}</h2>
             {s.body.map((p, i) => (
-              <p key={i} className="mt-2 text-[15px] leading-relaxed text-[#57514A]">
+              <p key={i} className="mt-2 text-[15px] leading-relaxed text-ink-secondary">
                 {p}
               </p>
             ))}
             {s.title.startsWith('9.') && (
-              <p className="mt-2 text-[15px] leading-relaxed text-[#57514A]">
+              <p className="mt-2 text-[15px] leading-relaxed text-ink-secondary">
                 Accedé a tu panel de derechos en{' '}
-                <Link href="/postulante/mis-datos" className="text-[#C0362A] hover:underline">
+                <Link href="/postulante/mis-datos" className="text-brand hover:underline">
                   /postulante/mis-datos
                 </Link>
                 , o escribinos desde{' '}
-                <Link href="/contacto" className="text-[#C0362A] hover:underline">
+                <Link href="/contacto" className="text-brand hover:underline">
                   Contacto
                 </Link>
                 .

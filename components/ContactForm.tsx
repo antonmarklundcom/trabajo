@@ -66,13 +66,13 @@ export default function ContactForm() {
   if (state === 'success') {
     return (
       <div className="text-center py-6">
-        <div className="w-12 h-12 rounded-full bg-[#E8F3EC] flex items-center justify-center mx-auto mb-4">
-          <svg width="24" height="24" viewBox="0 0 20 20" fill="currentColor" className="text-[#2E7D50]">
+        <div className="w-12 h-12 rounded-full bg-success-tint flex items-center justify-center mx-auto mb-4">
+          <svg width="24" height="24" viewBox="0 0 20 20" fill="currentColor" className="text-success">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
           </svg>
         </div>
-        <p className="font-semibold text-[#1E1B17]">¡Mensaje enviado!</p>
-        <p className="text-sm text-[#57514A] mt-1">Te respondemos en menos de 24 horas.</p>
+        <p className="font-semibold text-ink">¡Mensaje enviado!</p>
+        <p className="text-sm text-ink-secondary mt-1">Te respondemos en menos de 24 horas.</p>
       </div>
     );
   }
@@ -118,14 +118,14 @@ export default function ContactForm() {
         />
       </Field>
       {state === 'error' && (
-        <p className="text-sm text-[#B42318] bg-[#FCEBEA] rounded-[10px] px-4 py-3">
+        <p className="text-sm text-error bg-error-tint rounded-[10px] px-4 py-3">
           Hubo un error. Por favor intentá de nuevo.
         </p>
       )}
       <button
         type="submit"
         disabled={state === 'submitting'}
-        className="w-full py-3.5 rounded-[10px] bg-[#C0362A] hover:bg-[#9E2A20] text-white font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+        className="w-full py-3.5 rounded-[10px] bg-brand hover:bg-brand-hover text-white font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
       >
         {state === 'submitting' ? 'Enviando...' : 'Enviar mensaje'}
       </button>
@@ -134,20 +134,20 @@ export default function ContactForm() {
 }
 
 function iCls(hasError: boolean) {
-  return `w-full px-4 py-3 rounded-[10px] border text-base text-[#1E1B17] placeholder-[#8A8378] bg-white focus:outline-none focus:ring-2 transition-colors ${
-    hasError ? 'border-[#B42318] focus:ring-[#B42318]/20' : 'border-[#E7E1D6] focus:border-[#C0362A] focus:ring-[#C0362A]/20'
+  return `w-full px-4 py-3 rounded-[10px] border text-base text-ink placeholder-ink-3 bg-white focus:outline-none focus:ring-2 transition-colors ${
+    hasError ? 'border-error focus:ring-error/20' : 'border-border focus:border-brand focus:ring-brand/20'
   }`;
 }
 
 function Field({ label, required, error, children }: { label: string; required?: boolean; error?: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-[#1E1B17] mb-1.5">
+      <label className="block text-sm font-medium text-ink mb-1.5">
         {label}
-        {required && <span className="text-[#B42318] ml-0.5">*</span>}
+        {required && <span className="text-error ml-0.5">*</span>}
       </label>
       {children}
-      {error && <p className="mt-1 text-xs text-[#B42318]">{error}</p>}
+      {error && <p className="mt-1 text-xs text-error">{error}</p>}
     </div>
   );
 }

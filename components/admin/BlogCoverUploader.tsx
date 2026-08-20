@@ -105,21 +105,21 @@ export default function BlogCoverUploader({ postId, initialUrl, initialAlt }: Pr
           <img
             src={url}
             alt={savedAlt}
-            className="w-full max-w-md aspect-video object-cover rounded-[10px] border border-[#E7E1D6]"
+            className="w-full max-w-md aspect-video object-cover rounded-[10px] border border-border"
           />
           <button
             type="button"
             onClick={handleDelete}
             disabled={busy}
-            className="mt-2 text-sm font-medium text-[#B42318] hover:underline disabled:opacity-60"
+            className="mt-2 text-sm font-medium text-error hover:underline disabled:opacity-60"
           >
             Eliminar portada
           </button>
         </div>
       )}
 
-      <label className="block text-sm font-medium text-[#1E1B17] mb-1.5">
-        Texto alternativo<span className="text-[#B42318] ml-0.5">*</span>
+      <label className="block text-sm font-medium text-ink mb-1.5">
+        Texto alternativo<span className="text-error ml-0.5">*</span>
       </label>
       <input
         type="text"
@@ -127,9 +127,9 @@ export default function BlogCoverUploader({ postId, initialUrl, initialAlt }: Pr
         maxLength={200}
         onChange={(e) => setAlt(e.target.value)}
         placeholder="Persona revisando un currículum impreso sobre un escritorio"
-        className="w-full px-4 py-2.5 rounded-[10px] border border-[#E7E1D6] text-sm text-[#1E1B17] bg-white focus:outline-none focus:border-[#C0362A] focus:ring-2 focus:ring-[#C0362A]/20"
+        className="w-full px-4 py-2.5 rounded-[10px] border border-border text-sm text-ink bg-white focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
       />
-      <p className="text-xs text-[#8A8378] mt-1">
+      <p className="text-xs text-ink-3 mt-1">
         Describí la imagen para quien no puede verla. Es obligatorio y también lo lee Google.
       </p>
 
@@ -137,8 +137,8 @@ export default function BlogCoverUploader({ postId, initialUrl, initialAlt }: Pr
         <label
           className={`inline-flex items-center gap-2 text-sm font-medium ${
             altReady && !busy
-              ? 'cursor-pointer text-[#C0362A] hover:underline'
-              : 'cursor-not-allowed text-[#8A8378]'
+              ? 'cursor-pointer text-brand hover:underline'
+              : 'cursor-not-allowed text-ink-3'
           }`}
         >
           <input
@@ -160,7 +160,7 @@ export default function BlogCoverUploader({ postId, initialUrl, initialAlt }: Pr
             type="button"
             onClick={handleAltSave}
             disabled={!altReady || busy}
-            className="text-sm font-medium text-[#C0362A] hover:underline disabled:opacity-60"
+            className="text-sm font-medium text-brand hover:underline disabled:opacity-60"
           >
             Guardar texto alternativo
           </button>
@@ -168,16 +168,16 @@ export default function BlogCoverUploader({ postId, initialUrl, initialAlt }: Pr
       </div>
 
       {!altReady && (
-        <p className="text-xs text-[#8A8378] mt-1">
+        <p className="text-xs text-ink-3 mt-1">
           Escribí el texto alternativo para habilitar la subida.
         </p>
       )}
-      <p className="text-xs text-[#8A8378] mt-1">
+      <p className="text-xs text-ink-3 mt-1">
         JPG, PNG o WebP, máximo 4 MB. Se convierte a WebP automáticamente. Se usa como imagen de
         portada del artículo y en la vista previa al compartir.
       </p>
 
-      {error && <p className="text-sm text-[#B42318] mt-2">{error}</p>}
+      {error && <p className="text-sm text-error mt-2">{error}</p>}
       {notice && <p className="text-sm text-[#2E7D32] mt-2">{notice}</p>}
     </div>
   );

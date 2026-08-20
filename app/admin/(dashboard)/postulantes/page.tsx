@@ -51,24 +51,24 @@ function CountList({
 }) {
   const max = Math.max(1, ...items.map((i) => i.count));
   return (
-    <div className="bg-white rounded-[10px] border border-[#E7E1D6] p-6">
-      <h2 className="text-sm font-semibold text-[#1E1B17] mb-4">{title}</h2>
+    <div className="bg-white rounded-[10px] border border-border p-6">
+      <h2 className="text-sm font-semibold text-ink mb-4">{title}</h2>
       {items.length === 0 ? (
-        <p className="text-sm text-[#57514A]">{empty}</p>
+        <p className="text-sm text-ink-secondary">{empty}</p>
       ) : (
         <div className="space-y-2.5">
           {items.map((item) => (
             <div key={item.label} className="flex items-center gap-3 text-sm">
-              <span className="w-40 flex-shrink-0 truncate text-[#57514A]">
+              <span className="w-40 flex-shrink-0 truncate text-ink-secondary">
                 {labelMap?.[item.label] ?? item.label}
               </span>
-              <div className="flex-1 h-2.5 rounded-full bg-[#F5F1EA] overflow-hidden">
+              <div className="flex-1 h-2.5 rounded-full bg-surface-2 overflow-hidden">
                 <div
-                  className="h-full bg-[#C0362A] rounded-full"
+                  className="h-full bg-brand rounded-full"
                   style={{ width: `${Math.max(4, Math.round((item.count / max) * 100))}%` }}
                 />
               </div>
-              <span className="w-12 flex-shrink-0 text-right font-medium text-[#1E1B17]">
+              <span className="w-12 flex-shrink-0 text-right font-medium text-ink">
                 {item.count}
               </span>
             </div>
@@ -105,26 +105,26 @@ export default async function PostulantesPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#1E1B17]">Postulantes</h1>
-        <p className="text-sm text-[#57514A] mt-1">
+        <h1 className="text-2xl font-bold text-ink">Postulantes</h1>
+        <p className="text-sm text-ink-secondary mt-1">
           Vista agregada. Para abrir un perfil necesitás el email exacto o el id, y tenés que
           indicar el motivo del acceso — que queda registrado.
         </p>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-white rounded-[10px] border border-[#E7E1D6] p-4">
-          <p className="text-xs uppercase tracking-wider text-[#8A8378]">Postulantes</p>
-          <p className="mt-1 text-2xl font-bold text-[#1E1B17]">
+        <div className="bg-white rounded-[10px] border border-border p-4">
+          <p className="text-xs uppercase tracking-wider text-ink-3">Postulantes</p>
+          <p className="mt-1 text-2xl font-bold text-ink">
             {aggregates.total.toLocaleString('es-PY')}
           </p>
         </div>
       </div>
 
       {/* --- Lookup: exact email or exact id, never a search ---------------- */}
-      <div className="bg-white rounded-[10px] border border-[#E7E1D6] p-6">
-        <h2 className="text-sm font-semibold text-[#1E1B17]">Buscar un postulante puntual</h2>
-        <p className="text-xs text-[#8A8378] mt-1">
+      <div className="bg-white rounded-[10px] border border-border p-6">
+        <h2 className="text-sm font-semibold text-ink">Buscar un postulante puntual</h2>
+        <p className="text-xs text-ink-3 mt-1">
           Solo por email exacto o por id. No hay búsqueda por nombre, por CV ni por experiencia
           laboral: para abrir un perfil hay que saber de antemano a quién se busca.
         </p>
@@ -134,7 +134,7 @@ export default async function PostulantesPage({
             name="email"
             defaultValue={email}
             placeholder="email exacto"
-            className="flex-1 rounded-[10px] border border-[#E7E1D6] px-3 py-2 text-sm focus:border-[#C0362A] focus:outline-none"
+            className="flex-1 rounded-[10px] border border-border px-3 py-2 text-sm focus:border-brand focus:outline-none"
           />
           <input
             type="text"
@@ -142,49 +142,49 @@ export default async function PostulantesPage({
             name="id"
             defaultValue={idParam}
             placeholder="id"
-            className="w-full sm:w-32 rounded-[10px] border border-[#E7E1D6] px-3 py-2 text-sm focus:border-[#C0362A] focus:outline-none"
+            className="w-full sm:w-32 rounded-[10px] border border-border px-3 py-2 text-sm focus:border-brand focus:outline-none"
           />
           <button
             type="submit"
-            className="px-4 py-2 rounded-[10px] text-sm font-medium text-white bg-[#C0362A] hover:bg-[#A32C22] transition-colors"
+            className="px-4 py-2 rounded-[10px] text-sm font-medium text-white bg-brand hover:bg-[#A32C22] transition-colors"
           >
             Buscar
           </button>
         </form>
 
         {lookupAttempted && (
-          <div className="mt-4 border-t border-[#E7E1D6] pt-4">
+          <div className="mt-4 border-t border-border pt-4">
             {match ? (
               <div className="flex items-center justify-between gap-4 flex-wrap">
                 <dl className="flex gap-6 text-sm">
                   <div>
-                    <dt className="text-xs text-[#8A8378]">Id</dt>
-                    <dd className="font-medium text-[#1E1B17]">{match.id}</dd>
+                    <dt className="text-xs text-ink-3">Id</dt>
+                    <dd className="font-medium text-ink">{match.id}</dd>
                   </div>
                   <div>
-                    <dt className="text-xs text-[#8A8378]">Ciudad</dt>
-                    <dd className="text-[#57514A]">{match.cityName ?? 'Sin ciudad'}</dd>
+                    <dt className="text-xs text-ink-3">Ciudad</dt>
+                    <dd className="text-ink-secondary">{match.cityName ?? 'Sin ciudad'}</dd>
                   </div>
                   <div>
-                    <dt className="text-xs text-[#8A8378]">Registro</dt>
-                    <dd className="text-[#57514A]">
+                    <dt className="text-xs text-ink-3">Registro</dt>
+                    <dd className="text-ink-secondary">
                       {new Date(match.createdAt).toLocaleDateString('es-PY')}
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-xs text-[#8A8378]">Postulaciones</dt>
-                    <dd className="text-[#57514A]">{match.applicationCount}</dd>
+                    <dt className="text-xs text-ink-3">Postulaciones</dt>
+                    <dd className="text-ink-secondary">{match.applicationCount}</dd>
                   </div>
                 </dl>
                 <Link
                   href={`/admin/postulantes/${match.id}`}
-                  className="px-4 py-2 rounded-[10px] text-sm font-medium text-[#1E1B17] border border-[#E7E1D6] hover:border-[#C0362A] hover:text-[#C0362A] transition-colors"
+                  className="px-4 py-2 rounded-[10px] text-sm font-medium text-ink border border-border hover:border-brand hover:text-brand transition-colors"
                 >
                   Abrir perfil
                 </Link>
               </div>
             ) : (
-              <p className="text-sm text-[#57514A]">
+              <p className="text-sm text-ink-secondary">
                 No hay ningún postulante con ese email o ese id.
               </p>
             )}
@@ -213,7 +213,7 @@ export default async function PostulantesPage({
         empty="Todavía no hay postulantes registrados."
       />
 
-      <p className="text-xs text-[#8A8378]">
+      <p className="text-xs text-ink-3">
         No existe exportación masiva de postulantes, ni acá ni en ninguna otra pantalla. Si un
         postulante pide sus datos, los descarga él mismo desde{' '}
         <span className="font-mono">/postulante/mis-datos</span>.

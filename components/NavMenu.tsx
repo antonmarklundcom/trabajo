@@ -37,8 +37,8 @@ export default function NavMenu() {
             href={l.href}
             className={`px-3 py-2 rounded-[10px] text-sm font-medium transition-colors ${
               pathname.startsWith(l.href)
-                ? 'bg-[#FBECE9] text-[#C0362A]'
-                : 'text-[#57514A] hover:bg-[#F5F1EA] hover:text-[#1E1B17]'
+                ? 'bg-brand-tint text-brand'
+                : 'text-ink-secondary hover:bg-surface-2 hover:text-ink'
             }`}
           >
             {l.label}
@@ -46,7 +46,7 @@ export default function NavMenu() {
         ))}
         <Link
           href="/publicar"
-          className="ml-2 px-4 py-2 rounded-[10px] bg-[#B0812C] text-white text-sm font-semibold hover:bg-[#8F6620] transition-colors"
+          className="ml-2 px-4 py-2 rounded-[10px] bg-gold text-white text-sm font-semibold hover:bg-gold-strong transition-colors"
         >
           Publicar empleo
         </Link>
@@ -54,7 +54,7 @@ export default function NavMenu() {
 
       {/* Mobile hamburger — top right on every page */}
       <button
-        className="md:hidden flex items-center justify-center w-10 h-10 rounded-[10px] text-[#57514A] hover:bg-[#F5F1EA] transition-colors"
+        className="md:hidden flex items-center justify-center w-10 h-10 rounded-[10px] text-ink-secondary hover:bg-surface-2 transition-colors"
         onClick={() => setOpen(true)}
         aria-label="Abrir menú"
         aria-expanded={open}
@@ -66,7 +66,7 @@ export default function NavMenu() {
 
       {/* Full-screen mobile menu */}
       {open && (
-        <div className="fixed inset-0 z-50 md:hidden bg-[#9E2A20] text-white flex flex-col overflow-hidden">
+        <div className="fixed inset-0 z-50 md:hidden bg-brand-hover text-white flex flex-col overflow-hidden">
           <NandutiMotif className="pointer-events-none absolute -right-24 -top-16 w-80 h-80 text-white opacity-[0.12]" />
 
           {/* Menu header */}
@@ -105,7 +105,7 @@ export default function NavMenu() {
               <Link
                 href="/publicar"
                 onClick={() => setOpen(false)}
-                className="w-full py-3.5 rounded-[12px] bg-[#E6B25A] text-[#1E1B17] font-bold text-center hover:bg-[#d8a548] transition-colors"
+                className="w-full py-3.5 rounded-[12px] bg-[#E6B25A] text-ink font-bold text-center hover:bg-[#d8a548] transition-colors"
               >
                 Publicá tu empleo
               </Link>

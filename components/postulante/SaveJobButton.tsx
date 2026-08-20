@@ -30,8 +30,8 @@ export default function SaveJobButton({ jobSlug, initialSaved }: Props) {
       aria-pressed={saved}
       className={`w-full py-2.5 px-6 rounded-[10px] font-semibold text-sm transition-colors disabled:opacity-60 border ${
         saved
-          ? 'bg-[#FBECE9] border-[#C0362A]/30 text-[#C0362A]'
-          : 'bg-white border-[#E7E1D6] text-[#1E1B17] hover:border-[#C0362A] hover:text-[#C0362A]'
+          ? 'bg-brand-tint border-brand/30 text-brand'
+          : 'bg-white border-border text-ink hover:border-brand hover:text-brand'
       }`}
     >
       {saved ? '★ Guardado' : '☆ Guardar'}

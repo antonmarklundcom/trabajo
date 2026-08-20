@@ -24,7 +24,7 @@ export default function WithdrawButton({ applicationId }: { applicationId: numbe
     <button
       onClick={handleWithdraw}
       disabled={submitting}
-      className="text-xs text-[#B42318] hover:underline disabled:opacity-60"
+      className="text-xs text-error hover:underline disabled:opacity-60"
     >
       {submitting ? 'Retirando...' : 'Retirar consentimiento'}
     </button>

@@ -47,20 +47,20 @@ export default async function EditarArticuloPage({
   return (
     <div>
       <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
-        <h1 className="text-2xl font-bold text-[#1E1B17]">Editar artículo</h1>
+        <h1 className="text-2xl font-bold text-ink">Editar artículo</h1>
         {post.status === 'published' && (
           <Link
             href={`/blog/${post.slug}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm font-medium text-[#C0362A] hover:underline"
+            className="text-sm font-medium text-brand hover:underline"
           >
             Ver publicado ↗
           </Link>
         )}
       </div>
 
-      <div className="bg-white rounded-[10px] border border-[#E7E1D6] p-6 sm:p-8 max-w-3xl">
+      <div className="bg-white rounded-[10px] border border-border p-6 sm:p-8 max-w-3xl">
         <BlogPostForm
           categories={categories}
           cities={cities}
@@ -69,9 +69,9 @@ export default async function EditarArticuloPage({
         />
       </div>
 
-      <div className="bg-white rounded-[10px] border border-[#E7E1D6] p-6 sm:p-8 max-w-3xl mt-6">
-        <h2 className="text-lg font-bold text-[#1E1B17] mb-1">Portada</h2>
-        <p className="text-sm text-[#57514A] mb-4">
+      <div className="bg-white rounded-[10px] border border-border p-6 sm:p-8 max-w-3xl mt-6">
+        <h2 className="text-lg font-bold text-ink mb-1">Portada</h2>
+        <p className="text-sm text-ink-secondary mb-4">
           Se muestra arriba del artículo y como imagen del artículo para Google. Opcional.
         </p>
         <BlogCoverUploader
@@ -82,16 +82,16 @@ export default async function EditarArticuloPage({
       </div>
 
       {redirects.length > 0 && (
-        <div className="bg-white rounded-[10px] border border-[#E7E1D6] p-6 sm:p-8 max-w-3xl mt-6">
-          <h2 className="text-lg font-bold text-[#1E1B17] mb-1">URLs anteriores</h2>
-          <p className="text-sm text-[#57514A] mb-4">
+        <div className="bg-white rounded-[10px] border border-border p-6 sm:p-8 max-w-3xl mt-6">
+          <h2 className="text-lg font-bold text-ink mb-1">URLs anteriores</h2>
+          <p className="text-sm text-ink-secondary mb-4">
             Estas direcciones redirigen con un 301 hacia <span className="font-medium">/blog/{post.slug}</span>.
             Se crean solas cada vez que cambiás el slug de un artículo publicado.
           </p>
-          <ul className="text-sm text-[#57514A] space-y-1">
+          <ul className="text-sm text-ink-secondary space-y-1">
             {redirects.map((redirect) => (
               <li key={redirect.id}>
-                <code className="text-[#1E1B17]">/blog/{redirect.fromSlug}</code>
+                <code className="text-ink">/blog/{redirect.fromSlug}</code>
               </li>
             ))}
           </ul>
