@@ -1,5 +1,5 @@
-// The Spanish (Paraguay) copy for the two transactional emails a candidate can
-// receive from outside a session. Copy lives apart from the send seam so that
+// The Spanish (Paraguay) copy for the transactional emails a candidate can
+// receive. Copy lives apart from the send seam so that
 // changing a sentence is not an edit to the delivery path.
 //
 // Transactional only, per PLAN-NEXT.md §2 E1: these confirm something the
@@ -89,6 +89,44 @@ export function retentionWarningMessage(
       '',
       'Si preferís que borremos tus datos ahora, podés hacerlo vos mismo desde',
       'tu perfil, en "Mis datos".',
+      '',
+      '— trabajo.com.py',
+    ].join('\n'),
+  };
+}
+
+/**
+ * "Recibimos tu postulación" (PLAN-NEXT.md §3 N1).
+ *
+ * Sent on both application paths, so `name` can be absent: the anonymous lead
+ * form takes a name but this email is also the one an unnamed submission would
+ * get, and a greeting is not worth a lookup that could fail.
+ *
+ * Deliberately does NOT say when or whether the employer will reply. We do not
+ * control that, and a confirmation that implies a response is a promise the
+ * site cannot keep. It says what happened and where to see it, nothing more.
+ */
+export function applicationReceivedMessage(
+  to: string,
+  name: string | null,
+  jobTitle: string,
+  companyName: string,
+): EmailMessage {
+  return {
+    to,
+    subject: `Recibimos tu postulación — ${jobTitle}`,
+    text: [
+      name ? `Hola ${name},` : 'Hola,',
+      '',
+      `Recibimos tu postulación a "${jobTitle}" en ${companyName}.`,
+      '',
+      'Tus datos ya están con la empresa. Si les interesa tu perfil, te van a',
+      'contactar por los datos que dejaste.',
+      '',
+      'Podés seguir viendo empleos acá:',
+      emailUrl('/empleos'),
+      '',
+      'Recibís este correo porque te postulaste a un empleo en trabajo.com.py.',
       '',
       '— trabajo.com.py',
     ].join('\n'),
