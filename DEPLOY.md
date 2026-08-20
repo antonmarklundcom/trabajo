@@ -267,6 +267,162 @@ cause.
 `export PATH=/opt/alt/alt-nodejs22/root/usr/bin:$PATH` (check what exists under
 `/opt/alt/`). Deployed source lives at `public_html/.builds/last-source/`.
 
+## Backups and restore
+
+Hostinger's own backups are a courtesy, not a guarantee we control: the
+retention and the restore granularity are set by the plan, not by us, and the
+one thing they will not do is prove they work. This is the procedure that is
+ours.
+
+**Three stores, not one.** MySQL holds the rows; the CVs and the public images
+are files somewhere else entirely (see the two sections below). A "backup" that
+is only the database restores a site whose every logo is a broken image and
+whose every CV download 404s.
+
+### The dump
+
+`mysqldump` over Remote MySQL from your own machine — the same connection the
+`db:*` scripts use, with the same traps (§"Run migrations and scripts from your
+local machine": your IP must be in the Remote MySQL allowlist, and if the
+hostname gives `ECONNREFUSED` with credentials you have verified in phpMyAdmin,
+use the raw IP).
+
+```powershell
+$stamp = Get-Date -Format "yyyy-MM-dd"
+mysqldump `
+  --host srv####.hstgr.io --port 3306 `
+  --user <db_user> --password `
+  --single-transaction --quick `
+  --default-character-set=utf8mb4 `
+  --routines --triggers `
+  <db_name> > "trabajo-$stamp.sql"
+```
+
+- `--single-transaction` takes the dump inside one consistent snapshot without
+  locking the tables, so the live site keeps serving while it runs.
+- `--quick` streams row by row instead of buffering a table in RAM.
+- `--default-character-set=utf8mb4` — leave it out and the Spanish accents and
+  the ñ in company names come back mangled, which is the kind of corruption
+  that restores successfully and is discovered months later.
+- `--password` with **no value** prompts. A password on the command line lands
+  in PowerShell history.
+
+Check the file before trusting it. A dump that failed halfway is still a file:
+
+```powershell
+Select-String -Path "trabajo-$stamp.sql" -Pattern "Dump completed" | Select-Object -Last 1
+```
+
+No trailing `-- Dump completed` line means the dump is truncated. Do not keep
+it and do not delete the previous one.
+
+### Where dumps live, and the part that is easy to get wrong
+
+**A dump is a file full of candidate personal data.** Names, phone numbers,
+email addresses, work history, and the `consents` rows that authorise the
+lot — everything `/privacidad` promises to protect, in plain text, on a laptop.
+Treat it as the CV directory's equal, not as an ops artefact:
+
+- Keep dumps in an encrypted location (an encrypted volume, or a
+  password-protected archive), never in a synced folder that fans them out to
+  every device, and never in a repo.
+- **Keep the last three monthly dumps and delete the rest.** Retention applies
+  to backups too: a dump from two years ago contains candidates the retention
+  sweep has since deleted, which quietly undoes the deletion the policy
+  promised. Three months is enough to recover from a corruption discovered late
+  and short enough that a purged candidate leaves the backup set within one
+  retention cycle.
+- The `candidate_cvs` rows in the dump are metadata; the CV *bytes* are backed
+  up separately, below.
+
+### Cadence
+
+Monthly, **in the same sitting as `npm run db:purge -- --apply`** — dump first,
+then purge. Two reasons to pair them: the purge is the one routine operation
+that deliberately destroys data, so a fresh dump is exactly what you want
+behind it; and `/admin` already nags when the purge is more than 35 days old
+(§O2), which makes the purge card double as the backup reminder. There is no
+cron on Hostinger, so a monthly chore that has no reminder is a monthly chore
+that does not happen.
+
+### The restore rehearsal — run this once, now
+
+An untested backup is a belief, not a backup. This proves the dump restores,
+against a **scratch database**, without touching production. Run it once after
+this lands, and again whenever the schema changes shape enough to worry you.
+
+1. In hPanel → Databases, create a second database, e.g. `<db_name>_restore`,
+   with its own user. **Not** the production database, and check the name twice
+   before every command below.
+
+2. Load the dump into it:
+
+   ```powershell
+   Get-Content "trabajo-$stamp.sql" | mysql `
+     --host srv####.hstgr.io --port 3306 `
+     --user <restore_db_user> --password `
+     <db_name>_restore
+   ```
+
+3. Point the repo's own read-only checks at the scratch database. Nothing here
+   writes, and `db:verify` prints the host it is about to touch before it does
+   anything:
+
+   ```powershell
+   $env:DATABASE_URL = "mysql://<restore_db_user>:<pass>@srv####.hstgr.io:3306/<db_name>_restore"
+   npm run db:verify     # row counts per table + jobs-by-status
+   ```
+
+   Compare the counts against `npm run db:verify` on production. Equal counts
+   on `jobs`, `companies`, `candidates`, `applications` and `consents` is the
+   pass condition. A restore that comes back with fewer `consents` rows than
+   `applications` is a broken dump, not a rounding difference.
+
+4. Spot-check one accented company name and one candidate row in phpMyAdmin.
+   This is the check that catches the charset mistake, and it is the only one
+   that does — row counts look perfect when every ñ has become a `?`.
+
+5. **Delete the scratch database**, and clear `$env:DATABASE_URL` from that
+   PowerShell window (§"Windows specifics": it stays set for the rest of the
+   session, and the next `db:purge -- --apply` you run in that window would go
+   to whatever it still points at). A scratch copy of candidate data left lying
+   in hPanel is the same disclosure risk as an unencrypted dump, minus the
+   excuse.
+
+### Files: CVs and public images
+
+Neither lives in MySQL, and the two drivers have different stories.
+
+**`CV_STORAGE_DRIVER=r2` / `IMAGE_STORAGE_DRIVER=r2`.** Cloudflare R2 keeps
+object versions and replicates across its own storage; a bucket is not a
+directory on one disk. What you still owe it is the **credentials**, kept
+somewhere you can reach when hPanel is what has failed, and a note of which
+bucket belongs to which driver — the CV bucket is private and the image bucket
+is public-read, and restoring a dump into the wrong pair makes every CV in the
+site publicly readable.
+
+**`CV_STORAGE_DRIVER=disk` / `IMAGE_STORAGE_DRIVER=disk`.** These are ordinary
+directories on the Hostinger box (`/home/<user>/cv-storage`,
+`/home/<user>/image-storage`) and **nothing backs them up on our schedule**.
+Pull them down in the same sitting as the dump, over SSH or SFTP:
+
+```bash
+# from your machine, alongside the dump
+scp -r <user>@<host>:/home/<user>/cv-storage  ./cv-storage-$stamp
+scp -r <user>@<host>:/home/<user>/image-storage ./image-storage-$stamp
+```
+
+The CV copy is subject to every rule the dump is — encrypted at rest, three
+months, never synced — and more strongly: it is the actual document a candidate
+uploaded. The image copy is public content and needs no such care, but keep the
+`img/{logos|blog|jobs}/…` paths intact, because those are the database's
+`logo_key` / `image_key` values and a restore that flattens the directories
+restores nothing.
+
+Losing `image-storage` is recoverable — an employer can re-upload a logo.
+Losing `cv-storage` is not, and it is a data-integrity failure under Ley N°
+7593/2025 as well as a product one.
+
 ## CV storage
 
 CVs are the most personal thing this application stores, and they do not live
@@ -289,9 +445,9 @@ outlives the click that produced it.
 directory inside the app is deleted by the next merge to `main` — with the CVs
 in it. Something like `/home/<user>/cv-storage` survives. Nothing on the
 Hostinger side backs that directory up on our schedule, so this driver comes
-with a manual backup step you have to actually schedule; losing a candidate's
-CV is both a product failure and a data-integrity problem under Ley N°
-7593/2025.
+with a manual backup step you have to actually schedule (§"Backups and
+restore"); losing a candidate's CV is both a product failure and a
+data-integrity problem under Ley N° 7593/2025.
 
 Rotating the R2 token is safe at any time: nothing signed with the old one
 lives longer than 60 seconds. Changing the *bucket* or the *driver* is not —
@@ -317,7 +473,8 @@ directory that lives through a deploy.
 
 Losing this directory is less serious than losing `CV_STORAGE_DIR` — an
 employer can re-upload a logo — but it is still every image on the site, so it
-belongs in whatever backup routine `CV_STORAGE_DIR` gets.
+belongs in the same backup routine `CV_STORAGE_DIR` gets (§"Backups and
+restore").
 
 **Driver `r2`.** A **public-read** bucket, which is the opposite of the CV
 bucket's ACL and therefore a separate bucket, plus a custom domain on
