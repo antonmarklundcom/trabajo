@@ -1,12 +1,13 @@
 // POST /api/postulante/postulaciones — one-click apply (PLAN-PHASE2.md §4.1
 // consent #2). The anonymous lead form (POST /api/v1/leads) is untouched;
 // this is a second, parallel write path for logged-in candidates only.
-import { clientIp } from '@/lib/client-ip';
+import { clientIp, clientIpOrUnknown } from '@/lib/client-ip';
 import { z } from 'zod';
 import { authErrorResponse } from '@/lib/auth';
 import { requireApiCandidate } from '@/lib/auth-candidate';
 import { candidateAccountsEnabled } from '@/lib/flags';
 import { createCandidateApplication } from '@/lib/db/candidate-applications';
+import { isApplicationLimited } from '@/lib/candidate-write-limiter';
 
 const schema = z.object({
   jobSlug: z.string().min(1),
@@ -26,6 +27,15 @@ export async function POST(request: Request) {
     const parsed = schema.safeParse(body);
     if (!parsed.success) {
       return Response.json({ error: 'Datos inválidos.' }, { status: 400 });
+    }
+
+    // After the session is established, so the budget is per candidate, and
+    // before the write, so a refused request costs nothing but the parse.
+    if (isApplicationLimited(clientIpOrUnknown(request.headers), candidate.id)) {
+      return Response.json(
+        { error: 'Demasiadas postulaciones seguidas. Esperá un minuto.' },
+        { status: 429 },
+      );
     }
 
     const result = await createCandidateApplication(candidate.id, {
