@@ -109,6 +109,46 @@ export async function getEmployerDashboardStats(companyId: number) {
   };
 }
 
+/**
+ * What the /empresa dashboard's plan card shows (PLAN-NEXT.md §3 P1).
+ *
+ * "Plan" is a property of a LISTING here, not of the company — /planes sells
+ * Destacado per empleo, and there is no plan column on `companies` to read. So
+ * the company's plan is a summary over its jobs: Destacado while at least one
+ * featured window is open, Básico otherwise. Inventing a companies.plan column
+ * would make the panel disagree with what the admin actually sets after a sale.
+ *
+ * READ ONLY. `featured_until` is set by the admin after a manual sale
+ * (PLAN-NEXT.md §3 P1) and no employer path writes it — this function has no
+ * write counterpart on purpose.
+ */
+export async function getEmployerPlanSummary(companyId: number): Promise<{
+  activeFeaturedCount: number;
+  /** Latest end of a currently-open featured window, or null. */
+  featuredUntil: Date | null;
+  /** Latest end of an already-closed one, or null. Drives the "renew" wording. */
+  lastFeaturedUntil: Date | null;
+}> {
+  const db = await getDb();
+
+  const [[active], [lapsed]] = await Promise.all([
+    db
+      .select({ n: count(), latest: sql<Date | null>`MAX(${jobs.featuredUntil})` })
+      .from(jobs)
+      .where(and(ownedByCompany(companyId), sql`${jobs.featuredUntil} > NOW()`)),
+    db
+      .select({ latest: sql<Date | null>`MAX(${jobs.featuredUntil})` })
+      .from(jobs)
+      .where(and(ownedByCompany(companyId), sql`${jobs.featuredUntil} <= NOW()`)),
+  ]);
+
+  return {
+    activeFeaturedCount: active?.n ?? 0,
+    featuredUntil: active?.latest ? new Date(active.latest) : null,
+    lastFeaturedUntil: lapsed?.latest ? new Date(lapsed.latest) : null,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Jobs
 // ---------------------------------------------------------------------------
