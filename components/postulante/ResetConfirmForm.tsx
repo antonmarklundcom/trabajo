@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 const INPUT =
-  'w-full px-4 py-2.5 rounded-[10px] border border-[#E7E1D6] text-base text-[#1E1B17] bg-white focus:outline-none focus:border-[#C0362A] focus:ring-2 focus:ring-[#C0362A]/20';
+  'w-full px-4 py-2.5 rounded-[10px] border border-border text-base text-ink bg-white focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20';
 
 export default function ResetConfirmForm({ token }: { token: string }) {
   const router = useRouter();
@@ -45,7 +45,7 @@ export default function ResetConfirmForm({ token }: { token: string }) {
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-[#1E1B17] mb-1.5">Nueva contraseña</label>
+        <label className="block text-sm font-medium text-ink mb-1.5">Nueva contraseña</label>
         <input
           type="password"
           required
@@ -55,10 +55,10 @@ export default function ResetConfirmForm({ token }: { token: string }) {
           onChange={(e) => setPassword(e.target.value)}
           className={INPUT}
         />
-        <p className="text-xs text-[#57514A] mt-1">Mínimo 8 caracteres.</p>
+        <p className="text-xs text-ink-secondary mt-1">Mínimo 8 caracteres.</p>
       </div>
       <div>
-        <label className="block text-sm font-medium text-[#1E1B17] mb-1.5">Repetir contraseña</label>
+        <label className="block text-sm font-medium text-ink mb-1.5">Repetir contraseña</label>
         <input
           type="password"
           required
@@ -71,8 +71,8 @@ export default function ResetConfirmForm({ token }: { token: string }) {
       </div>
       {error && (
         <div className="space-y-2">
-          <p className="text-sm text-[#C0362A]">{error}</p>
-          <Link href="/postulante/recuperar" className="block text-sm text-[#C0362A] hover:underline">
+          <p className="text-sm text-brand">{error}</p>
+          <Link href="/postulante/recuperar" className="block text-sm text-brand hover:underline">
             Pedir un enlace nuevo
           </Link>
         </div>
@@ -80,7 +80,7 @@ export default function ResetConfirmForm({ token }: { token: string }) {
       <button
         type="submit"
         disabled={submitting}
-        className="w-full py-2.5 rounded-[10px] bg-[#C0362A] text-white text-sm font-semibold disabled:opacity-60"
+        className="w-full py-2.5 rounded-[10px] bg-brand text-white text-sm font-semibold disabled:opacity-60"
       >
         {submitting ? 'Guardando…' : 'Cambiar contraseña'}
       </button>

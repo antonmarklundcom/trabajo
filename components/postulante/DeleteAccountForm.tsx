@@ -56,7 +56,7 @@ export default function DeleteAccountForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label htmlFor="delete-password" className="block text-sm font-medium text-[#1E1B17] mb-1">
+        <label htmlFor="delete-password" className="block text-sm font-medium text-ink mb-1">
           Tu contraseña
         </label>
         <input
@@ -65,12 +65,12 @@ export default function DeleteAccountForm() {
           autoComplete="current-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full rounded-[10px] border border-[#E7E1D6] px-3 py-2 text-sm focus:border-[#C0362A] focus:outline-none"
+          className="w-full rounded-[10px] border border-border px-3 py-2 text-sm focus:border-brand focus:outline-none"
         />
       </div>
 
       <div>
-        <label htmlFor="delete-confirm" className="block text-sm font-medium text-[#1E1B17] mb-1">
+        <label htmlFor="delete-confirm" className="block text-sm font-medium text-ink mb-1">
           Escribí <span className="font-mono">ELIMINAR</span> para confirmar
         </label>
         <input
@@ -78,16 +78,16 @@ export default function DeleteAccountForm() {
           type="text"
           value={confirmText}
           onChange={(e) => setConfirmText(e.target.value)}
-          className="w-full rounded-[10px] border border-[#E7E1D6] px-3 py-2 text-sm focus:border-[#C0362A] focus:outline-none"
+          className="w-full rounded-[10px] border border-border px-3 py-2 text-sm focus:border-brand focus:outline-none"
         />
       </div>
 
-      {error ? <p className="text-sm text-[#B42318]">{error}</p> : null}
+      {error ? <p className="text-sm text-error">{error}</p> : null}
 
       <button
         type="submit"
         disabled={!ready || submitting}
-        className="px-4 py-2 rounded-[10px] text-sm font-medium text-white bg-[#B42318] hover:bg-[#96190F] disabled:opacity-50 disabled:hover:bg-[#B42318] transition-colors"
+        className="px-4 py-2 rounded-[10px] text-sm font-medium text-white bg-error hover:bg-[#96190F] disabled:opacity-50 disabled:hover:bg-error transition-colors"
       >
         {submitting ? 'Eliminando...' : 'Eliminar mi cuenta y mis datos'}
       </button>

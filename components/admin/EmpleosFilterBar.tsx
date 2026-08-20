@@ -46,11 +46,11 @@ export default function EmpleosFilterBar({
           value={term}
           onChange={(e) => setTerm(e.target.value)}
           placeholder="Buscar por título o empresa..."
-          className="flex-1 px-4 py-2 rounded-[10px] border border-[#E7E1D6] text-sm text-[#1E1B17] bg-white focus:outline-none focus:border-[#C0362A] focus:ring-1 focus:ring-[#C0362A]"
+          className="flex-1 px-4 py-2 rounded-[10px] border border-border text-sm text-ink bg-white focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand"
         />
         <button
           type="submit"
-          className="px-4 py-2 rounded-[10px] border border-[#E7E1D6] text-sm font-medium text-[#57514A] hover:border-[#C0362A] hover:text-[#C0362A] transition-colors"
+          className="px-4 py-2 rounded-[10px] border border-border text-sm font-medium text-ink-secondary hover:border-brand hover:text-brand transition-colors"
         >
           Buscar
         </button>
@@ -58,7 +58,7 @@ export default function EmpleosFilterBar({
       <select
         value={status}
         onChange={(e) => updateParam('status', e.target.value)}
-        className="px-3 py-2 rounded-[10px] border border-[#E7E1D6] text-sm text-[#1E1B17] bg-white focus:outline-none focus:border-[#C0362A] focus:ring-1 focus:ring-[#C0362A]"
+        className="px-3 py-2 rounded-[10px] border border-border text-sm text-ink bg-white focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand"
       >
         {STATUS_OPTIONS.map((o) => (
           <option key={o.value} value={o.value}>

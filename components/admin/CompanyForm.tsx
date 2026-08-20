@@ -122,7 +122,7 @@ export default function CompanyForm({ initial }: { initial?: CompanyFormInitial 
           uploadUrl={`/api/admin/empresas/${values.id}/logo`}
         />
       ) : (
-        <p className="text-sm text-[#8A8378]">
+        <p className="text-sm text-ink-3">
           Podrás subir el logo después de guardar la empresa.
         </p>
       )}
@@ -137,21 +137,21 @@ export default function CompanyForm({ initial }: { initial?: CompanyFormInitial 
       </Field>
 
       {error && (
-        <p className="text-sm text-[#B42318] bg-[#FCEBEA] rounded-[10px] px-4 py-3">{error}</p>
+        <p className="text-sm text-error bg-error-tint rounded-[10px] px-4 py-3">{error}</p>
       )}
 
       <div className="flex gap-3">
         <button
           type="submit"
           disabled={submitting}
-          className="px-6 py-3 rounded-[10px] bg-[#C0362A] hover:bg-[#9E2A20] text-white font-semibold text-sm transition-colors disabled:opacity-60"
+          className="px-6 py-3 rounded-[10px] bg-brand hover:bg-brand-hover text-white font-semibold text-sm transition-colors disabled:opacity-60"
         >
           {submitting ? 'Guardando...' : 'Guardar'}
         </button>
         <button
           type="button"
           onClick={() => router.push('/admin/empresas')}
-          className="px-6 py-3 rounded-[10px] border border-[#E7E1D6] text-sm font-medium text-[#57514A] hover:border-[#C0362A] hover:text-[#C0362A] transition-colors"
+          className="px-6 py-3 rounded-[10px] border border-border text-sm font-medium text-ink-secondary hover:border-brand hover:text-brand transition-colors"
         >
           Cancelar
         </button>
@@ -161,7 +161,7 @@ export default function CompanyForm({ initial }: { initial?: CompanyFormInitial 
 }
 
 function inputCls() {
-  return 'w-full px-4 py-2.5 rounded-[10px] border border-[#E7E1D6] text-sm text-[#1E1B17] bg-white focus:outline-none focus:border-[#C0362A] focus:ring-2 focus:ring-[#C0362A]/20';
+  return 'w-full px-4 py-2.5 rounded-[10px] border border-border text-sm text-ink bg-white focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20';
 }
 
 function Field({
@@ -175,9 +175,9 @@ function Field({
 }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-[#1E1B17] mb-1.5">
+      <label className="block text-sm font-medium text-ink mb-1.5">
         {label}
-        {required && <span className="text-[#B42318] ml-0.5">*</span>}
+        {required && <span className="text-error ml-0.5">*</span>}
       </label>
       {children}
     </div>

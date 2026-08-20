@@ -25,7 +25,7 @@ export default function SearchHero({ cities }: Props) {
   }
 
   return (
-    <section className="relative overflow-hidden bg-gradient-to-br from-[#C0362A] to-[#9E2A20] px-4 py-14 sm:py-20">
+    <section className="relative overflow-hidden bg-gradient-to-br from-brand to-brand-hover px-4 py-14 sm:py-20">
       <NandutiMotif className="pointer-events-none absolute -right-24 -top-24 w-[26rem] h-[26rem] text-white opacity-[0.12]" />
       <NandutiMotif className="pointer-events-none absolute -left-40 bottom-[-14rem] w-[30rem] h-[30rem] text-white opacity-[0.07]" />
 
@@ -45,7 +45,7 @@ export default function SearchHero({ cities }: Props) {
           {/* Keyword field */}
           <div className="flex-1 flex items-center gap-2 px-3">
             <svg
-              className="text-[#8A8378] flex-shrink-0"
+              className="text-ink-3 flex-shrink-0"
               width="18"
               height="18"
               viewBox="0 0 20 20"
@@ -59,18 +59,18 @@ export default function SearchHero({ cities }: Props) {
               placeholder="Buscá por cargo o empresa"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
-              className="w-full py-3 text-base text-[#1E1B17] placeholder-[#8A8378] bg-transparent border-none outline-none"
+              className="w-full py-3 text-base text-ink placeholder-ink-3 bg-transparent border-none outline-none"
               aria-label="Buscar empleo"
             />
           </div>
 
           {/* Divider */}
-          <div className="hidden sm:block w-px bg-[#E7E1D6] my-2" aria-hidden="true" />
+          <div className="hidden sm:block w-px bg-border my-2" aria-hidden="true" />
 
           {/* City select */}
           <div className="flex items-center gap-2 px-3 sm:w-52">
             <svg
-              className="text-[#8A8378] flex-shrink-0"
+              className="text-ink-3 flex-shrink-0"
               width="18"
               height="18"
               viewBox="0 0 20 20"
@@ -82,7 +82,7 @@ export default function SearchHero({ cities }: Props) {
             <select
               value={ciudad}
               onChange={(e) => setCiudad(e.target.value)}
-              className="w-full py-3 text-base text-[#1E1B17] bg-transparent border-none outline-none cursor-pointer"
+              className="w-full py-3 text-base text-ink bg-transparent border-none outline-none cursor-pointer"
               aria-label="Filtrar por ciudad"
             >
               <option value="">Todas las ciudades</option>
@@ -97,7 +97,7 @@ export default function SearchHero({ cities }: Props) {
           {/* Submit */}
           <button
             type="submit"
-            className="px-7 py-3 rounded-[12px] bg-[#C0362A] hover:bg-[#9E2A20] text-white font-semibold text-base transition-colors whitespace-nowrap"
+            className="px-7 py-3 rounded-[12px] bg-brand hover:bg-brand-hover text-white font-semibold text-base transition-colors whitespace-nowrap"
           >
             Buscar
           </button>

@@ -75,14 +75,14 @@ export default function LeadForm({ jobSlug, jobTitle, citySlug, categorySlug, co
 
   if (state === 'success') {
     return (
-      <div className="rounded-[10px] bg-[#E8F3EC] border border-[#2E7D50]/20 p-6 text-center">
-        <div className="w-10 h-10 rounded-full bg-[#2E7D50]/10 flex items-center justify-center mx-auto mb-3">
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" className="text-[#2E7D50]">
+      <div className="rounded-[10px] bg-success-tint border border-success/20 p-6 text-center">
+        <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-3">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" className="text-success">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
           </svg>
         </div>
-        <p className="font-semibold text-[#2E7D50]">¡Postulación enviada!</p>
-        <p className="text-sm text-[#57514A] mt-1">Te contactaremos pronto.</p>
+        <p className="font-semibold text-success">¡Postulación enviada!</p>
+        <p className="text-sm text-ink-secondary mt-1">Te contactaremos pronto.</p>
       </div>
     );
   }
@@ -139,7 +139,7 @@ export default function LeadForm({ jobSlug, jobTitle, citySlug, categorySlug, co
       </Field>
 
       {state === 'error' && (
-        <p className="text-sm text-[#B42318] bg-[#FCEBEA] rounded-[10px] px-4 py-3">
+        <p className="text-sm text-error bg-error-tint rounded-[10px] px-4 py-3">
           Hubo un error al enviar. Por favor intentá de nuevo.
         </p>
       )}
@@ -147,7 +147,7 @@ export default function LeadForm({ jobSlug, jobTitle, citySlug, categorySlug, co
       <button
         type="submit"
         disabled={state === 'submitting'}
-        className="w-full py-3.5 px-6 rounded-[10px] border-2 border-[#C0362A] text-[#C0362A] font-semibold hover:bg-[#FBECE9] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+        className="w-full py-3.5 px-6 rounded-[10px] border-2 border-brand text-brand font-semibold hover:bg-brand-tint transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
       >
         {state === 'submitting' ? 'Enviando...' : 'Postularme con formulario'}
       </button>
@@ -156,10 +156,10 @@ export default function LeadForm({ jobSlug, jobTitle, citySlug, categorySlug, co
 }
 
 function inputClass(hasError: boolean) {
-  return `w-full px-4 py-3 rounded-[10px] border text-base text-[#1E1B17] placeholder-[#8A8378] bg-white focus:outline-none focus:ring-2 transition-colors ${
+  return `w-full px-4 py-3 rounded-[10px] border text-base text-ink placeholder-ink-3 bg-white focus:outline-none focus:ring-2 transition-colors ${
     hasError
-      ? 'border-[#B42318] focus:ring-[#B42318]/20'
-      : 'border-[#E7E1D6] focus:border-[#C0362A] focus:ring-[#C0362A]/20'
+      ? 'border-error focus:ring-error/20'
+      : 'border-border focus:border-brand focus:ring-brand/20'
   }`;
 }
 
@@ -176,12 +176,12 @@ function Field({
 }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-[#1E1B17] mb-1.5">
+      <label className="block text-sm font-medium text-ink mb-1.5">
         {label}
-        {required && <span className="text-[#B42318] ml-0.5">*</span>}
+        {required && <span className="text-error ml-0.5">*</span>}
       </label>
       {children}
-      {error && <p className="mt-1 text-xs text-[#B42318]">{error}</p>}
+      {error && <p className="mt-1 text-xs text-error">{error}</p>}
     </div>
   );
 }

@@ -42,9 +42,9 @@ export default function ApplySection({ jobSlug, companyName }: Props) {
   }
 
   return (
-    <p className="mb-4 text-xs text-[#57514A] text-center">
+    <p className="mb-4 text-xs text-ink-secondary text-center">
       ¿Tenés perfil en trabajo.com.py?{' '}
-      <Link href="/postulante/login" className="text-[#C0362A] hover:underline">
+      <Link href="/postulante/login" className="text-brand hover:underline">
         Ingresá para postularte con un clic
       </Link>
     </p>

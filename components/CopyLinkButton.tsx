@@ -17,7 +17,7 @@ export default function CopyLinkButton({ url }: Props) {
     <button
       type="button"
       onClick={handleCopy}
-      className="text-[#C0362A] font-medium hover:underline"
+      className="text-brand font-medium hover:underline"
     >
       {copied ? 'Enlace copiado' : 'Copiar enlace'}
     </button>

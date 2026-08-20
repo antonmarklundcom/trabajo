@@ -53,35 +53,35 @@ export default async function BlogIndexPage() {
       )}
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <nav className="flex items-center gap-2 text-sm text-[#57514A] mb-6" aria-label="Ruta">
-          <Link href="/" className="hover:text-[#C0362A] transition-colors">Inicio</Link>
+        <nav className="flex items-center gap-2 text-sm text-ink-secondary mb-6" aria-label="Ruta">
+          <Link href="/" className="hover:text-brand transition-colors">Inicio</Link>
           <span aria-hidden="true">›</span>
-          <span className="text-[#1E1B17] font-medium">Blog</span>
+          <span className="text-ink font-medium">Blog</span>
         </nav>
 
-        <h1 className="text-3xl font-bold text-[#1E1B17]">Blog</h1>
-        <p className="mt-2 text-[#57514A]">
+        <h1 className="text-3xl font-bold text-ink">Blog</h1>
+        <p className="mt-2 text-ink-secondary">
           Consejos de carrera, análisis del mercado laboral y novedades de trabajo.com.py.
         </p>
 
         {posts.length === 0 ? (
-          <p className="mt-10 text-[#57514A]">Todavía no hay artículos publicados.</p>
+          <p className="mt-10 text-ink-secondary">Todavía no hay artículos publicados.</p>
         ) : (
           <ul className="mt-10 flex flex-col gap-6">
             {posts.map((post) => (
               <li key={post.slug}>
-                <article className="bg-white rounded-[10px] border border-[#E7E1D6] p-6 hover:shadow-[0_4px_12px_-2px_rgba(30,27,23,.12)] transition-shadow">
+                <article className="bg-white rounded-[10px] border border-border p-6 hover:shadow-[0_4px_12px_-2px_rgba(30,27,23,.12)] transition-shadow">
                   <Link href={`/blog/${post.slug}`} className="block">
                     <div className="flex items-center gap-3">
-                      <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-[#F5F1EA] text-[#57514A] border border-[#E7E1D6]">
+                      <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-surface-2 text-ink-secondary border border-border">
                         {BLOG_CATEGORY_LABELS[post.category]}
                       </span>
-                      <time dateTime={post.publishedAt} className="text-xs text-[#8A8378] uppercase tracking-wide font-medium">
+                      <time dateTime={post.publishedAt} className="text-xs text-ink-3 uppercase tracking-wide font-medium">
                         {formatDate(post.publishedAt)}
                       </time>
                     </div>
-                    <h2 className="mt-2 text-xl font-bold text-[#1E1B17]">{post.title}</h2>
-                    <p className="mt-2 text-[#57514A]">{post.description}</p>
+                    <h2 className="mt-2 text-xl font-bold text-ink">{post.title}</h2>
+                    <p className="mt-2 text-ink-secondary">{post.description}</p>
                   </Link>
                 </article>
               </li>

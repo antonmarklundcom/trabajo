@@ -154,13 +154,13 @@ export default function BlogPostForm({ categories, cities, initial, siteUrl }: P
           placeholder={initial?.originalSlug ?? 'se-genera-automaticamente'}
           className={inputCls()}
         />
-        <p className="text-xs text-[#8A8378] mt-1">
-          URL: {siteUrl}/blog/<span className="font-medium text-[#57514A]">{slugPreview}</span>
+        <p className="text-xs text-ink-3 mt-1">
+          URL: {siteUrl}/blog/<span className="font-medium text-ink-secondary">{slugPreview}</span>
         </p>
       </Field>
 
       {slugChanged && initial?.originalStatus === 'published' && (
-        <p className="text-sm text-[#57514A] bg-[#F5F1EA] rounded-[10px] px-4 py-3">
+        <p className="text-sm text-ink-secondary bg-surface-2 rounded-[10px] px-4 py-3">
           Este artículo está publicado. Al guardar, la URL anterior
           (<span className="font-medium">/blog/{initial.originalSlug}</span>) va a redirigir
           automáticamente con un 301 hacia la nueva — no hace falta configurar nada más.
@@ -176,7 +176,7 @@ export default function BlogPostForm({ categories, cities, initial, siteUrl }: P
           onChange={(e) => setField('description', e.target.value)}
           className={`${inputCls()} resize-none`}
         />
-        <p className={`text-xs mt-1 ${descriptionLeft < 0 ? 'text-[#B42318]' : 'text-[#8A8378]'}`}>
+        <p className={`text-xs mt-1 ${descriptionLeft < 0 ? 'text-error' : 'text-ink-3'}`}>
           {values.description.length}/{DESCRIPTION_MAX} caracteres — mínimo 50. Es lo que se lee en
           el resultado de búsqueda.
         </p>
@@ -185,11 +185,11 @@ export default function BlogPostForm({ categories, cities, initial, siteUrl }: P
       {/* What the article is likely to look like in Google. Not a promise —
           Google rewrites titles and descriptions — but it makes a description
           written for the database rather than for a reader obvious. */}
-      <div className="rounded-[10px] border border-[#E7E1D6] bg-[#FBF9F6] p-4">
-        <p className="text-xs uppercase tracking-wide text-[#8A8378] font-medium mb-2">
+      <div className="rounded-[10px] border border-border bg-page-bg p-4">
+        <p className="text-xs uppercase tracking-wide text-ink-3 font-medium mb-2">
           Vista previa en Google
         </p>
-        <p className="text-xs text-[#57514A]">
+        <p className="text-xs text-ink-secondary">
           {siteUrl.replace(/^https?:\/\//, '')} › blog › {slugPreview}
         </p>
         <p className="text-[#1a0dab] text-lg leading-snug truncate">
@@ -234,7 +234,7 @@ export default function BlogPostForm({ categories, cities, initial, siteUrl }: P
             onChange={(e) => setField('publishedAt', e.target.value)}
             className={inputCls()}
           />
-          <p className="text-xs text-[#8A8378] mt-1">Si se deja vacío, se usa la fecha de hoy.</p>
+          <p className="text-xs text-ink-3 mt-1">Si se deja vacío, se usa la fecha de hoy.</p>
         </Field>
       </div>
 
@@ -268,7 +268,7 @@ export default function BlogPostForm({ categories, cities, initial, siteUrl }: P
           </select>
         </Field>
       </div>
-      <p className="text-xs text-[#8A8378] -mt-3">
+      <p className="text-xs text-ink-3 -mt-3">
         Se muestran hasta cinco empleos publicados al final del artículo. Sirve para enlazado
         interno: el artículo pasa autoridad a las páginas de empleos.
       </p>
@@ -282,7 +282,7 @@ export default function BlogPostForm({ categories, cities, initial, siteUrl }: P
           placeholder={'## Subtítulo\n\nTexto del artículo con **negrita** y [enlaces internos](/empleos).'}
           className={`${inputCls()} font-mono text-[13px] leading-relaxed`}
         />
-        <p className="text-xs text-[#8A8378] mt-1">
+        <p className="text-xs text-ink-3 mt-1">
           Markdown: <code>##</code> subtítulo, <code>**negrita**</code>,{' '}
           <code>[texto](/empleos)</code>, listas con <code>-</code>. El HTML pegado se muestra como
           texto, no se ejecuta.
@@ -294,31 +294,31 @@ export default function BlogPostForm({ categories, cities, initial, siteUrl }: P
           type="button"
           onClick={handlePreview}
           disabled={previewing}
-          className="text-sm font-medium text-[#C0362A] hover:underline disabled:opacity-60"
+          className="text-sm font-medium text-brand hover:underline disabled:opacity-60"
         >
           {previewing ? 'Generando...' : preview !== null ? 'Ocultar vista previa' : 'Ver vista previa'}
         </button>
         {preview !== null && (
-          <div className="mt-3 rounded-[10px] border border-[#E7E1D6] bg-white p-5">
+          <div className="mt-3 rounded-[10px] border border-border bg-white p-5">
             <div className="prose-blog" dangerouslySetInnerHTML={{ __html: preview }} />
           </div>
         )}
       </div>
 
-      {error && <p className="text-sm text-[#B42318] bg-[#FCEBEA] rounded-[10px] px-4 py-3">{error}</p>}
+      {error && <p className="text-sm text-error bg-error-tint rounded-[10px] px-4 py-3">{error}</p>}
 
       <div className="flex gap-3">
         <button
           type="submit"
           disabled={submitting}
-          className="px-6 py-3 rounded-[10px] bg-[#C0362A] hover:bg-[#9E2A20] text-white font-semibold text-sm transition-colors disabled:opacity-60"
+          className="px-6 py-3 rounded-[10px] bg-brand hover:bg-brand-hover text-white font-semibold text-sm transition-colors disabled:opacity-60"
         >
           {submitting ? 'Guardando...' : 'Guardar'}
         </button>
         <button
           type="button"
           onClick={() => router.push('/admin/blog')}
-          className="px-6 py-3 rounded-[10px] border border-[#E7E1D6] text-sm font-medium text-[#57514A] hover:border-[#C0362A] hover:text-[#C0362A] transition-colors"
+          className="px-6 py-3 rounded-[10px] border border-border text-sm font-medium text-ink-secondary hover:border-brand hover:text-brand transition-colors"
         >
           Cancelar
         </button>
@@ -357,7 +357,7 @@ function slugifyPreview(input: string): string {
 }
 
 function inputCls() {
-  return 'w-full px-4 py-2.5 rounded-[10px] border border-[#E7E1D6] text-sm text-[#1E1B17] bg-white focus:outline-none focus:border-[#C0362A] focus:ring-2 focus:ring-[#C0362A]/20';
+  return 'w-full px-4 py-2.5 rounded-[10px] border border-border text-sm text-ink bg-white focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20';
 }
 
 function Field({
@@ -371,9 +371,9 @@ function Field({
 }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-[#1E1B17] mb-1.5">
+      <label className="block text-sm font-medium text-ink mb-1.5">
         {label}
-        {required && <span className="text-[#B42318] ml-0.5">*</span>}
+        {required && <span className="text-error ml-0.5">*</span>}
       </label>
       {children}
     </div>

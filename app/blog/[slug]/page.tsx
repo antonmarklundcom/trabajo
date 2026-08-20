@@ -126,15 +126,15 @@ export default async function BlogPostPage({ params }: { params: Params }) {
       />
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <nav className="flex items-center gap-2 text-sm text-[#57514A] mb-6" aria-label="Ruta">
-          <Link href="/" className="hover:text-[#C0362A] transition-colors">Inicio</Link>
+        <nav className="flex items-center gap-2 text-sm text-ink-secondary mb-6" aria-label="Ruta">
+          <Link href="/" className="hover:text-brand transition-colors">Inicio</Link>
           <span aria-hidden="true">›</span>
-          <Link href="/blog" className="hover:text-[#C0362A] transition-colors">Blog</Link>
+          <Link href="/blog" className="hover:text-brand transition-colors">Blog</Link>
           <span aria-hidden="true">›</span>
-          <span className="text-[#1E1B17] font-medium truncate max-w-xs">{post.title}</span>
+          <span className="text-ink font-medium truncate max-w-xs">{post.title}</span>
         </nav>
 
-        <article className="bg-white rounded-[10px] border border-[#E7E1D6] p-6 sm:p-8">
+        <article className="bg-white rounded-[10px] border border-border p-6 sm:p-8">
           {post.coverUrl && (
             // Plain <img>, not next/image: PLAN-IMAGES.md §6 declined loader
             // integration and nothing here needs it. No `loading="lazy"` — this
@@ -144,19 +144,19 @@ export default async function BlogPostPage({ params }: { params: Params }) {
               src={post.coverUrl}
               alt={post.coverAlt ?? ''}
               fetchPriority="high"
-              className="w-full aspect-video object-cover rounded-[10px] border border-[#E7E1D6] mb-6"
+              className="w-full aspect-video object-cover rounded-[10px] border border-border mb-6"
             />
           )}
 
           <div className="flex items-center gap-3">
-            <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-[#F5F1EA] text-[#57514A] border border-[#E7E1D6]">
+            <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-surface-2 text-ink-secondary border border-border">
               {BLOG_CATEGORY_LABELS[post.category]}
             </span>
-            <time dateTime={post.publishedAt} className="text-xs text-[#8A8378] uppercase tracking-wide font-medium">
+            <time dateTime={post.publishedAt} className="text-xs text-ink-3 uppercase tracking-wide font-medium">
               {formatDate(post.publishedAt)}
             </time>
           </div>
-          <h1 className="mt-2 text-2xl sm:text-3xl font-bold text-[#1E1B17] leading-tight">
+          <h1 className="mt-2 text-2xl sm:text-3xl font-bold text-ink leading-tight">
             {post.title}
           </h1>
 
@@ -170,7 +170,7 @@ export default async function BlogPostPage({ params }: { params: Params }) {
 
         {relatedJobs.length > 0 && (
           <div className="mt-10">
-            <h2 className="text-lg font-bold text-[#1E1B17] mb-4">Empleos relacionados</h2>
+            <h2 className="text-lg font-bold text-ink mb-4">Empleos relacionados</h2>
             <div className="flex flex-col gap-4">
               {relatedJobs.map((job) => (
                 <JobCard key={job.slug} job={job} />

@@ -85,7 +85,7 @@ export default function Pagination({ basePath, currentPage, totalPages, searchPa
 
       {items.map((page, i) =>
         page === null ? (
-          <span key={`gap-${i}`} className="px-2 text-sm text-[#8A8378]" aria-hidden="true">
+          <span key={`gap-${i}`} className="px-2 text-sm text-ink-3" aria-hidden="true">
             …
           </span>
         ) : page === currentPage ? (
@@ -95,7 +95,7 @@ export default function Pagination({ basePath, currentPage, totalPages, searchPa
           <span
             key={page}
             aria-current="page"
-            className="px-3.5 py-2 rounded-[10px] border border-[#C0362A] bg-[#FBECE9] text-sm font-semibold text-[#C0362A]"
+            className="px-3.5 py-2 rounded-[10px] border border-brand bg-brand-tint text-sm font-semibold text-brand"
           >
             {page}
           </span>
@@ -104,7 +104,7 @@ export default function Pagination({ basePath, currentPage, totalPages, searchPa
             key={page}
             href={pageUrl(page)}
             aria-label={`Página ${page}`}
-            className="px-3.5 py-2 rounded-[10px] border border-[#E7E1D6] text-sm font-medium text-[#1E1B17] hover:border-[#C0362A] hover:text-[#C0362A] transition-colors"
+            className="px-3.5 py-2 rounded-[10px] border border-border text-sm font-medium text-ink hover:border-brand hover:text-brand transition-colors"
           >
             {page}
           </a>
@@ -121,4 +121,4 @@ export default function Pagination({ basePath, currentPage, totalPages, searchPa
 }
 
 const navCls =
-  'px-4 py-2 rounded-[10px] border border-[#E7E1D6] text-sm font-medium text-[#1E1B17] hover:border-[#C0362A] hover:text-[#C0362A] transition-colors';
+  'px-4 py-2 rounded-[10px] border border-border text-sm font-medium text-ink hover:border-brand hover:text-brand transition-colors';

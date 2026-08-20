@@ -70,9 +70,9 @@ export default function CompanyProfileForm({ initial }: { initial: CompanyProfil
           type="text"
           disabled
           value={values.name}
-          className={`${inputCls()} bg-[#F5F1EA] text-[#8A8378] cursor-not-allowed`}
+          className={`${inputCls()} bg-surface-2 text-ink-3 cursor-not-allowed`}
         />
-        <p className="text-xs text-[#8A8378] mt-1.5">
+        <p className="text-xs text-ink-3 mt-1.5">
           El nombre y la URL de tu empresa los administra el equipo de trabajo.com.py.
         </p>
       </Field>
@@ -115,16 +115,16 @@ export default function CompanyProfileForm({ initial }: { initial: CompanyProfil
       </Field>
 
       <Field label="Avisos por correo">
-        <label className="flex items-start gap-3 text-sm text-[#1E1B17]">
+        <label className="flex items-start gap-3 text-sm text-ink">
           <input
             type="checkbox"
             checked={values.notifyOnApplication}
             onChange={(e) => setField('notifyOnApplication', e.target.checked)}
-            className="mt-0.5 h-4 w-4 rounded border-[#E7E1D6] accent-[#C0362A]"
+            className="mt-0.5 h-4 w-4 rounded border-border accent-brand"
           />
           <span>
             Recibir avisos por correo cuando llega una postulación
-            <span className="block text-xs text-[#8A8378] mt-0.5">
+            <span className="block text-xs text-ink-3 mt-0.5">
               Les llega a todos los usuarios activos de la empresa. El aviso no incluye los
               datos del postulante — esos se ven solo en el panel.
             </span>
@@ -133,10 +133,10 @@ export default function CompanyProfileForm({ initial }: { initial: CompanyProfil
       </Field>
 
       {error && (
-        <p className="text-sm text-[#B42318] bg-[#FCEBEA] rounded-[10px] px-4 py-3">{error}</p>
+        <p className="text-sm text-error bg-error-tint rounded-[10px] px-4 py-3">{error}</p>
       )}
       {success && (
-        <p className="text-sm text-[#2E7D50] bg-[#E8F3EC] rounded-[10px] px-4 py-3">
+        <p className="text-sm text-success bg-success-tint rounded-[10px] px-4 py-3">
           Perfil actualizado.
         </p>
       )}
@@ -144,7 +144,7 @@ export default function CompanyProfileForm({ initial }: { initial: CompanyProfil
       <button
         type="submit"
         disabled={submitting}
-        className="px-6 py-3 rounded-[10px] bg-[#C0362A] hover:bg-[#9E2A20] text-white font-semibold text-sm transition-colors disabled:opacity-60"
+        className="px-6 py-3 rounded-[10px] bg-brand hover:bg-brand-hover text-white font-semibold text-sm transition-colors disabled:opacity-60"
       >
         {submitting ? 'Guardando...' : 'Guardar'}
       </button>
@@ -153,13 +153,13 @@ export default function CompanyProfileForm({ initial }: { initial: CompanyProfil
 }
 
 function inputCls() {
-  return 'w-full px-4 py-2.5 rounded-[10px] border border-[#E7E1D6] text-sm text-[#1E1B17] bg-white focus:outline-none focus:border-[#C0362A] focus:ring-2 focus:ring-[#C0362A]/20';
+  return 'w-full px-4 py-2.5 rounded-[10px] border border-border text-sm text-ink bg-white focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20';
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-[#1E1B17] mb-1.5">{label}</label>
+      <label className="block text-sm font-medium text-ink mb-1.5">{label}</label>
       {children}
     </div>
   );

@@ -21,7 +21,7 @@ export default function UnsaveJobButton({ jobSlug }: { jobSlug: string }) {
     <button
       onClick={handleUnsave}
       disabled={submitting}
-      className="text-xs text-[#B42318] hover:underline disabled:opacity-60"
+      className="text-xs text-error hover:underline disabled:opacity-60"
     >
       {submitting ? 'Quitando...' : 'Quitar de guardados'}
     </button>

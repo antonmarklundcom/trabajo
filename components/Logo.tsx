@@ -38,7 +38,7 @@ type WordmarkProps = {
 /** Full logo: ñandutí mark + "trabajo.com.py" wordmark. */
 export function Wordmark({
   tone = 'light',
-  markClassName = 'text-[#C0362A]',
+  markClassName = 'text-brand',
   size = 30,
   className = '',
 }: WordmarkProps) {
@@ -48,12 +48,12 @@ export function Wordmark({
       <LogoMark size={size} className={markClassName} />
       <span
         className={`font-extrabold tracking-[-0.02em] leading-none ${
-          isDark ? 'text-white' : 'text-[#1E1B17]'
+          isDark ? 'text-white' : 'text-ink'
         }`}
         style={{ fontSize: size * 0.62 }}
       >
         trabajo
-        <span className="font-semibold text-[#8A8378]">.com.py</span>
+        <span className="font-semibold text-ink-3">.com.py</span>
       </span>
     </span>
   );

@@ -77,20 +77,20 @@ export default async function RegistrosDeAccesoPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#1E1B17]">Registros de acceso</h1>
-        <p className="text-sm text-[#57514A] mt-1">
+        <h1 className="text-2xl font-bold text-ink">Registros de acceso</h1>
+        <p className="text-sm text-ink-secondary mt-1">
           Cada vez que alguien del equipo abre el perfil o el CV de un postulante queda una fila
           acá — incluida la tuya. {total.toLocaleString('es-PY')} registro(s).
         </p>
       </div>
 
-      <div className="flex gap-2 border-b border-[#E7E1D6]">
+      <div className="flex gap-2 border-b border-border">
         <Link
           href="/admin/registros-de-acceso"
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
             tab === 'datos'
-              ? 'border-[#C0362A] text-[#1E1B17]'
-              : 'border-transparent text-[#57514A] hover:text-[#1E1B17]'
+              ? 'border-brand text-ink'
+              : 'border-transparent text-ink-secondary hover:text-ink'
           }`}
         >
           Acceso a datos
@@ -99,8 +99,8 @@ export default async function RegistrosDeAccesoPage({
           href="/admin/registros-de-acceso?tab=auth"
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
             tab === 'auth'
-              ? 'border-[#C0362A] text-[#1E1B17]'
-              : 'border-transparent text-[#57514A] hover:text-[#1E1B17]'
+              ? 'border-brand text-ink'
+              : 'border-transparent text-ink-secondary hover:text-ink'
           }`}
         >
           Ingresos y contraseñas
@@ -108,10 +108,10 @@ export default async function RegistrosDeAccesoPage({
       </div>
 
       {auth ? (
-        <div className="bg-white rounded-[10px] border border-[#E7E1D6] overflow-hidden">
+        <div className="bg-white rounded-[10px] border border-border overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-[#F5F1EA] text-left text-[#57514A]">
+              <thead className="bg-surface-2 text-left text-ink-secondary">
                 <tr>
                   <th className="px-4 py-3 font-medium">Fecha</th>
                   <th className="px-4 py-3 font-medium">Superficie</th>
@@ -120,26 +120,26 @@ export default async function RegistrosDeAccesoPage({
                   <th className="px-4 py-3 font-medium">IP</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#E7E1D6]">
+              <tbody className="divide-y divide-border">
                 {auth.rows.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-10 text-center text-[#57514A]">
+                    <td colSpan={5} className="px-4 py-10 text-center text-ink-secondary">
                       Todavía no hay registros de ingreso.
                     </td>
                   </tr>
                 ) : (
                   auth.rows.map((row) => (
-                    <tr key={row.id} className="hover:bg-[#F5F1EA]">
-                      <td className="px-4 py-3 text-[#57514A] whitespace-nowrap">
+                    <tr key={row.id} className="hover:bg-surface-2">
+                      <td className="px-4 py-3 text-ink-secondary whitespace-nowrap">
                         {new Date(row.createdAt).toLocaleString('es-PY')}
                       </td>
-                      <td className="px-4 py-3 text-[#57514A]">
+                      <td className="px-4 py-3 text-ink-secondary">
                         {SURFACE_LABEL[row.surface] ?? row.surface}
                       </td>
-                      <td className="px-4 py-3 text-[#1E1B17]">
+                      <td className="px-4 py-3 text-ink">
                         {AUTH_EVENT_LABEL[row.event] ?? row.event}
                       </td>
-                      <td className="px-4 py-3 text-[#57514A]">
+                      <td className="px-4 py-3 text-ink-secondary">
                         {/* An identity when there was one, a truncated hint when
                             the attempt failed — never the full address typed. */}
                         {row.actorName ??
@@ -149,23 +149,23 @@ export default async function RegistrosDeAccesoPage({
                               ? `Usuario #${row.userId}`
                               : (row.identifierHint ?? '—'))}
                       </td>
-                      <td className="px-4 py-3 text-xs text-[#8A8378]">{row.ip ?? '—'}</td>
+                      <td className="px-4 py-3 text-xs text-ink-3">{row.ip ?? '—'}</td>
                     </tr>
                   ))
                 )}
               </tbody>
             </table>
           </div>
-          <div className="px-4 py-3 text-sm text-[#57514A] border-t border-[#E7E1D6]">
+          <div className="px-4 py-3 text-sm text-ink-secondary border-t border-border">
             {auth.total.toLocaleString('es-PY')} registro(s). Sólo lectura, sin búsqueda ni
             exportación.
           </div>
         </div>
       ) : (
-      <div className="bg-white rounded-[10px] border border-[#E7E1D6] overflow-hidden">
+      <div className="bg-white rounded-[10px] border border-border overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-[#F5F1EA] text-left text-[#57514A]">
+            <thead className="bg-surface-2 text-left text-ink-secondary">
               <tr>
                 <th className="px-4 py-3 font-medium">Fecha</th>
                 <th className="px-4 py-3 font-medium">Quién</th>
@@ -175,47 +175,47 @@ export default async function RegistrosDeAccesoPage({
                 <th className="px-4 py-3 font-medium">IP</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#E7E1D6]">
+            <tbody className="divide-y divide-border">
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-[#57514A]">
+                  <td colSpan={6} className="px-4 py-10 text-center text-ink-secondary">
                     Todavía nadie accedió a datos de postulantes.
                   </td>
                 </tr>
               ) : (
                 rows.map((row) => (
-                  <tr key={row.id} className="hover:bg-[#F5F1EA]">
-                    <td className="px-4 py-3 text-[#57514A] whitespace-nowrap">
+                  <tr key={row.id} className="hover:bg-surface-2">
+                    <td className="px-4 py-3 text-ink-secondary whitespace-nowrap">
                       {new Date(row.createdAt).toLocaleString('es-PY')}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="text-[#1E1B17]">
+                      <div className="text-ink">
                         {/* The user row can be gone; the log row is not. */}
                         {row.actorName ?? `Usuario #${row.actorUserId}`}
                       </div>
-                      <div className="text-xs text-[#8A8378]">{row.actorRole}</div>
+                      <div className="text-xs text-ink-3">{row.actorRole}</div>
                     </td>
-                    <td className="px-4 py-3 text-[#57514A]">
+                    <td className="px-4 py-3 text-ink-secondary">
                       {ACTION_LABEL[row.action] ?? row.action}
                     </td>
                     <td className="px-4 py-3">
                       {row.subjectType === 'candidate' ? (
                         <Link
                           href={`/admin/postulantes/${row.subjectId}`}
-                          className="text-[#1E1B17] hover:text-[#C0362A] font-medium"
+                          className="text-ink hover:text-brand font-medium"
                         >
                           #{row.subjectId}
                         </Link>
                       ) : (
-                        <span className="text-[#57514A]">
+                        <span className="text-ink-secondary">
                           {row.subjectType} #{row.subjectId}
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-[#57514A] max-w-xs">
-                      {row.reason ?? <span className="text-[#8A8378]">—</span>}
+                    <td className="px-4 py-3 text-ink-secondary max-w-xs">
+                      {row.reason ?? <span className="text-ink-3">—</span>}
                     </td>
-                    <td className="px-4 py-3 text-xs text-[#8A8378]">{row.ip ?? '—'}</td>
+                    <td className="px-4 py-3 text-xs text-ink-3">{row.ip ?? '—'}</td>
                   </tr>
                 ))
               )}
@@ -235,8 +235,8 @@ export default async function RegistrosDeAccesoPage({
                 href={`/admin/registros-de-acceso?tab=auth&page=${p}`}
                 className={`px-3 py-1.5 rounded-[10px] text-sm font-medium transition-colors ${
                   p === page
-                    ? 'bg-[#C0362A] text-white'
-                    : 'text-[#57514A] border border-[#E7E1D6] hover:border-[#C0362A]'
+                    ? 'bg-brand text-white'
+                    : 'text-ink-secondary border border-border hover:border-brand'
                 }`}
               >
                 {p}
@@ -255,8 +255,8 @@ export default async function RegistrosDeAccesoPage({
                 href={`/admin/registros-de-acceso?page=${p}`}
                 className={`px-3 py-1.5 rounded-[10px] text-sm font-medium transition-colors ${
                   p === page
-                    ? 'bg-[#C0362A] text-white'
-                    : 'text-[#57514A] border border-[#E7E1D6] hover:border-[#C0362A]'
+                    ? 'bg-brand text-white'
+                    : 'text-ink-secondary border border-border hover:border-brand'
                 }`}
               >
                 {p}
@@ -265,7 +265,7 @@ export default async function RegistrosDeAccesoPage({
         </div>
       )}
 
-      <p className="text-xs text-[#8A8378]">
+      <p className="text-xs text-ink-3">
         Esta tabla es de solo lectura: no se puede editar ni borrar desde el panel. Las filas se
         conservan 24 meses y después las elimina <span className="font-mono">npm run db:purge</span>.
       </p>

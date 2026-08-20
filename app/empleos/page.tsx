@@ -102,10 +102,10 @@ export default async function EmpleosPage({
       />
 
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-sm text-[#57514A] mb-6" aria-label="Ruta">
-        <Link href="/" className="hover:text-[#C0362A]">Inicio</Link>
+      <nav className="flex items-center gap-2 text-sm text-ink-secondary mb-6" aria-label="Ruta">
+        <Link href="/" className="hover:text-brand">Inicio</Link>
         <span aria-hidden="true">›</span>
-        <span className="text-[#1E1B17] font-medium">Empleos</span>
+        <span className="text-ink font-medium">Empleos</span>
       </nav>
 
       {/* Search bar */}
@@ -127,14 +127,14 @@ export default async function EmpleosPage({
 
           <div className="mt-4 space-y-3">
             {jobs.length === 0 ? (
-              <div className="text-center py-16 bg-white rounded-[10px] border border-[#E7E1D6]">
+              <div className="text-center py-16 bg-white rounded-[10px] border border-border">
                 <div className="text-5xl mb-4">🔍</div>
-                <h3 className="text-lg font-semibold text-[#1E1B17] mb-2">
+                <h3 className="text-lg font-semibold text-ink mb-2">
                   No encontramos empleos con esos filtros
                 </h3>
-                <p className="text-sm text-[#57514A]">
+                <p className="text-sm text-ink-secondary">
                   Intentá con otros criterios o{' '}
-                  <Link href="/empleos" className="text-[#C0362A] hover:underline">
+                  <Link href="/empleos" className="text-brand hover:underline">
                     ver todos los empleos
                   </Link>
                   .

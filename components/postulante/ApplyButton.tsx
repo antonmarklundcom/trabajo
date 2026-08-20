@@ -52,7 +52,7 @@ export default function ApplyButton({ jobSlug, companyName, alreadyApplied }: Pr
 
   if (alreadyApplied || done) {
     return (
-      <div className="rounded-[10px] bg-[#E8F3EC] border border-[#2E7D50]/20 p-4 text-center text-sm text-[#1E6B3E]">
+      <div className="rounded-[10px] bg-success-tint border border-success/20 p-4 text-center text-sm text-[#1E6B3E]">
         Ya te postulaste a este empleo con tu perfil de trabajo.com.py.
       </div>
     );
@@ -62,7 +62,7 @@ export default function ApplyButton({ jobSlug, companyName, alreadyApplied }: Pr
     return (
       <button
         onClick={() => setOpen(true)}
-        className="w-full py-3 px-6 rounded-[10px] bg-[#C0362A] hover:bg-[#9E2A20] text-white font-semibold text-base transition-colors"
+        className="w-full py-3 px-6 rounded-[10px] bg-brand hover:bg-brand-hover text-white font-semibold text-base transition-colors"
       >
         Postularme con mi perfil
       </button>
@@ -77,14 +77,14 @@ export default function ApplyButton({ jobSlug, companyName, alreadyApplied }: Pr
         placeholder="Mensaje para la empresa (opcional)"
         value={message}
         onChange={(e) => setMessage(e.target.value)}
-        className="w-full px-3 py-2 rounded-[8px] border border-[#E7E1D6] text-sm text-[#1E1B17] bg-white focus:outline-none focus:border-[#C0362A]"
+        className="w-full px-3 py-2 rounded-[8px] border border-border text-sm text-ink bg-white focus:outline-none focus:border-brand"
       />
-      <label className="flex items-start gap-2 text-xs text-[#1E1B17]">
+      <label className="flex items-start gap-2 text-xs text-ink">
         <input
           type="checkbox"
           checked={consentAccepted}
           onChange={(e) => setConsentAccepted(e.target.checked)}
-          className="mt-0.5 w-4 h-4 rounded border-[#E7E1D6] text-[#C0362A] focus:ring-[#C0362A]"
+          className="mt-0.5 w-4 h-4 rounded border-border text-brand focus:ring-brand"
         />
         <span>
           Acepto compartir mi perfil y mi CV con <strong>{companyName}</strong> para esta
@@ -92,12 +92,12 @@ export default function ApplyButton({ jobSlug, companyName, alreadyApplied }: Pr
         </span>
       </label>
 
-      {error && <p className="text-xs text-[#B42318]">{error}</p>}
+      {error && <p className="text-xs text-error">{error}</p>}
 
       <button
         type="submit"
         disabled={submitting}
-        className="w-full py-2.5 px-6 rounded-[10px] bg-[#C0362A] hover:bg-[#9E2A20] text-white font-semibold text-sm transition-colors disabled:opacity-60"
+        className="w-full py-2.5 px-6 rounded-[10px] bg-brand hover:bg-brand-hover text-white font-semibold text-sm transition-colors disabled:opacity-60"
       >
         {submitting ? 'Enviando...' : 'Enviar postulación'}
       </button>

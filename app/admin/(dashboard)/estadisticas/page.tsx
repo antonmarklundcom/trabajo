@@ -26,10 +26,10 @@ const FUNNEL_LABELS: Record<string, string> = {
 
 function StatCard({ label, value, hint }: { label: string; value: number; hint?: string }) {
   return (
-    <div className="bg-white rounded-[10px] border border-[#E7E1D6] p-4">
-      <p className="text-xs uppercase tracking-wider text-[#8A8378]">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-[#1E1B17]">{value.toLocaleString('es-PY')}</p>
-      {hint && <p className="mt-1 text-xs text-[#8A8378]">{hint}</p>}
+    <div className="bg-white rounded-[10px] border border-border p-4">
+      <p className="text-xs uppercase tracking-wider text-ink-3">{label}</p>
+      <p className="mt-1 text-2xl font-bold text-ink">{value.toLocaleString('es-PY')}</p>
+      {hint && <p className="mt-1 text-xs text-ink-3">{hint}</p>}
     </div>
   );
 }
@@ -38,11 +38,11 @@ function BarRow({ label, count, max }: { label: string; count: number; max: numb
   const pct = max > 0 ? Math.max(4, Math.round((count / max) * 100)) : 0;
   return (
     <div className="flex items-center gap-3 text-sm">
-      <span className="w-32 flex-shrink-0 truncate text-[#57514A]">{label}</span>
-      <div className="flex-1 h-2.5 rounded-full bg-[#F5F1EA] overflow-hidden">
-        <div className="h-full bg-[#C0362A] rounded-full" style={{ width: `${pct}%` }} />
+      <span className="w-32 flex-shrink-0 truncate text-ink-secondary">{label}</span>
+      <div className="flex-1 h-2.5 rounded-full bg-surface-2 overflow-hidden">
+        <div className="h-full bg-brand rounded-full" style={{ width: `${pct}%` }} />
       </div>
-      <span className="w-10 flex-shrink-0 text-right font-medium text-[#1E1B17]">{count}</span>
+      <span className="w-10 flex-shrink-0 text-right font-medium text-ink">{count}</span>
     </div>
   );
 }
@@ -51,16 +51,16 @@ function WeeklyChart({ points, label }: { points: WeeklyPoint[]; label: string }
   const max = Math.max(1, ...points.map((p) => p.count));
   return (
     <div>
-      <h3 className="text-sm font-semibold text-[#1E1B17] mb-3">{label}</h3>
+      <h3 className="text-sm font-semibold text-ink mb-3">{label}</h3>
       <div className="flex items-end gap-2 h-32">
         {points.map((p) => (
           <div key={p.weekStart} className="flex-1 flex flex-col items-center justify-end gap-1">
-            <span className="text-xs text-[#8A8378]">{p.count}</span>
+            <span className="text-xs text-ink-3">{p.count}</span>
             <div
-              className="w-full bg-[#C0362A] rounded-t-[4px]"
+              className="w-full bg-brand rounded-t-[4px]"
               style={{ height: `${Math.max(4, Math.round((p.count / max) * 100))}%` }}
             />
-            <span className="text-[10px] text-[#8A8378]">
+            <span className="text-[10px] text-ink-3">
               {new Date(p.weekStart).toLocaleDateString('es-PY', { day: '2-digit', month: '2-digit' })}
             </span>
           </div>
@@ -73,10 +73,10 @@ function WeeklyChart({ points, label }: { points: WeeklyPoint[]; label: string }
 function LabeledList({ items, title }: { items: LabeledCount[]; title: string }) {
   const max = Math.max(1, ...items.map((i) => i.count));
   return (
-    <div className="bg-white rounded-[10px] border border-[#E7E1D6] p-6">
-      <h3 className="text-sm font-semibold text-[#1E1B17] mb-4">{title}</h3>
+    <div className="bg-white rounded-[10px] border border-border p-6">
+      <h3 className="text-sm font-semibold text-ink mb-4">{title}</h3>
       {items.length === 0 ? (
-        <p className="text-sm text-[#57514A]">Sin datos todavía.</p>
+        <p className="text-sm text-ink-secondary">Sin datos todavía.</p>
       ) : (
         <div className="space-y-2.5">
           {items.map((item) => (
@@ -108,8 +108,8 @@ export default async function EstadisticasPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-[#1E1B17]">Estadísticas</h1>
-        <p className="text-sm text-[#57514A] mt-1">
+        <h1 className="text-2xl font-bold text-ink">Estadísticas</h1>
+        <p className="text-sm text-ink-secondary mt-1">
           Solo datos agregados. Sin nombres, teléfonos ni CVs — ver{' '}
           <span className="font-medium">Postulantes</span> para el detalle individual, con motivo
           registrado.
@@ -132,18 +132,18 @@ export default async function EstadisticasPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-[10px] border border-[#E7E1D6] p-6">
+        <div className="bg-white rounded-[10px] border border-border p-6">
           <WeeklyChart points={applicationsWeekly} label="Postulaciones por semana" />
         </div>
-        <div className="bg-white rounded-[10px] border border-[#E7E1D6] p-6">
+        <div className="bg-white rounded-[10px] border border-border p-6">
           <WeeklyChart points={signupsWeekly} label="Registros de postulantes por semana" />
         </div>
       </div>
 
-      <div className="bg-white rounded-[10px] border border-[#E7E1D6] p-6">
-        <h3 className="text-sm font-semibold text-[#1E1B17] mb-4">
+      <div className="bg-white rounded-[10px] border border-border p-6">
+        <h3 className="text-sm font-semibold text-ink mb-4">
           Embudo de postulaciones
-          <span className="ml-2 font-normal text-xs text-[#8A8378]">
+          <span className="ml-2 font-normal text-xs text-ink-3">
             (depende de que las empresas actualicen el estado)
           </span>
         </h3>
@@ -164,31 +164,31 @@ export default async function EstadisticasPage() {
         <LabeledList items={byCity} title="Postulaciones por ciudad" />
       </div>
 
-      <div className="bg-white rounded-[10px] border border-[#E7E1D6] overflow-x-auto">
-        <div className="px-6 py-4 border-b border-[#E7E1D6]">
-          <h3 className="text-sm font-semibold text-[#1E1B17]">Actividad de empresas</h3>
+      <div className="bg-white rounded-[10px] border border-border overflow-x-auto">
+        <div className="px-6 py-4 border-b border-border">
+          <h3 className="text-sm font-semibold text-ink">Actividad de empresas</h3>
         </div>
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-[#E7E1D6] text-left text-xs uppercase tracking-wider text-[#57514A]">
+            <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-ink-secondary">
               <th className="px-6 py-3 font-medium">Empresa</th>
               <th className="px-6 py-3 font-medium">Empleos publicados</th>
               <th className="px-6 py-3 font-medium">Postulaciones recibidas</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#E7E1D6]">
+          <tbody className="divide-y divide-border">
             {employerActivity.length === 0 ? (
               <tr>
-                <td colSpan={3} className="px-6 py-8 text-center text-[#57514A]">
+                <td colSpan={3} className="px-6 py-8 text-center text-ink-secondary">
                   Sin empresas todavía.
                 </td>
               </tr>
             ) : (
               employerActivity.map((row) => (
-                <tr key={row.companyId} className="hover:bg-[#F5F1EA]">
-                  <td className="px-6 py-3 font-medium text-[#1E1B17]">{row.companyName}</td>
-                  <td className="px-6 py-3 text-[#57514A]">{row.jobsPosted}</td>
-                  <td className="px-6 py-3 text-[#57514A]">{row.applicationsReceived}</td>
+                <tr key={row.companyId} className="hover:bg-surface-2">
+                  <td className="px-6 py-3 font-medium text-ink">{row.companyName}</td>
+                  <td className="px-6 py-3 text-ink-secondary">{row.jobsPosted}</td>
+                  <td className="px-6 py-3 text-ink-secondary">{row.applicationsReceived}</td>
                 </tr>
               ))
             )}

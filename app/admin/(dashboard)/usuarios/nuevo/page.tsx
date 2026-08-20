@@ -11,8 +11,8 @@ export default async function NuevoUsuarioPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-[#1E1B17] mb-6">Nuevo usuario</h1>
-      <div className="bg-white rounded-[10px] border border-[#E7E1D6] p-6 sm:p-8 max-w-2xl">
+      <h1 className="text-2xl font-bold text-ink mb-6">Nuevo usuario</h1>
+      <div className="bg-white rounded-[10px] border border-border p-6 sm:p-8 max-w-2xl">
         <UserForm companies={companies} currentUserId={session.id} />
       </div>
     </div>

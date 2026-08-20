@@ -182,7 +182,7 @@ export default function JobForm({ companies, categories, cities, initial }: Prop
       </div>
 
       {slugChanged && initial?.originalStatus === 'published' && (
-        <p className="text-sm text-[#B42318] bg-[#FCEBEA] rounded-[10px] px-4 py-3">
+        <p className="text-sm text-error bg-error-tint rounded-[10px] px-4 py-3">
           Este empleo está publicado — su slug es una URL pública indexada. Cambiarlo rompe el enlace
           actual; te vamos a pedir confirmación y después hay que configurar un redirect 301 hacia la
           nueva URL.
@@ -298,12 +298,12 @@ export default function JobForm({ companies, categories, cities, initial }: Prop
             className={inputCls()}
           />
         </Field>
-        <label className="flex items-center gap-2 pb-2.5 text-sm text-[#1E1B17]">
+        <label className="flex items-center gap-2 pb-2.5 text-sm text-ink">
           <input
             type="checkbox"
             checked={values.salaryHidden}
             onChange={(e) => setField('salaryHidden', e.target.checked)}
-            className="w-4 h-4 rounded border-[#E7E1D6] text-[#C0362A] focus:ring-[#C0362A]"
+            className="w-4 h-4 rounded border-border text-brand focus:ring-brand"
           />
           Ocultar salario
         </label>
@@ -366,8 +366,8 @@ export default function JobForm({ companies, categories, cities, initial }: Prop
       )}
 
       {needsSlugConfirm && (
-        <div className="rounded-[10px] border border-[#C0362A]/30 bg-[#FBECE9] p-4 space-y-3">
-          <p className="text-sm text-[#1E1B17]">
+        <div className="rounded-[10px] border border-brand/30 bg-brand-tint p-4 space-y-3">
+          <p className="text-sm text-ink">
             Confirmá que querés cambiar el slug de este empleo publicado. Recordá configurar un
             redirect 301 de la URL anterior después de guardar.
           </p>
@@ -375,7 +375,7 @@ export default function JobForm({ companies, categories, cities, initial }: Prop
             type="button"
             onClick={() => submit(true)}
             disabled={submitting}
-            className="px-4 py-2 rounded-[10px] bg-[#C0362A] hover:bg-[#9E2A20] text-white text-sm font-semibold transition-colors disabled:opacity-60"
+            className="px-4 py-2 rounded-[10px] bg-brand hover:bg-brand-hover text-white text-sm font-semibold transition-colors disabled:opacity-60"
           >
             Confirmar cambio de slug
           </button>
@@ -383,21 +383,21 @@ export default function JobForm({ companies, categories, cities, initial }: Prop
       )}
 
       {error && (
-        <p className="text-sm text-[#B42318] bg-[#FCEBEA] rounded-[10px] px-4 py-3">{error}</p>
+        <p className="text-sm text-error bg-error-tint rounded-[10px] px-4 py-3">{error}</p>
       )}
 
       <div className="flex gap-3">
         <button
           type="submit"
           disabled={submitting}
-          className="px-6 py-3 rounded-[10px] bg-[#C0362A] hover:bg-[#9E2A20] text-white font-semibold text-sm transition-colors disabled:opacity-60"
+          className="px-6 py-3 rounded-[10px] bg-brand hover:bg-brand-hover text-white font-semibold text-sm transition-colors disabled:opacity-60"
         >
           {submitting ? 'Guardando...' : 'Guardar'}
         </button>
         <button
           type="button"
           onClick={() => router.push('/admin/empleos')}
-          className="px-6 py-3 rounded-[10px] border border-[#E7E1D6] text-sm font-medium text-[#57514A] hover:border-[#C0362A] hover:text-[#C0362A] transition-colors"
+          className="px-6 py-3 rounded-[10px] border border-border text-sm font-medium text-ink-secondary hover:border-brand hover:text-brand transition-colors"
         >
           Cancelar
         </button>
@@ -407,7 +407,7 @@ export default function JobForm({ companies, categories, cities, initial }: Prop
 }
 
 function inputCls() {
-  return 'w-full px-4 py-2.5 rounded-[10px] border border-[#E7E1D6] text-sm text-[#1E1B17] bg-white focus:outline-none focus:border-[#C0362A] focus:ring-2 focus:ring-[#C0362A]/20';
+  return 'w-full px-4 py-2.5 rounded-[10px] border border-border text-sm text-ink bg-white focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20';
 }
 
 function Field({
@@ -421,9 +421,9 @@ function Field({
 }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-[#1E1B17] mb-1.5">
+      <label className="block text-sm font-medium text-ink mb-1.5">
         {label}
-        {required && <span className="text-[#B42318] ml-0.5">*</span>}
+        {required && <span className="text-error ml-0.5">*</span>}
       </label>
       {children}
     </div>

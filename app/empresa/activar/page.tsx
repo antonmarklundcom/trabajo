@@ -28,13 +28,13 @@ export default async function EmpresaActivarPage({
   const invitation = token ? await getInvitationByToken(token) : null;
 
   return (
-    <div className="min-h-screen bg-[#FBF9F6] flex items-center justify-center px-4">
+    <div className="min-h-screen bg-page-bg flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <h1 className="text-xl font-bold text-[#1E1B17]">trabajo.com.py</h1>
-          <p className="text-sm text-[#57514A] mt-1">Activar cuenta de empresa</p>
+          <h1 className="text-xl font-bold text-ink">trabajo.com.py</h1>
+          <p className="text-sm text-ink-secondary mt-1">Activar cuenta de empresa</p>
         </div>
-        <div className="bg-white rounded-[10px] border border-[#E7E1D6] p-6 sm:p-8">
+        <div className="bg-white rounded-[10px] border border-border p-6 sm:p-8">
           {invitation ? (
             <ActivationForm
               token={token}
@@ -42,7 +42,7 @@ export default async function EmpresaActivarPage({
               companyName={invitation.companyName}
             />
           ) : (
-            <p className="text-sm text-[#B42318] bg-[#FCEBEA] rounded-[10px] px-4 py-3">
+            <p className="text-sm text-error bg-error-tint rounded-[10px] px-4 py-3">
               Este enlace de invitación no es válido o ya venció. Pedile al equipo de
               trabajo.com.py que te envíe uno nuevo.
             </p>

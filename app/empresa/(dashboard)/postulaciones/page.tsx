@@ -46,8 +46,8 @@ export default async function EmpresaPostulacionesPage({
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-[#1E1B17]">Postulaciones</h1>
-        <p className="text-sm text-[#57514A] mt-1">{total} postulación(es) a tus empleos.</p>
+        <h1 className="text-2xl font-bold text-ink">Postulaciones</h1>
+        <p className="text-sm text-ink-secondary mt-1">{total} postulación(es) a tus empleos.</p>
       </div>
 
       <PostulacionesFilterBar
@@ -56,10 +56,10 @@ export default async function EmpresaPostulacionesPage({
         jobs={jobOptions}
       />
 
-      <div className="bg-white rounded-[10px] border border-[#E7E1D6] overflow-x-auto">
+      <div className="bg-white rounded-[10px] border border-border overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-[#E7E1D6] text-left text-xs uppercase tracking-wider text-[#57514A]">
+            <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-ink-secondary">
               <th className="px-4 py-3 font-medium">Postulante</th>
               <th className="px-4 py-3 font-medium">Contacto</th>
               <th className="px-4 py-3 font-medium">Empleo</th>
@@ -67,31 +67,31 @@ export default async function EmpresaPostulacionesPage({
               <th className="px-4 py-3 font-medium">Fecha</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#E7E1D6]">
+          <tbody className="divide-y divide-border">
             {applications.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-[#57514A]">
+                <td colSpan={5} className="px-4 py-10 text-center text-ink-secondary">
                   Todavía no recibiste postulaciones con esos filtros.
                 </td>
               </tr>
             ) : (
               applications.map((app) => (
-                <tr key={app.id} className="hover:bg-[#F5F1EA]">
+                <tr key={app.id} className="hover:bg-surface-2">
                   <td className="px-4 py-3">
                     {app.redactedAt ? (
-                      <span className="text-xs italic text-[#8A8378]">
+                      <span className="text-xs italic text-ink-3">
                         El postulante eliminó sus datos.
                       </span>
                     ) : (
                       <>
-                        <div className="font-medium text-[#1E1B17]">{app.name}</div>
+                        <div className="font-medium text-ink">{app.name}</div>
                         {app.message && (
-                          <div className="text-xs text-[#8A8378] mt-0.5 max-w-xs truncate">{app.message}</div>
+                          <div className="text-xs text-ink-3 mt-0.5 max-w-xs truncate">{app.message}</div>
                         )}
                         {app.cvId && (
                           <a
                             href={`/api/empresa/cv/${app.id}`}
-                            className="mt-1 inline-block text-xs text-[#C0362A] hover:underline"
+                            className="mt-1 inline-block text-xs text-brand hover:underline"
                           >
                             Ver CV
                           </a>
@@ -99,18 +99,18 @@ export default async function EmpresaPostulacionesPage({
                       </>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-[#57514A]">
+                  <td className="px-4 py-3 text-ink-secondary">
                     {!app.redactedAt && (
                       <>
                         <div>{app.phone}</div>
-                        {app.email && <div className="text-xs text-[#8A8378]">{app.email}</div>}
+                        {app.email && <div className="text-xs text-ink-3">{app.email}</div>}
                       </>
                     )}
                   </td>
                   <td className="px-4 py-3">
                     <Link
                       href={`/empresa/empleos?job=${app.jobId}`}
-                      className="text-[#1E1B17] hover:text-[#C0362A] font-medium"
+                      className="text-ink hover:text-brand font-medium"
                     >
                       {app.jobTitle}
                     </Link>
@@ -118,7 +118,7 @@ export default async function EmpresaPostulacionesPage({
                   <td className="px-4 py-3">
                     <ApplicationStatusSelect id={app.id} status={app.status} />
                   </td>
-                  <td className="px-4 py-3 text-[#8A8378]">
+                  <td className="px-4 py-3 text-ink-3">
                     {new Date(app.createdAt).toLocaleDateString('es-PY')}
                   </td>
                 </tr>
@@ -141,8 +141,8 @@ export default async function EmpresaPostulacionesPage({
                 href={`/empresa/postulaciones?${params.toString()}`}
                 className={`w-9 h-9 flex items-center justify-center rounded-[10px] text-sm font-medium transition-colors ${
                   p === page
-                    ? 'bg-[#C0362A] text-white'
-                    : 'bg-white border border-[#E7E1D6] text-[#57514A] hover:border-[#C0362A]'
+                    ? 'bg-brand text-white'
+                    : 'bg-white border border-border text-ink-secondary hover:border-brand'
                 }`}
               >
                 {p}

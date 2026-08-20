@@ -60,20 +60,20 @@ export default function ProfileForm({ initial, cities }: Props) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-[#1E1B17] mb-1.5">Nombre completo</label>
+        <label className="block text-sm font-medium text-ink mb-1.5">Nombre completo</label>
         <input
           type="text"
           required
           minLength={2}
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full px-4 py-2.5 rounded-[10px] border border-[#E7E1D6] text-base text-[#1E1B17] bg-white focus:outline-none focus:border-[#C0362A] focus:ring-2 focus:ring-[#C0362A]/20"
+          className="w-full px-4 py-2.5 rounded-[10px] border border-border text-base text-ink bg-white focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-[#1E1B17] mb-1.5">
+        <label className="block text-sm font-medium text-ink mb-1.5">
           Titular
-          <span className="text-[#8A8378] font-normal"> (opcional, lo escribís vos)</span>
+          <span className="text-ink-3 font-normal"> (opcional, lo escribís vos)</span>
         </label>
         <input
           type="text"
@@ -81,26 +81,26 @@ export default function ProfileForm({ initial, cities }: Props) {
           placeholder="Ej: Vendedor con 3 años de experiencia"
           value={headline}
           onChange={(e) => setHeadline(e.target.value)}
-          className="w-full px-4 py-2.5 rounded-[10px] border border-[#E7E1D6] text-base text-[#1E1B17] bg-white focus:outline-none focus:border-[#C0362A] focus:ring-2 focus:ring-[#C0362A]/20"
+          className="w-full px-4 py-2.5 rounded-[10px] border border-border text-base text-ink bg-white focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-[#1E1B17] mb-1.5">Teléfono / WhatsApp</label>
+        <label className="block text-sm font-medium text-ink mb-1.5">Teléfono / WhatsApp</label>
         <input
           type="tel"
           required
           minLength={6}
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
-          className="w-full px-4 py-2.5 rounded-[10px] border border-[#E7E1D6] text-base text-[#1E1B17] bg-white focus:outline-none focus:border-[#C0362A] focus:ring-2 focus:ring-[#C0362A]/20"
+          className="w-full px-4 py-2.5 rounded-[10px] border border-border text-base text-ink bg-white focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-[#1E1B17] mb-1.5">Ciudad</label>
+        <label className="block text-sm font-medium text-ink mb-1.5">Ciudad</label>
         <select
           value={cityId}
           onChange={(e) => setCityId(e.target.value)}
-          className="w-full px-4 py-2.5 rounded-[10px] border border-[#E7E1D6] text-base text-[#1E1B17] bg-white focus:outline-none focus:border-[#C0362A] focus:ring-2 focus:ring-[#C0362A]/20"
+          className="w-full px-4 py-2.5 rounded-[10px] border border-border text-base text-ink bg-white focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
         >
           <option value="">Preferís no decirlo</option>
           {cities.map((c) => (
@@ -112,16 +112,16 @@ export default function ProfileForm({ initial, cities }: Props) {
       </div>
 
       <div>
-        <label className="flex items-start gap-3 text-sm text-[#1E1B17]">
+        <label className="flex items-start gap-3 text-sm text-ink">
           <input
             type="checkbox"
             checked={notifyOnStatusChange}
             onChange={(e) => setNotifyOnStatusChange(e.target.checked)}
-            className="mt-0.5 h-4 w-4 rounded border-[#E7E1D6] accent-[#C0362A]"
+            className="mt-0.5 h-4 w-4 rounded border-border accent-brand"
           />
           <span>
             Avisarme por correo cuando una empresa quiera contactarme
-            <span className="block text-xs text-[#8A8378] mt-0.5">
+            <span className="block text-xs text-ink-3 mt-0.5">
               Es el único aviso que mandamos sobre tus postulaciones.
             </span>
           </span>
@@ -129,10 +129,10 @@ export default function ProfileForm({ initial, cities }: Props) {
       </div>
 
       {error && (
-        <p className="text-sm text-[#B42318] bg-[#FCEBEA] rounded-[10px] px-4 py-3">{error}</p>
+        <p className="text-sm text-error bg-error-tint rounded-[10px] px-4 py-3">{error}</p>
       )}
       {saved && !error && (
-        <p className="text-sm text-[#1E6B3E] bg-[#E8F3EC] rounded-[10px] px-4 py-3">
+        <p className="text-sm text-[#1E6B3E] bg-success-tint rounded-[10px] px-4 py-3">
           Perfil actualizado.
         </p>
       )}
@@ -140,7 +140,7 @@ export default function ProfileForm({ initial, cities }: Props) {
       <button
         type="submit"
         disabled={submitting}
-        className="py-2.5 px-6 rounded-[10px] bg-[#C0362A] hover:bg-[#9E2A20] text-white font-semibold text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+        className="py-2.5 px-6 rounded-[10px] bg-brand hover:bg-brand-hover text-white font-semibold text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
       >
         {submitting ? 'Guardando...' : 'Guardar cambios'}
       </button>

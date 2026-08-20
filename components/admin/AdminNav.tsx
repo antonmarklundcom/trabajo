@@ -41,10 +41,10 @@ export default function AdminNav({ name, role }: Props) {
   const items = NAV_ITEMS.filter((item) => item.roles.includes(role));
 
   return (
-    <header className="bg-white border-b border-[#E7E1D6] sticky top-0 z-30">
+    <header className="bg-white border-b border-border sticky top-0 z-30">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16 gap-4">
         <div className="flex items-center gap-8 min-w-0">
-          <Link href="/admin" className="font-bold text-[#1E1B17] whitespace-nowrap">
+          <Link href="/admin" className="font-bold text-ink whitespace-nowrap">
             trabajo.com.py
           </Link>
           <nav className="hidden sm:flex items-center gap-1 overflow-x-auto">
@@ -57,8 +57,8 @@ export default function AdminNav({ name, role }: Props) {
                   href={item.href}
                   className={`px-3 py-2 rounded-[10px] text-sm font-medium whitespace-nowrap transition-colors ${
                     active
-                      ? 'bg-[#FBECE9] text-[#C0362A]'
-                      : 'text-[#57514A] hover:bg-[#F5F1EA] hover:text-[#1E1B17]'
+                      ? 'bg-brand-tint text-brand'
+                      : 'text-ink-secondary hover:bg-surface-2 hover:text-ink'
                   }`}
                 >
                   {item.label}
@@ -68,13 +68,13 @@ export default function AdminNav({ name, role }: Props) {
           </nav>
         </div>
         <div className="flex items-center gap-3">
-          <span className="hidden sm:block text-sm text-[#57514A] truncate max-w-[160px]">
+          <span className="hidden sm:block text-sm text-ink-secondary truncate max-w-[160px]">
             {name}
           </span>
           <button
             onClick={handleLogout}
             disabled={loggingOut}
-            className="px-3 py-2 rounded-[10px] text-sm font-medium text-[#57514A] border border-[#E7E1D6] hover:border-[#C0362A] hover:text-[#C0362A] transition-colors disabled:opacity-60"
+            className="px-3 py-2 rounded-[10px] text-sm font-medium text-ink-secondary border border-border hover:border-brand hover:text-brand transition-colors disabled:opacity-60"
           >
             Salir
           </button>
@@ -89,7 +89,7 @@ export default function AdminNav({ name, role }: Props) {
               key={item.href}
               href={item.href}
               className={`px-3 py-1.5 rounded-[10px] text-sm font-medium whitespace-nowrap transition-colors ${
-                active ? 'bg-[#FBECE9] text-[#C0362A]' : 'text-[#57514A] hover:bg-[#F5F1EA]'
+                active ? 'bg-brand-tint text-brand' : 'text-ink-secondary hover:bg-surface-2'
               }`}
             >
               {item.label}

@@ -19,7 +19,7 @@ const cityLinks = [
 
 export default function Footer() {
   return (
-    <footer className="bg-white border-t border-[#E7E1D6] mt-16">
+    <footer className="bg-white border-t border-border mt-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Brand */}
@@ -27,14 +27,14 @@ export default function Footer() {
             <Link href="/" className="inline-block" aria-label="trabajo.com.py — Inicio">
               <Wordmark size={26} />
             </Link>
-            <p className="mt-3 text-sm text-[#57514A] leading-relaxed">
+            <p className="mt-3 text-sm text-ink-secondary leading-relaxed">
               El portal de empleos de Paraguay. Gratis para candidatos, siempre.
             </p>
-            <p className="mt-4 text-sm text-[#57514A]">
+            <p className="mt-4 text-sm text-ink-secondary">
               <span className="font-medium">¿Tenés dudas?</span>{' '}
               <Link
                 href="/contacto"
-                className="text-[#C0362A] hover:underline"
+                className="text-brand hover:underline"
               >
                 Contactanos
               </Link>
@@ -43,7 +43,7 @@ export default function Footer() {
 
           {/* Categorías */}
           <div>
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#57514A] mb-4">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-ink-secondary mb-4">
               Categorías
             </h3>
             <ul className="space-y-2">
@@ -51,7 +51,7 @@ export default function Footer() {
                 <li key={l.href}>
                   <Link
                     href={l.href}
-                    className="text-sm text-[#57514A] hover:text-[#C0362A] transition-colors"
+                    className="text-sm text-ink-secondary hover:text-brand transition-colors"
                   >
                     {l.label}
                   </Link>
@@ -62,7 +62,7 @@ export default function Footer() {
 
           {/* Ciudades */}
           <div>
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#57514A] mb-4">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-ink-secondary mb-4">
               Ciudades
             </h3>
             <ul className="space-y-2">
@@ -70,7 +70,7 @@ export default function Footer() {
                 <li key={l.href}>
                   <Link
                     href={l.href}
-                    className="text-sm text-[#57514A] hover:text-[#C0362A] transition-colors"
+                    className="text-sm text-ink-secondary hover:text-brand transition-colors"
                   >
                     {l.label}
                   </Link>
@@ -81,22 +81,22 @@ export default function Footer() {
 
           {/* Empresa */}
           <div>
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#57514A] mb-4">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-ink-secondary mb-4">
               Empresa
             </h3>
             <ul className="space-y-2">
               <li>
-                <Link href="/publicar" className="text-sm text-[#57514A] hover:text-[#C0362A] transition-colors">
+                <Link href="/publicar" className="text-sm text-ink-secondary hover:text-brand transition-colors">
                   Publicá tu empleo
                 </Link>
               </li>
               <li>
-                <Link href="/planes" className="text-sm text-[#57514A] hover:text-[#C0362A] transition-colors">
+                <Link href="/planes" className="text-sm text-ink-secondary hover:text-brand transition-colors">
                   Planes y precios
                 </Link>
               </li>
               <li>
-                <Link href="/contacto" className="text-sm text-[#57514A] hover:text-[#C0362A] transition-colors">
+                <Link href="/contacto" className="text-sm text-ink-secondary hover:text-brand transition-colors">
                   Contacto
                 </Link>
               </li>
@@ -104,18 +104,18 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-10 pt-6 border-t border-[#E7E1D6] flex flex-col sm:flex-row justify-between items-center gap-3">
-          <p className="text-xs text-[#57514A]">
+        <div className="mt-10 pt-6 border-t border-border flex flex-col sm:flex-row justify-between items-center gap-3">
+          <p className="text-xs text-ink-secondary">
             © {new Date().getFullYear()} trabajo.com.py — Todos los derechos reservados.
           </p>
           <div className="flex items-center gap-4">
-            <Link href="/privacidad" className="text-xs text-[#57514A] hover:text-[#C0362A] transition-colors">
+            <Link href="/privacidad" className="text-xs text-ink-secondary hover:text-brand transition-colors">
               Privacidad
             </Link>
-            <Link href="/terminos" className="text-xs text-[#57514A] hover:text-[#C0362A] transition-colors">
+            <Link href="/terminos" className="text-xs text-ink-secondary hover:text-brand transition-colors">
               Términos
             </Link>
-            <p className="text-xs text-[#57514A]">
+            <p className="text-xs text-ink-secondary">
               Hecho con ♥ en Paraguay
             </p>
           </div>

@@ -89,17 +89,17 @@ const sections = [
 export default function TerminosPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <h1 className="text-3xl sm:text-4xl font-bold text-[#1E1B17]">
+      <h1 className="text-3xl sm:text-4xl font-bold text-ink">
         Términos y condiciones
       </h1>
-      <p className="mt-3 text-sm text-[#8A8378]">Última actualización: julio de 2026</p>
+      <p className="mt-3 text-sm text-ink-3">Última actualización: julio de 2026</p>
 
       <div className="mt-8 space-y-8">
         {sections.map((s) => (
           <section key={s.title}>
-            <h2 className="text-lg font-semibold text-[#1E1B17]">{s.title}</h2>
+            <h2 className="text-lg font-semibold text-ink">{s.title}</h2>
             {s.body.map((p, i) => (
-              <p key={i} className="mt-2 text-[15px] leading-relaxed text-[#57514A]">
+              <p key={i} className="mt-2 text-[15px] leading-relaxed text-ink-secondary">
                 {p}
               </p>
             ))}

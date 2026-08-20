@@ -170,48 +170,48 @@ export default function UserForm({
       </div>
 
       {isEdit && (
-        <label className="flex items-center gap-2 text-sm text-[#1E1B17]">
+        <label className="flex items-center gap-2 text-sm text-ink">
           <input
             type="checkbox"
             disabled={isSelf}
             checked={values.isActive}
             onChange={(e) => setField('isActive', e.target.checked)}
-            className="w-4 h-4 rounded border-[#E7E1D6] text-[#C0362A] focus:ring-[#C0362A]"
+            className="w-4 h-4 rounded border-border text-brand focus:ring-brand"
           />
           Cuenta activa
         </label>
       )}
 
       {isSelf && (
-        <p className="text-xs text-[#8A8378]">
+        <p className="text-xs text-ink-3">
           No podés cambiar tu propio rol ni desactivar tu propia cuenta desde acá.
         </p>
       )}
 
       {isEdit && (
-        <p className="text-xs text-[#8A8378]">
+        <p className="text-xs text-ink-3">
           El cambio de contraseña se hace con{' '}
-          <code className="bg-[#F5F1EA] px-1 py-0.5 rounded">npm run user:password</code>, no desde
+          <code className="bg-surface-2 px-1 py-0.5 rounded">npm run user:password</code>, no desde
           este panel (ARCHITECTURE.md §5).
         </p>
       )}
 
       {error && (
-        <p className="text-sm text-[#B42318] bg-[#FCEBEA] rounded-[10px] px-4 py-3">{error}</p>
+        <p className="text-sm text-error bg-error-tint rounded-[10px] px-4 py-3">{error}</p>
       )}
 
       <div className="flex gap-3">
         <button
           type="submit"
           disabled={submitting}
-          className="px-6 py-3 rounded-[10px] bg-[#C0362A] hover:bg-[#9E2A20] text-white font-semibold text-sm transition-colors disabled:opacity-60"
+          className="px-6 py-3 rounded-[10px] bg-brand hover:bg-brand-hover text-white font-semibold text-sm transition-colors disabled:opacity-60"
         >
           {submitting ? 'Guardando...' : 'Guardar'}
         </button>
         <button
           type="button"
           onClick={() => router.push('/admin/usuarios')}
-          className="px-6 py-3 rounded-[10px] border border-[#E7E1D6] text-sm font-medium text-[#57514A] hover:border-[#C0362A] hover:text-[#C0362A] transition-colors"
+          className="px-6 py-3 rounded-[10px] border border-border text-sm font-medium text-ink-secondary hover:border-brand hover:text-brand transition-colors"
         >
           Cancelar
         </button>
@@ -221,7 +221,7 @@ export default function UserForm({
 }
 
 function inputCls(disabled?: boolean) {
-  return `w-full px-4 py-2.5 rounded-[10px] border border-[#E7E1D6] text-sm text-[#1E1B17] bg-white focus:outline-none focus:border-[#C0362A] focus:ring-2 focus:ring-[#C0362A]/20 ${disabled ? 'opacity-60 cursor-not-allowed bg-[#F5F1EA]' : ''}`;
+  return `w-full px-4 py-2.5 rounded-[10px] border border-border text-sm text-ink bg-white focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 ${disabled ? 'opacity-60 cursor-not-allowed bg-surface-2' : ''}`;
 }
 
 function Field({
@@ -235,9 +235,9 @@ function Field({
 }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-[#1E1B17] mb-1.5">
+      <label className="block text-sm font-medium text-ink mb-1.5">
         {label}
-        {required && <span className="text-[#B42318] ml-0.5">*</span>}
+        {required && <span className="text-error ml-0.5">*</span>}
       </label>
       {children}
     </div>

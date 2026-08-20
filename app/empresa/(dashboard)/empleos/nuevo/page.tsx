@@ -14,8 +14,8 @@ export default async function EmpresaNuevoEmpleoPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-[#1E1B17] mb-6">Nuevo empleo</h1>
-      <div className="bg-white rounded-[10px] border border-[#E7E1D6] p-6 sm:p-8 max-w-3xl">
+      <h1 className="text-2xl font-bold text-ink mb-6">Nuevo empleo</h1>
+      <div className="bg-white rounded-[10px] border border-border p-6 sm:p-8 max-w-3xl">
         <EmployerJobForm categories={categories} cities={cities} />
       </div>
     </div>

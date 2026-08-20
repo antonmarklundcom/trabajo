@@ -30,7 +30,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es-PY" className={inter.variable}>
-      <body className="min-h-screen flex flex-col bg-[#FBF9F6] text-[#1E1B17]">
+      <body className="min-h-screen flex flex-col bg-page-bg text-ink">
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />

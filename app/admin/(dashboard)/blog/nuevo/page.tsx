@@ -10,11 +10,11 @@ export default async function NuevoArticuloPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-[#1E1B17] mb-6">Nuevo artículo</h1>
-      <div className="bg-white rounded-[10px] border border-[#E7E1D6] p-6 sm:p-8 max-w-3xl">
+      <h1 className="text-2xl font-bold text-ink mb-6">Nuevo artículo</h1>
+      <div className="bg-white rounded-[10px] border border-border p-6 sm:p-8 max-w-3xl">
         <BlogPostForm categories={categories} cities={cities} siteUrl={siteUrl} />
       </div>
-      <p className="text-sm text-[#57514A] mt-4 max-w-3xl">
+      <p className="text-sm text-ink-secondary mt-4 max-w-3xl">
         La portada se sube después de guardar, desde la pantalla de edición.
       </p>
     </div>

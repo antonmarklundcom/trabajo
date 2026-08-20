@@ -21,7 +21,7 @@ export default function CategoryGrid({ categories }: Props) {
   return (
     <section className="py-12 px-4">
       <div className="max-w-7xl mx-auto">
-        <h2 className="text-2xl font-bold text-[#1E1B17] mb-6">
+        <h2 className="text-2xl font-bold text-ink mb-6">
           Explorá por categoría
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -33,15 +33,15 @@ export default function CategoryGrid({ categories }: Props) {
                 href={`/trabajo/${cat.slug}`}
                 className={`group flex flex-col gap-3 p-4 rounded-[14px] border transition-all ${
                   empty
-                    ? 'border-dashed border-[#D8D0C2] bg-transparent hover:border-[#B0812C]'
-                    : 'border-[#E7E1D6] bg-white hover:border-[#C0362A] hover:shadow-[0_4px_12px_-2px_rgba(30,27,23,.1)]'
+                    ? 'border-dashed border-border-strong bg-transparent hover:border-gold'
+                    : 'border-border bg-white hover:border-brand hover:shadow-[0_4px_12px_-2px_rgba(30,27,23,.1)]'
                 }`}
               >
                 <div
                   className={`w-11 h-11 flex items-center justify-center rounded-[12px] transition-colors ${
                     empty
-                      ? 'bg-[#F5F1EA] text-[#8A8378]'
-                      : 'bg-[#FBECE9] text-[#C0362A]'
+                      ? 'bg-surface-2 text-ink-3'
+                      : 'bg-brand-tint text-brand'
                   }`}
                 >
                   <svg viewBox="0 0 24 24" width="22" height="22">
@@ -51,11 +51,11 @@ export default function CategoryGrid({ categories }: Props) {
                   </svg>
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-[#1E1B17] leading-tight">
+                  <p className="text-sm font-semibold text-ink leading-tight">
                     {categoryLabel(cat.slug)}
                   </p>
                   {cat.jobCount !== undefined && (
-                    <p className={`text-xs mt-0.5 ${empty ? 'font-semibold text-[#8F6620]' : 'text-[#8A8378]'}`}>
+                    <p className={`text-xs mt-0.5 ${empty ? 'font-semibold text-gold-strong' : 'text-ink-3'}`}>
                       {empty
                         ? 'Sé el primero →'
                         : `${cat.jobCount} ${cat.jobCount === 1 ? 'empleo' : 'empleos'}`}

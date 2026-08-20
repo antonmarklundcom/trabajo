@@ -39,11 +39,11 @@ export default function BlogDeleteButton({ postId, slug }: { postId: number; slu
         type="button"
         onClick={handleDelete}
         disabled={busy}
-        className="text-sm font-medium text-[#B42318] hover:underline disabled:opacity-60"
+        className="text-sm font-medium text-error hover:underline disabled:opacity-60"
       >
         {busy ? 'Eliminando...' : 'Eliminar artículo'}
       </button>
-      {error && <p className="text-sm text-[#B42318] mt-2">{error}</p>}
+      {error && <p className="text-sm text-error mt-2">{error}</p>}
     </div>
   );
 }

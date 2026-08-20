@@ -63,7 +63,7 @@ export default function LogoUploader({ companyName, logoSrc, canRemove, uploadUr
 
   return (
     <div>
-      <label className="block text-sm font-medium text-[#1E1B17] mb-1.5">Logo</label>
+      <label className="block text-sm font-medium text-ink mb-1.5">Logo</label>
       <div className="flex items-center gap-4">
         {logoSrc ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -72,10 +72,10 @@ export default function LogoUploader({ companyName, logoSrc, canRemove, uploadUr
             alt={`Logo de ${companyName}`}
             width={64}
             height={64}
-            className="w-16 h-16 rounded-[10px] border border-[#E7E1D6] object-cover bg-white flex-shrink-0"
+            className="w-16 h-16 rounded-[10px] border border-border object-cover bg-white flex-shrink-0"
           />
         ) : (
-          <div className="w-16 h-16 rounded-[10px] border border-dashed border-[#E7E1D6] flex items-center justify-center text-xs text-[#8A8378] text-center flex-shrink-0">
+          <div className="w-16 h-16 rounded-[10px] border border-dashed border-border flex items-center justify-center text-xs text-ink-3 text-center flex-shrink-0">
             Sin logo
           </div>
         )}
@@ -89,22 +89,22 @@ export default function LogoUploader({ companyName, logoSrc, canRemove, uploadUr
               const file = e.target.files?.[0];
               if (file) handleFile(file);
             }}
-            className="text-sm text-[#57514A] disabled:opacity-60"
+            className="text-sm text-ink-secondary disabled:opacity-60"
           />
           {canRemove && (
             <button
               type="button"
               onClick={handleRemove}
               disabled={busy}
-              className="text-sm text-[#B42318] hover:underline self-start disabled:opacity-60"
+              className="text-sm text-error hover:underline self-start disabled:opacity-60"
             >
               Quitar logo
             </button>
           )}
         </div>
       </div>
-      {error && <p className="text-sm text-[#B42318] mt-2">{error}</p>}
-      <p className="text-xs text-[#8A8378] mt-1.5">JPG, PNG o WebP. Máximo 4 MB.</p>
+      {error && <p className="text-sm text-error mt-2">{error}</p>}
+      <p className="text-xs text-ink-3 mt-1.5">JPG, PNG o WebP. Máximo 4 MB.</p>
     </div>
   );
 }
