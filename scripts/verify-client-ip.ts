@@ -119,5 +119,23 @@ for (let i = 0; i < 5; i += 1) flood.isLimited('203.0.113.7');
 check('sixth request in the window is limited', flood.isLimited('203.0.113.7'), true);
 check('a different origin is not', flood.isLimited('198.51.100.4'), false);
 
+// B5: the two authenticated candidate write endpoints get their own instances,
+// for the same reason login and deletion do above. Saving a job is a cheap
+// toggle a browsing candidate hits often; applying is rare and irreversible.
+// Sharing one counter would let a save loop spend the applying budget, and
+// nothing about that is visible from a browser.
+console.log('\n— candidate write limiters —');
+
+const saves = createRequestLimiter(30, 60_000);
+const applications = createRequestLimiter(10, 60_000);
+for (let i = 0; i < 30; i += 1) saves.isLimited('203.0.113.7:42');
+check('the save budget is spent', saves.isLimited('203.0.113.7:42'), true);
+check('the application budget is untouched', applications.isLimited('203.0.113.7:42'), false);
+check(
+  'a second candidate on the same IP has its own budget',
+  saves.isLimited('203.0.113.7:43'),
+  false,
+);
+
 console.log(failures === 0 ? '\nAll client-IP and limiter properties hold.\n' : `\n${failures} FAILED\n`);
 process.exit(failures === 0 ? 0 : 1);

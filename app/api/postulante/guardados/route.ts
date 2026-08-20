@@ -3,10 +3,12 @@
 // /api/postulante/postulaciones: candidateId comes only from the session,
 // never from the request body.
 import { z } from 'zod';
+import { clientIpOrUnknown } from '@/lib/client-ip';
 import { authErrorResponse } from '@/lib/auth';
 import { requireApiCandidate } from '@/lib/auth-candidate';
 import { candidateAccountsEnabled } from '@/lib/flags';
 import { saveJob, unsaveJob } from '@/lib/db/candidate-saved-jobs';
+import { isSavedJobLimited } from '@/lib/candidate-write-limiter';
 
 const schema = z.object({ jobSlug: z.string().min(1) });
 
@@ -22,6 +24,15 @@ export async function POST(request: Request) {
     const parsed = schema.safeParse(body);
     if (!parsed.success) {
       return Response.json({ error: 'Datos inválidos.' }, { status: 400 });
+    }
+
+    // Both verbs share one budget: an unsave is the same row-churn as a save,
+    // and a toggle loop alternates between them.
+    if (isSavedJobLimited(clientIpOrUnknown(request.headers), candidate.id)) {
+      return Response.json(
+        { error: 'Demasiadas acciones seguidas. Esperá un minuto.' },
+        { status: 429 },
+      );
     }
 
     const result = await saveJob(candidate.id, parsed.data.jobSlug);
@@ -47,6 +58,15 @@ export async function DELETE(request: Request) {
     const parsed = schema.safeParse(body);
     if (!parsed.success) {
       return Response.json({ error: 'Datos inválidos.' }, { status: 400 });
+    }
+
+    // Both verbs share one budget: an unsave is the same row-churn as a save,
+    // and a toggle loop alternates between them.
+    if (isSavedJobLimited(clientIpOrUnknown(request.headers), candidate.id)) {
+      return Response.json(
+        { error: 'Demasiadas acciones seguidas. Esperá un minuto.' },
+        { status: 429 },
+      );
     }
 
     await unsaveJob(candidate.id, parsed.data.jobSlug);
