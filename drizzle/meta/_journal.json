@@ -71,6 +71,13 @@
       "when": 1787176034340,
       "tag": "0009_productive_black_tom",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1787217672446,
+      "tag": "0010_worthless_miracleman",
+      "breakpoints": true
     }
   ]
 }

@@ -21,7 +21,9 @@ async function getDb() {
 }
 
 export type ApplyResult =
-  | { ok: true; applicationId: number }
+  // companyId rides along for N2: the caller has to know who to notify, and
+  // this function already read the job row.
+  | { ok: true; applicationId: number; companyId: number }
   | { ok: false; reason: 'job_not_found' | 'already_applied' };
 
 export type ApplyInput = {
@@ -109,7 +111,7 @@ export async function createCandidateApplication(
       return appResult.insertId;
     });
 
-    return { ok: true, applicationId };
+    return { ok: true, companyId: job.companyId, applicationId };
   } catch (err) {
     // The SELECT above is a fast path for the common case, not the guard. Two
     // concurrent submits both pass it; the unique index is what makes the

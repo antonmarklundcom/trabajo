@@ -9,6 +9,9 @@ const schema = z.object({
   whatsapp: z.string().max(20).nullable(),
   website: z.string().max(500).nullable(),
   description: z.string().max(5000).nullable(),
+  // N2. Not nullable: the column is NOT NULL with a default, and "unset" is
+  // not a state the form can produce.
+  notifyOnApplication: z.boolean(),
 });
 
 export async function PATCH(request: Request) {

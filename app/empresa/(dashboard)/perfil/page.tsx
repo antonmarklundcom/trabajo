@@ -22,6 +22,7 @@ export default async function EmpresaPerfilPage() {
     whatsapp: company?.whatsapp ?? '',
     website: company?.website ?? '',
     description: company?.description ?? '',
+    notifyOnApplication: company?.notifyOnApplication ?? true,
   };
 
   return (

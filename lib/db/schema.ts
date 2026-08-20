@@ -60,6 +60,13 @@ export const companies = mysqlTable('companies', {
   website: varchar('website', { length: 500 }),
   description: text('description'),
   ownerUserId: int('owner_user_id'),
+  // N2: whether this company's employer users get an email when an application
+  // lands on one of their listings. Per COMPANY rather than per user: the
+  // notification goes to every active employer user of the company, so one
+  // switch with one meaning beats a per-user flag whose default nobody set.
+  // Defaults on — an employer who was invited to receive applications is not
+  // helped by silence.
+  notifyOnApplication: boolean('notify_on_application').notNull().default(true),
   createdAt: datetime('created_at').notNull(),
   updatedAt: datetime('updated_at').notNull(),
 });
