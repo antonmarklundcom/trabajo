@@ -16,6 +16,7 @@ import { authErrorResponse } from '@/lib/auth';
 import { requireApiCandidate } from '@/lib/auth-candidate';
 import { candidateAccountsEnabled } from '@/lib/flags';
 import { buildCandidateExport } from '@/lib/db/candidate-arco';
+import { captureError } from '@/lib/observability';
 
 export async function GET() {
   if (!candidateAccountsEnabled()) {
@@ -45,7 +46,7 @@ export async function GET() {
   } catch (err) {
     const authResponse = authErrorResponse(err);
     if (authResponse) return authResponse;
-    console.error('[arco] export failed', err);
+    captureError('arco:export', err);
     return Response.json({ error: 'No pudimos generar tu archivo.' }, { status: 500 });
   }
 }

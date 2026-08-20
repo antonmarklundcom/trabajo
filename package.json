@@ -31,6 +31,7 @@
     "sort:verify": "tsx scripts/verify-sort-parity.ts"
   },
   "dependencies": {
+    "@sentry/nextjs": "^10.70.0",
     "bcrypt": "^6.0.0",
     "drizzle-orm": "^0.45.2",
     "iron-session": "^8.0.4",

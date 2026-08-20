@@ -3,6 +3,7 @@ import { createPublicJobSubmission } from '@/lib/db/admin';
 import { clientIpOrUnknown } from '@/lib/client-ip';
 import { HONEYPOT_FIELD, isHoneypotFilled } from '@/lib/leads';
 import { isRateLimited } from '@/lib/public-write-limiter';
+import { captureError } from '@/lib/observability';
 
 // Public, unauthenticated by design — every row this creates lands as
 // `status = 'pending'`, which lib/db/queries.ts's visiblePredicate() already
@@ -43,7 +44,7 @@ export async function POST(request: Request) {
   try {
     await createPublicJobSubmission(parsed.data);
   } catch (err) {
-    console.error('[publicar] pending job creation failed —', err);
+    captureError('publicar:pending-job-create', err);
   }
 
   return Response.json({ ok: true }, { status: 201 });

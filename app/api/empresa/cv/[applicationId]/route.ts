@@ -18,6 +18,7 @@ import { authErrorResponse, requireApiCompanyScope } from '@/lib/auth';
 import { employerDashboardEnabled } from '@/lib/flags';
 import { cvDownloadResponse } from '@/lib/cv';
 import { getEmployerApplicationCv } from '@/lib/db/employer';
+import { captureError } from '@/lib/observability';
 
 const NOT_FOUND = () => Response.json({ error: 'No encontrado.' }, { status: 404 });
 
@@ -46,7 +47,7 @@ export async function GET(
   } catch (err) {
     const authResponse = authErrorResponse(err);
     if (authResponse) return authResponse;
-    console.error('[cv] employer download failed', err);
+    captureError('cv:employer-download', err);
     return Response.json({ error: 'No pudimos abrir el CV.' }, { status: 500 });
   }
 }

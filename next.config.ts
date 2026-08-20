@@ -36,7 +36,11 @@ const CSP_REPORT_ONLY = [
   // needs its two origins.
   "img-src 'self' data: blob: https://www.google-analytics.com https://www.googletagmanager.com",
   "font-src 'self' data:",
-  "connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com",
+  // Sentry's ingest endpoint (PLAN-NEXT.md §3 O1). Report-Only today, so
+  // omitting it would not have blocked anything — it is here now so that
+  // enforcing this policy later does not silently switch error reporting off,
+  // which is the one failure a CSP is worst at telling you about.
+  "connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://*.sentry.io",
   "object-src 'none'",
   "base-uri 'self'",
   // The site posts only to itself: the lead API, /publicar, and the three login
