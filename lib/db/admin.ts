@@ -606,9 +606,21 @@ export type ApplicationInput = {
  * caller in app/api/v1/leads/route.ts must never let a DB failure fail the
  * seeker's submission (ARCHITECTURE.md §7).
  */
-export async function createApplication(input: ApplicationInput): Promise<number | null> {
+/**
+ * Returns the new row's id and the job's company, or null when the slug matches
+ * no job. The companyId is returned rather than looked up again by the caller
+ * because this function already has the row: N2 needs it to find who to notify,
+ * and a second query for a column we just read is a second chance to be wrong.
+ */
+export async function createApplication(
+  input: ApplicationInput,
+): Promise<{ applicationId: number; companyId: number } | null> {
   const db = await getDb();
-  const [job] = await db.select({ id: jobs.id }).from(jobs).where(eq(jobs.slug, input.jobSlug)).limit(1);
+  const [job] = await db
+    .select({ id: jobs.id, companyId: jobs.companyId })
+    .from(jobs)
+    .where(eq(jobs.slug, input.jobSlug))
+    .limit(1);
   if (!job) return null;
 
   const [result] = await db.insert(applications).values({
@@ -621,7 +633,7 @@ export async function createApplication(input: ApplicationInput): Promise<number
     status: 'new',
     createdAt: new Date(),
   });
-  return result.insertId;
+  return { applicationId: result.insertId, companyId: job.companyId };
 }
 
 export type AdminApplicationFilters = {

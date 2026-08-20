@@ -1,0 +1,1 @@
+ALTER TABLE `companies` ADD `notify_on_application` boolean DEFAULT true NOT NULL;

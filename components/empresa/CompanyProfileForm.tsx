@@ -11,6 +11,7 @@ export type CompanyProfileFormInitial = {
   whatsapp: string;
   website: string;
   description: string;
+  notifyOnApplication: boolean;
 };
 
 type EditableFields = Omit<CompanyProfileFormInitial, 'logoSrc' | 'logoKey'>;
@@ -38,6 +39,7 @@ export default function CompanyProfileForm({ initial }: { initial: CompanyProfil
       whatsapp: values.whatsapp || null,
       website: values.website || null,
       description: values.description || null,
+      notifyOnApplication: values.notifyOnApplication,
     };
 
     try {
@@ -110,6 +112,24 @@ export default function CompanyProfileForm({ initial }: { initial: CompanyProfil
           onChange={(e) => setField('description', e.target.value)}
           className={`${inputCls()} resize-none`}
         />
+      </Field>
+
+      <Field label="Avisos por correo">
+        <label className="flex items-start gap-3 text-sm text-[#1E1B17]">
+          <input
+            type="checkbox"
+            checked={values.notifyOnApplication}
+            onChange={(e) => setField('notifyOnApplication', e.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-[#E7E1D6] accent-[#C0362A]"
+          />
+          <span>
+            Recibir avisos por correo cuando llega una postulación
+            <span className="block text-xs text-[#8A8378] mt-0.5">
+              Les llega a todos los usuarios activos de la empresa. El aviso no incluye los
+              datos del postulante — esos se ven solo en el panel.
+            </span>
+          </span>
+        </label>
       </Field>
 
       {error && (

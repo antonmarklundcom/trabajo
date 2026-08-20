@@ -9,7 +9,10 @@ import {
   processLead,
 } from '@/lib/leads';
 import { createApplication } from '@/lib/db/admin';
-import { notifyApplicantOfApplication } from '@/lib/notifications';
+import {
+  notifyApplicantOfApplication,
+  notifyEmployerOfApplication,
+} from '@/lib/notifications';
 
 const SILENT_OK = () => NextResponse.json({ ok: true }, { status: 201 });
 
@@ -58,9 +61,10 @@ export async function POST(req: NextRequest) {
   // application-form submissions (name + phone both present) get a row; the
   // leave-page WhatsApp beacon carries neither and is a click, not an
   // application.
+  let createdCompanyId: number | null = null;
   if (lead.type === 'application' && lead.name && lead.phone) {
     try {
-      await createApplication({
+      const created = await createApplication({
         jobSlug: lead.jobSlug,
         name: lead.name,
         phone: lead.phone,
@@ -68,6 +72,7 @@ export async function POST(req: NextRequest) {
         message: lead.message || null,
         sourcePage: lead.sourcePage ?? null,
       });
+      createdCompanyId = created?.companyId ?? null;
     } catch (err) {
       console.error('[leads] application insert failed —', err);
     }
@@ -88,7 +93,19 @@ export async function POST(req: NextRequest) {
         name: lead.name,
         jobSlug: lead.jobSlug,
       });
+
+      // N2. Keyed on the insert having happened: a lead that produced no
+      // applications row (unknown slug, DB failure) is not something the
+      // employer can open in their panel, so telling them to go look at it
+      // would send them to an empty page.
+      if (createdCompanyId !== null) {
+        await notifyEmployerOfApplication({
+          companyId: createdCompanyId,
+          jobSlug: lead.jobSlug,
+        });
+      }
     }
+
   });
 
   return NextResponse.json({ ok: true }, { status: 201 });

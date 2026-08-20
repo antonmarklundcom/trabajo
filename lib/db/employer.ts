@@ -40,6 +40,7 @@ import {
   jobImages,
   jobs,
   jobStatusEnum,
+  users,
 } from './schema';
 import { slugify, uniqueSlug } from '../slug';
 import { deleteImage } from '../image-storage';
@@ -616,6 +617,7 @@ export type EmployerCompanyInput = Partial<{
   website: string | null;
   description: string | null;
   logoKey: string | null;
+  notifyOnApplication: boolean;
 }>;
 
 export async function getEmployerCompany(companyId: number) {
@@ -638,6 +640,37 @@ export async function updateEmployerCompany(
   const changed = result.affectedRows > 0;
   if (changed) await logEmployerActivity(actorUserId, 'company', companyId, 'employer_update');
   return changed;
+}
+
+/**
+ * Who to email when an application lands on this company's listing (N2).
+ *
+ * Returns an empty list — not an error — when the company has turned the
+ * notification off, so the toggle is enforced at the read that produces the
+ * recipients rather than at each call site that might forget. Only ACTIVE
+ * employer users: a deactivated account is one the team has cut off, and
+ * cutting off the dashboard while still mailing them is not cutting them off.
+ *
+ * `name` and `email` only. This list is for addressing an email that carries no
+ * applicant data (see lib/emails/employer.ts), and returning more would invite
+ * a caller to put it in one.
+ */
+export async function listEmployerNotificationRecipients(
+  companyId: number,
+): Promise<{ name: string; email: string }[]> {
+  const db = await getDb();
+
+  const [company] = await db
+    .select({ notifyOnApplication: companies.notifyOnApplication })
+    .from(companies)
+    .where(eq(companies.id, companyId))
+    .limit(1);
+  if (!company || !company.notifyOnApplication) return [];
+
+  return db
+    .select({ name: users.name, email: users.email })
+    .from(users)
+    .where(and(eq(users.companyId, companyId), eq(users.role, 'employer'), eq(users.isActive, true)));
 }
 
 // ---------------------------------------------------------------------------
