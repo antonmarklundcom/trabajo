@@ -132,3 +132,43 @@ export function applicationReceivedMessage(
     ].join('\n'),
   };
 }
+
+/**
+ * "La empresa quiere contactarte" (PLAN-NEXT.md §3 N3).
+ *
+ * Sent on ONE transition, `contacted`, and no other. `reviewed` and
+ * `discarded` are deliberately silent: a "te descartaron" email is a rejection
+ * the candidate did not ask to be told about in that form, and "alguien miró tu
+ * perfil" is noise dressed as news.
+ *
+ * It says the employer intends to make contact — not that they will, and not
+ * when. We do not control either, and the message has to survive an employer
+ * who marks the row and then never calls.
+ */
+export function applicationContactedMessage(
+  to: string,
+  name: string,
+  jobTitle: string,
+  companyName: string,
+): EmailMessage {
+  return {
+    to,
+    subject: `${companyName} quiere contactarte — ${jobTitle}`,
+    text: [
+      `Hola ${name},`,
+      '',
+      `${companyName} marcó tu postulación a "${jobTitle}" como contactada.`,
+      '',
+      'Eso quiere decir que les interesó tu perfil y que van a escribirte o',
+      'llamarte por los datos que dejaste. Revisá que tu teléfono y tu correo',
+      'estén al día:',
+      '',
+      emailUrl('/postulante/perfil'),
+      '',
+      'Recibís este aviso porque te postulaste a este empleo. Podés desactivar',
+      'estos avisos desde tu perfil.',
+      '',
+      '— trabajo.com.py',
+    ].join('\n'),
+  };
+}

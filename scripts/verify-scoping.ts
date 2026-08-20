@@ -229,7 +229,7 @@ async function main() {
       'discarded',
     );
     assert(
-      updatedForeignApp === false,
+      updatedForeignApp.changed === false,
       "setEmployerApplicationStatus reports no change on another company's application",
     );
 
@@ -251,8 +251,8 @@ async function main() {
       'own application is readable',
     );
     assert(
-      (await employer.setEmployerApplicationStatus(a.companyId, actor, a.applicationId, 'reviewed')) ===
-        true,
+      (await employer.setEmployerApplicationStatus(a.companyId, actor, a.applicationId, 'reviewed'))
+        .changed === true,
       'own application status is writable',
     );
 

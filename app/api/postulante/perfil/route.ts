@@ -9,6 +9,9 @@ const schema = z.object({
   phone: z.string().min(6).max(20),
   cityId: z.number().int().positive().nullable(),
   headline: z.string().max(200).nullable(),
+  // N3. Not nullable: the column is NOT NULL with a default, and "unset" is not
+  // a state the form can produce.
+  notifyOnStatusChange: z.boolean(),
 });
 
 export async function PATCH(request: Request) {

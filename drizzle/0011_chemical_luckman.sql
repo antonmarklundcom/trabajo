@@ -1,0 +1,1 @@
+ALTER TABLE `candidates` ADD `notify_on_status_change` boolean DEFAULT true NOT NULL;

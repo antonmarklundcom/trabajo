@@ -38,6 +38,7 @@ export default async function PostulantePerfilPage() {
             phone: candidate.phone,
             cityId: candidate.cityId,
             headline: candidate.headline,
+            notifyOnStatusChange: candidate.notifyOnStatusChange,
           }}
           cities={cities}
         />

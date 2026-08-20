@@ -305,6 +305,12 @@ export const candidates = mysqlTable('candidates', {
   // inactive again the old timestamp predates their return, so they are warned
   // afresh instead of being purged in silence.
   retentionWarnedAt: datetime('retention_warned_at'),
+  // N3: whether to email this candidate when an employer marks one of their
+  // applications as contacted. Opt-OUT, editable in /postulante/perfil. The
+  // only status change that produces an email is `contacted` — a "te
+  // descartaron" notice would do candidates more harm than good
+  // (PLAN-NEXT.md §3 N3), so this flag governs one message, not a category.
+  notifyOnStatusChange: boolean('notify_on_status_change').notNull().default(true),
   createdAt: datetime('created_at').notNull(),
   updatedAt: datetime('updated_at').notNull(),
 });

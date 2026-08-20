@@ -52,6 +52,7 @@ export type CandidateUser = {
   cityId: number | null;
   headline: string | null;
   emailVerifiedAt: Date | null;
+  notifyOnStatusChange: boolean;
 };
 
 export const CANDIDATE_COOKIE_NAME = 'trabajo_postulante';
@@ -122,6 +123,7 @@ export const getCandidate = cache(async (): Promise<CandidateUser | null> => {
       cityId: schema.candidates.cityId,
       headline: schema.candidates.headline,
       emailVerifiedAt: schema.candidates.emailVerifiedAt,
+      notifyOnStatusChange: schema.candidates.notifyOnStatusChange,
     })
     .from(schema.candidates)
     // isActive is part of the lookup rather than a post-check, and a deleted
@@ -203,6 +205,7 @@ export async function authenticateCandidate(
       cityId: schema.candidates.cityId,
       headline: schema.candidates.headline,
       emailVerifiedAt: schema.candidates.emailVerifiedAt,
+      notifyOnStatusChange: schema.candidates.notifyOnStatusChange,
       isActive: schema.candidates.isActive,
       passwordHash: schema.candidates.passwordHash,
     })
@@ -232,6 +235,7 @@ export async function authenticateCandidate(
     cityId: row.cityId,
     headline: row.headline,
     emailVerifiedAt: row.emailVerifiedAt,
+    notifyOnStatusChange: row.notifyOnStatusChange,
   };
 }
 
