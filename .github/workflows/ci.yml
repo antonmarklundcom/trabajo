@@ -50,6 +50,22 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Before the build, deliberately. Both are seconds, the build is the
+      # expensive step, and a PR that fails either would have failed anyway —
+      # so failing here costs a fraction of a minute instead of a whole one.
+      # (Budget rule, AGENTS.md: these are STEPS in the one job. Splitting them
+      # into parallel jobs would bill three rounded-up minutes instead of one.)
+      - name: Lint
+        run: npm run lint
+
+      # `next build` typechecks the app, but only what it builds. Everything
+      # under scripts/ — the purge, the migrations, the nine verify scripts —
+      # is compiled by tsx at run time and was never typechecked by CI at all,
+      # so a type error there surfaced when an operator ran it against
+      # production rather than on the PR that introduced it.
+      - name: Typecheck
+        run: npm run typecheck
+
       - name: Build
         run: npm run build
         env:
