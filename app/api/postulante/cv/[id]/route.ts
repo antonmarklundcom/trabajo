@@ -11,6 +11,7 @@ import { requireApiCandidate } from '@/lib/auth-candidate';
 import { candidateAccountsEnabled } from '@/lib/flags';
 import { cvDownloadResponse } from '@/lib/cv';
 import { deleteCandidateCv, getCandidateCv } from '@/lib/db/candidate-cvs';
+import { captureError } from '@/lib/observability';
 
 const NOT_FOUND = () => Response.json({ error: 'No encontrado.' }, { status: 404 });
 
@@ -36,7 +37,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   } catch (err) {
     const authResponse = authErrorResponse(err);
     if (authResponse) return authResponse;
-    console.error('[cv] candidate download failed', err);
+    captureError('cv:candidate-download', err);
     return Response.json({ error: 'No pudimos abrir el CV.' }, { status: 500 });
   }
 }
@@ -60,7 +61,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   } catch (err) {
     const authResponse = authErrorResponse(err);
     if (authResponse) return authResponse;
-    console.error('[cv] candidate delete failed', err);
+    captureError('cv:candidate-delete', err);
     return Response.json(
       { error: 'No pudimos eliminar el CV. El archivo sigue guardado; intentá de nuevo.' },
       { status: 500 },

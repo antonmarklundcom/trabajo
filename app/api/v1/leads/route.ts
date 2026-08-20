@@ -13,6 +13,7 @@ import {
   notifyApplicantOfApplication,
   notifyEmployerOfApplication,
 } from '@/lib/notifications';
+import { captureError } from '@/lib/observability';
 
 const SILENT_OK = () => NextResponse.json({ ok: true }, { status: 201 });
 
@@ -74,7 +75,7 @@ export async function POST(req: NextRequest) {
       });
       createdCompanyId = created?.companyId ?? null;
     } catch (err) {
-      console.error('[leads] application insert failed —', err);
+      captureError('leads:application-insert', err, { jobSlug: lead.jobSlug });
     }
   }
 

@@ -30,6 +30,7 @@ import {
 } from '@/lib/auth-candidate';
 import { candidateAccountsEnabled } from '@/lib/flags';
 import { deleteCandidateAccount } from '@/lib/db/candidate-arco';
+import { captureError } from '@/lib/observability';
 
 const schema = z.object({
   password: z.string().min(1).max(200),
@@ -87,7 +88,7 @@ export async function POST(request: Request) {
     // A storage failure lands here (§4.4 step 2 hard-fails). Reporting success
     // while a CV is still in the bucket is the one answer this endpoint must
     // never give, so the message says plainly that nothing was deleted.
-    console.error('[arco] account deletion failed', err);
+    captureError('arco:account-deletion', err);
     return Response.json(
       {
         error:

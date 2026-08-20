@@ -8,6 +8,7 @@ import { employerDashboardEnabled } from '@/lib/flags';
 import { uploadCompanyLogo, removeCompanyLogoObject } from '@/lib/company-logo';
 import { getEmployerCompany, updateEmployerCompany } from '@/lib/db/employer';
 import { invalidatePublicContent } from '@/lib/cache';
+import { captureError } from '@/lib/observability';
 
 const NOT_FOUND = () => Response.json({ error: 'No encontrado.' }, { status: 404 });
 
@@ -31,7 +32,7 @@ export async function POST(request: Request) {
   } catch (err) {
     const authResponse = authErrorResponse(err);
     if (authResponse) return authResponse;
-    console.error('[empresa/logo] upload failed', err);
+    captureError('empresa:logo-upload', err);
     return Response.json({ error: 'No pudimos guardar el logo. Intentá de nuevo.' }, { status: 500 });
   }
 }
@@ -54,7 +55,7 @@ export async function DELETE() {
   } catch (err) {
     const authResponse = authErrorResponse(err);
     if (authResponse) return authResponse;
-    console.error('[empresa/logo] remove failed', err);
+    captureError('empresa:logo-remove', err);
     return Response.json({ error: 'No pudimos quitar el logo. Intentá de nuevo.' }, { status: 500 });
   }
 }

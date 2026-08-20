@@ -18,6 +18,7 @@ import {
   viewCandidateCvAsAdmin,
 } from '@/lib/db/candidates-admin';
 import { clientIp } from '@/lib/client-ip';
+import { captureError } from '@/lib/observability';
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -54,7 +55,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     }
     const authResponse = authErrorResponse(err);
     if (authResponse) return authResponse;
-    console.error('[cv] admin download failed', err);
+    captureError('cv:admin-download', err);
     return Response.json({ error: 'No pudimos abrir el CV.' }, { status: 500 });
   }
 }

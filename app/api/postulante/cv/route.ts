@@ -23,6 +23,7 @@ import {
 } from '@/lib/cv';
 import { createCandidateCv } from '@/lib/db/candidate-cvs';
 import { getStorage } from '@/lib/storage';
+import { captureError } from '@/lib/observability';
 
 const NOT_FOUND = () => Response.json({ error: 'No encontrado.' }, { status: 404 });
 
@@ -95,7 +96,7 @@ export async function POST(request: Request) {
   } catch (err) {
     const authResponse = authErrorResponse(err);
     if (authResponse) return authResponse;
-    console.error('[cv] upload failed', err);
+    captureError('cv:candidate-upload', err);
     return Response.json({ error: 'No pudimos guardar tu CV. Intentá de nuevo.' }, { status: 500 });
   }
 }
