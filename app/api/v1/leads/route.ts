@@ -9,6 +9,7 @@ import {
   processLead,
 } from '@/lib/leads';
 import { createApplication } from '@/lib/db/admin';
+import { notifyApplicantOfApplication } from '@/lib/notifications';
 
 const SILENT_OK = () => NextResponse.json({ ok: true }, { status: 201 });
 
@@ -74,7 +75,21 @@ export async function POST(req: NextRequest) {
 
   // Accept the lead immediately and fan out to the loggers AFTER the response is
   // sent. Logger failures can never block or fail the user's request.
-  after(() => processLead(lead));
+  after(async () => {
+    await processLead(lead);
+
+    // N1, after the insert and the webhook fan-out, in the same non-blocking
+    // position and for the same reason. Only real applications that left an
+    // address: the leave-page WhatsApp beacon has no name, phone or email, and
+    // the anonymous form's email field is optional.
+    if (lead.type === 'application' && lead.name && lead.phone) {
+      await notifyApplicantOfApplication({
+        email: lead.email,
+        name: lead.name,
+        jobSlug: lead.jobSlug,
+      });
+    }
+  });
 
   return NextResponse.json({ ok: true }, { status: 201 });
 }
