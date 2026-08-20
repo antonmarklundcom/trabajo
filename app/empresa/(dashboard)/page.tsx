@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { requireCompanyScope } from '@/lib/auth';
-import { getEmployerDashboardStats } from '@/lib/db/employer';
+import { getEmployerCompany, getEmployerDashboardStats, getEmployerPlanSummary } from '@/lib/db/employer';
+import PlanCard from '@/components/empresa/PlanCard';
 
 export const metadata: Metadata = {
   title: 'Panel — Empresas — trabajo.com.py',
@@ -10,7 +11,11 @@ export const metadata: Metadata = {
 
 export default async function EmpresaDashboardPage() {
   const { companyId } = await requireCompanyScope();
-  const stats = await getEmployerDashboardStats(companyId);
+  const [stats, plan, company] = await Promise.all([
+    getEmployerDashboardStats(companyId),
+    getEmployerPlanSummary(companyId),
+    getEmployerCompany(companyId),
+  ]);
 
   return (
     <div className="space-y-8">
@@ -43,6 +48,13 @@ export default async function EmpresaDashboardPage() {
           highlight={stats.newApplicationCount > 0}
         />
       </div>
+
+      <PlanCard
+        activeFeaturedCount={plan.activeFeaturedCount}
+        featuredUntil={plan.featuredUntil}
+        lastFeaturedUntil={plan.lastFeaturedUntil}
+        companyName={company?.name ?? ''}
+      />
     </div>
   );
 }
