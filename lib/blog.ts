@@ -2,6 +2,7 @@ import 'server-only';
 import { unstable_cache } from 'next/cache';
 import { marked } from 'marked';
 import { CACHE_TAGS, PUBLIC_CACHE_TTL_SECONDS } from './cache-tags';
+import { cachedOrRaw } from './cached-or-raw';
 import {
   queryPublishedPost,
   queryPublishedPosts,
@@ -202,23 +203,6 @@ const cachedRedirect = unstable_cache(
   ['db', 'blog', 'redirect'],
   cacheOptions,
 );
-
-/**
- * `unstable_cache` needs Next's incrementalCache, which does not exist under a
- * plain tsx script (scripts/verify-blog.ts). Falling back to the raw query is
- * safe for the same reason it is in lib/db/queries.ts: the wrapper memoizes a
- * result, it never changes one.
- */
-async function cachedOrRaw<T>(cached: () => Promise<T>, raw: () => Promise<T>): Promise<T> {
-  try {
-    return await cached();
-  } catch (err) {
-    if (err instanceof Error && err.message.includes('incrementalCache missing')) {
-      return raw();
-    }
-    throw err;
-  }
-}
 
 /**
  * No database configured means no blog, not a crashed build.

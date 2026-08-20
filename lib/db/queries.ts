@@ -3,6 +3,7 @@ import { unstable_cache } from 'next/cache';
 import { db } from './index';
 import { categories, cities, companies, jobImages, jobs } from './schema';
 import { CACHE_TAGS, PUBLIC_CACHE_TTL_SECONDS } from '../cache-tags';
+import { cachedOrRaw } from '../cached-or-raw';
 import { imagePublicUrl } from '../image-storage';
 import { companyLogoSrc } from '../company-logo';
 import type { Job, Category, City, JobFilters } from '../types';
@@ -367,27 +368,6 @@ const cachedCity = unstable_cache(
   ['db', 'cities', 'detail'],
   cacheOptions([CACHE_TAGS.taxonomies, CACHE_TAGS.jobs]),
 );
-
-/**
- * `unstable_cache` requires Next's incrementalCache, which only exists inside
- * a Next server request/build — it throws `Invariant: incrementalCache
- * missing` when called from a plain script (tsx, no Next runtime), such as
- * scripts/parity-check.ts run via `npm run db:parity`. Falling back to the
- * uncached query in that one case is safe: the cache wrapper only memoizes
- * and revalidates `queryX`'s result, it never changes it, so parity's
- * seed-vs-db diff is comparing the same values either way. Any other error
- * (a real DB failure) still propagates.
- */
-async function cachedOrRaw<T>(cached: () => Promise<T>, raw: () => Promise<T>): Promise<T> {
-  try {
-    return await cached();
-  } catch (err) {
-    if (err instanceof Error && err.message.includes('incrementalCache missing')) {
-      return raw();
-    }
-    throw err;
-  }
-}
 
 // The eight seam functions (ARCHITECTURE.md §3). Signatures and semantics are
 // unchanged — only the caching is new — so lib/data.ts needs no edit.
