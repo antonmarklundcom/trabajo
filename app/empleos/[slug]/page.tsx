@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { getJob, getJobs, getCategory, getCity } from '@/lib/data';
 import { formatSalary, formatRelativeDate, contractTypeLabel, seniorityLabel, modalityLabel, employmentTypeJsonLd } from '@/lib/formatters';
 import WhatsAppButton from '@/components/WhatsAppButton';
+import ShareLinks from '@/components/ShareLinks';
 import LeadForm from '@/components/LeadForm';
 import MarkdownContent from '@/components/MarkdownContent';
 import CompanyAvatar from '@/components/CompanyAvatar';
@@ -50,6 +51,7 @@ export default async function JobDetailPage({ params }: { params: Params }) {
   ]);
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://trabajo.com.py';
+  const jobUrl = `${siteUrl}/empleos/${job.slug}`;
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -89,7 +91,7 @@ export default async function JobDetailPage({ params }: { params: Params }) {
           },
         }
       : {}),
-    url: `${siteUrl}/empleos/${job.slug}`,
+    url: jobUrl,
   };
 
   const breadcrumbJsonLd = {
@@ -105,7 +107,7 @@ export default async function JobDetailPage({ params }: { params: Params }) {
         '@type': 'ListItem',
         position: category ? 4 : 3,
         name: job.title,
-        item: `${siteUrl}/empleos/${job.slug}`,
+        item: jobUrl,
       },
     ],
   };
@@ -218,6 +220,12 @@ export default async function JobDetailPage({ params }: { params: Params }) {
                 )}
               </div>
             </article>
+
+            <ShareLinks
+              title={`${job.title} — ${job.company}`}
+              url={jobUrl}
+              className="mt-6"
+            />
           </div>
 
           {/* Sidebar: Apply */}
