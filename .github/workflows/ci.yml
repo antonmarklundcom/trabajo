@@ -150,3 +150,12 @@ jobs:
       # output against those keys directly.
       - name: Verify seed and DB sort keys
         run: npm run sort:verify
+
+      # O1's promise is that no event leaving this app carries a credential or
+      # a data subject, and a scrubber that misses a field looks exactly like
+      # one that doesn't: errors still arrive, the issues still read correctly,
+      # and the only place the miss is visible is inside a vendor's event
+      # store. Asserted here because a browser cannot show it. Pure function of
+      # an event object — no DSN and no network.
+      - name: Verify Sentry event scrubbing
+        run: npm run sentry:verify
