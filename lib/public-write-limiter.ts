@@ -31,3 +31,27 @@ const publicWriteLimiter = createRequestLimiter(MAX_REQUESTS, WINDOW_MS);
 export function isRateLimited(ip: string): boolean {
   return publicWriteLimiter.isLimited(ip);
 }
+
+// ---------------------------------------------------------------------------
+// Employer self-serve signup (POST /api/empresa/registro).
+//
+// Its OWN instance, which is the case lib/rate-limit.ts describes as the rule
+// rather than the exception: this write creates an ACCOUNT and a company row,
+// where the two above create a lead. A burst of lead-form spam must not stop a
+// real employer from registering, and a script minting employer accounts must
+// not be handed the lead form's comparatively generous budget.
+//
+// Per hour, not per minute. Signing up is a once-ever action, so the honest
+// question is "how many companies can plausibly register from one address in
+// an hour" — and the answer has to leave room for a shared office or a mobile
+// carrier's NAT, which in Paraguay puts a great many subscribers behind a
+// handful of addresses.
+const SIGNUP_WINDOW_MS = 60 * 60 * 1000;
+const MAX_SIGNUPS_PER_HOUR = 10;
+
+const employerSignupLimiter = createRequestLimiter(MAX_SIGNUPS_PER_HOUR, SIGNUP_WINDOW_MS);
+
+/** Records the signup attempt and reports whether it is over the limit. */
+export function isEmployerSignupLimited(ip: string): boolean {
+  return employerSignupLimiter.isLimited(ip);
+}

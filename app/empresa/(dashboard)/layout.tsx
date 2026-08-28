@@ -1,6 +1,8 @@
 import { requireCompanyScope } from '@/lib/auth';
+import { employerSignupEnabled } from '@/lib/flags';
 import { getEmployerCompany } from '@/lib/db/employer';
 import EmpresaNav from '@/components/empresa/EmpresaNav';
+import VerifyEmailBanner from '@/components/empresa/VerifyEmailBanner';
 
 // Every route under this group requires an employer session scoped to a
 // company (PLAN-PHASE2.md §2.3) — requireCompanyScope() redirects to
@@ -14,10 +16,20 @@ export default async function EmpresaDashboardLayout({
   const { user, companyId } = await requireCompanyScope();
   const company = await getEmployerCompany(companyId);
 
+  // Only self-registered accounts are asked to confirm. An invited employer
+  // received their activation link at that address and clicked it, which is
+  // the same proof by a different route — nagging them for a confirmation the
+  // app never asked for would be noise.
+  const promptForVerification =
+    employerSignupEnabled() && company?.createdVia === 'self_serve' && user.emailVerifiedAt === null;
+
   return (
     <div className="min-h-screen bg-page-bg flex flex-col">
       <EmpresaNav name={user.name} companyName={company?.name ?? 'trabajo.com.py'} />
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex-1 w-full">{children}</main>
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex-1 w-full">
+        {promptForVerification && <VerifyEmailBanner email={user.email} />}
+        {children}
+      </main>
       {/* PLAN-PHASE2.md §7 item 6 — persistent, on every /empresa/(dashboard)
           page, not just the activation screen. */}
       <footer className="border-t border-border bg-white">

@@ -269,8 +269,31 @@ bookmarking a job, separate from `applications`
 a 32-byte random token; the raw token exists only in the invite link) ·
 `created_by` → `users.id` · `expires_at` · `accepted_at` NULL · `created_at`
 
-Index `(company_id, created_at)`. There is no self-serve employer signup —
-every account is admin-created.
+Index `(company_id, created_at)`. This is the only way an employer account is
+attached to a company that already exists, and it stays admin-issued.
+
+Self-serve signup (PLAN-PHASE2.md §8 Q2, opened 2026-08-28) does not touch this
+table: `registerEmployer()` in `lib/db/employer-signup.ts` mints a NEW
+`companies` row (`created_via = 'self_serve'`) and attaches the new user to
+that. So the two provisioning paths have disjoint outcomes — an invitation is
+the only way into an existing company, a signup the only way to create an
+unvouched one — and a self-serve account can only read applications submitted
+to postings it created itself, every one of which passed `/admin` approval.
+
+### `user_tokens`
+`id` · `user_id` → `users.id` · `purpose` enum(`email_verification`) ·
+`token_hash` UNIQUE (sha256 of 32 random bytes; the raw token exists only in
+the emailed link) · `expires_at` · `used_at` NULL · `created_at`
+
+Index `(user_id, purpose)`. The `users` counterpart of `candidate_tokens`, with
+the same properties: hashed, single-use, expiring, and superseded whenever a
+new token of that purpose is issued. Separate from `candidate_tokens` because
+the two audiences are separate tables — a shared token table would be one
+forgotten predicate away from redeeming a candidate's token against a user id.
+
+Verification gates nothing. `users.email_verified_at` is a moderation signal,
+not a permission: an employer with an unconfirmed address posts exactly like a
+confirmed one, because both land `pending`.
 
 None of the Phase 2 tables use MySQL `FOREIGN KEY` constraints, matching the
 original seven — every scoping/ownership check lives in the query, and the
@@ -377,6 +400,12 @@ draft ──submit──> pending ──approve──> published ──expires_a
 - `/publicar` submissions create a `pending` job **and** fire the existing lead
   fan-out, so the sales conversation starts on WhatsApp immediately while the
   post waits for review.
+- **Every employer-created job is `pending`, self-serve or invited alike.**
+  `createEmployerJob()` hardcodes the status, and the only `'published'` write
+  in `lib/db/employer.ts` is the re-approval ternary in `updateEmployerJob()`,
+  whose false branch is reachable only for a job `/admin` already approved.
+  There is no flag, role or request field that relaxes this;
+  `npm run moderation:verify` asserts it in CI without a database.
 - Expiry is a query predicate, not a cron job. Nothing needs to run on a
   schedule for a job to stop showing.
 - Featured is likewise just `featured_until > NOW()` — the existing
@@ -473,10 +502,15 @@ Verified against `node_modules/next/dist/docs/` for Next 16.2.9:
 /empresa                      Employer dashboard
 /empresa/login                Employer login (shares authenticate() + rate limiter)
 /empresa/activar              Invitation acceptance: set password + terms consent
+/empresa/registro             Self-serve signup: new company + employer account (EMPLOYER_SIGNUP_ENABLED)
+/empresa/verificar            Email confirmation — redeems a user_tokens link
 /empresa/empleos              Company's own job list
 /empresa/postulaciones        Applications to the company's jobs
 /api/empresa/*                Mutations and reads — requireCompanyScope() first
 /api/empresa/cv/[applicationId]  Authorized CV download, keyed on the application
+/api/empresa/registro            Self-serve signup — rate-limited, creates a NEW company only
+/api/empresa/verificar           Redeems an email-verification token (no session)
+/api/empresa/verificar/reenviar  Re-sends the link to the SESSION's own address
 
 /postulante                   Candidate dashboard
 /postulante/login              Candidate login
@@ -490,5 +524,10 @@ Verified against `node_modules/next/dist/docs/` for Next 16.2.9:
 Both `/empresa/*` and `/postulante/*` are `noindex`, excluded from
 `sitemap.ts` and `robots.ts` (same discipline as `/admin/*`), and gated behind
 `EMPLOYER_DASHBOARD_ENABLED` and `CANDIDATE_ACCOUNTS_ENABLED` respectively.
+`/empresa/registro` and `/empresa/verificar` carry a second flag,
+`EMPLOYER_SIGNUP_ENABLED`, so signup can stay dark while invited employers keep
+using their panel. Both pages perform their request-time read (session or
+`searchParams`) BEFORE the flag check, so a build with the flag off cannot
+prerender them into a static 404 that survives flipping the variable.
 
 Public routes are unchanged.

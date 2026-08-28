@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getSessionUser, homePathForRole } from '@/lib/auth';
+import { employerSignupEnabled } from '@/lib/flags';
 import LoginForm from '@/components/empresa/LoginForm';
 
 export const metadata: Metadata = {
@@ -21,6 +23,7 @@ export default async function EmpresaLoginPage({
 
   const sp = await searchParams;
   const error = typeof sp.error === 'string' ? sp.error : undefined;
+  const signupEnabled = employerSignupEnabled();
 
   return (
     <div className="min-h-screen bg-page-bg flex items-center justify-center px-4">
@@ -37,6 +40,14 @@ export default async function EmpresaLoginPage({
             </p>
           )}
           <LoginForm />
+          {signupEnabled && (
+            <p className="mt-6 text-center text-sm text-ink-secondary">
+              ¿Todavía no tenés cuenta?{' '}
+              <Link href="/empresa/registro" className="text-brand hover:underline">
+                Creá la de tu empresa
+              </Link>
+            </p>
+          )}
         </div>
       </div>
     </div>

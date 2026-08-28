@@ -698,11 +698,40 @@ does not require rewriting this plan, except where noted.
    `/privacidad`. This is no longer an open question: if the owner wants a
    different number, that is a migration + re-consent exercise (per the intro
    to this section), not a doc edit.
-2. **Employer accounts: admin-created or self-serve?** *Assumed:
-   admin-created by invitation*, matching how admin/editor accounts work today.
-   Self-serve means anyone can claim a company and read its applications, so it
-   needs a verification step (domain email? WhatsApp confirmation?) that is
-   itself a feature. Recommend keeping invitations for at least the first year.
+2. **Employer accounts: admin-created or self-serve?** *Answered by the owner
+   2026-08-28: both.* The original assumption — admin-created by invitation —
+   shipped and is unchanged. Self-serve was added alongside it, ahead of the
+   "at least the first year" this section recommended, and the recommendation
+   is left below rather than deleted so the trade is legible.
+
+   What the concern actually was: "anyone can claim a company and read its
+   applications". That is a risk about ATTACHMENT, and it is answered
+   structurally rather than by a verification step:
+
+   - `registerEmployer()` (`lib/db/employer-signup.ts`) always mints a **new**
+     `companies` row and attaches the new user to it. It has no parameter for
+     an existing company id and never looks one up. Joining a company that
+     already exists is still `employer_invitations` only, behind an
+     admin-issued hashed single-use token.
+   - So a self-serve employer can read exactly the applications submitted to
+     postings they created themselves — all of which passed `/admin` approval,
+     because `createEmployerJob()` hardcodes `pending` and nothing in the
+     signup path touches job status.
+   - Email verification exists (`user_tokens`, `users.email_verified_at`) but
+     deliberately gates **nothing**: making it a gate would mean an unset
+     `RESEND_API_KEY` locks every new employer out, and the moderation queue is
+     the gate that already does this job. It is a signal for the reviewer, plus
+     an "Autoregistrada" badge on `/admin/empresas`.
+   - `users.role` is unchanged: `admin | editor | employer`. A self-serve
+     account is an ordinary `employer`, indistinguishable from an invited one
+     once created.
+   - The surface ships dark behind `EMPLOYER_SIGNUP_ENABLED`, so opening the
+     door stays a dated decision in hPanel rather than a side effect of a
+     merge.
+
+   *Original recommendation, kept for the record:* self-serve "needs a
+   verification step (domain email? WhatsApp confirmation?) that is itself a
+   feature. Recommend keeping invitations for at least the first year.
 3. **Track "hired"?** *Assumed: yes*, as a fifth `applications.status`. It is
    the only conversion metric with any business meaning, and it costs one enum
    value. But it is self-reported by employers and will be under-filled —

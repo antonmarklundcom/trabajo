@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { getCategories, getCities } from '@/lib/data';
+import { employerDashboardEnabled, employerSignupEnabled } from '@/lib/flags';
 import EmployerForm from '@/components/EmployerForm';
 
 export const metadata: Metadata = {
@@ -10,6 +12,9 @@ export const metadata: Metadata = {
 
 export default async function PublicarPage() {
   const [categories, cities] = await Promise.all([getCategories(), getCities()]);
+  // Both flags, same reasoning as the route handler: /empresa/* 404s while the
+  // dashboard is dark, so a link to it would be a link to nothing.
+  const selfServeEnabled = employerDashboardEnabled() && employerSignupEnabled();
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -34,6 +39,17 @@ export default async function PublicarPage() {
           ))}
         </div>
       </div>
+
+      {selfServeEnabled && (
+        <div className="mb-6 rounded-[10px] border border-border bg-surface-2 px-4 py-4 text-sm text-ink-secondary sm:px-6">
+          ¿Preferís cargar tus avisos vos mismo?{' '}
+          <Link href="/empresa/registro" className="text-brand hover:underline font-medium">
+            Creá una cuenta de empresa
+          </Link>{' '}
+          y cargalos cuando quieras. Nuestro equipo los revisa y aprueba antes de publicarlos, igual
+          que con este formulario.
+        </div>
+      )}
 
       <div className="bg-white rounded-[10px] border border-border p-6 sm:p-8">
         <EmployerForm categories={categories} cities={cities} />

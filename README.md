@@ -264,11 +264,22 @@ primario).
 /api/postulante/cv/[id]       Descarga/borrado del propio CV
 /api/empresa/cv/[applicationId]  CV de una postulación a un empleo propio
 /api/admin/cv/[id]            CV para el operador — exige motivo y queda registrado
+
+/empresa/registro             Alta de cuenta de empresa (autoservicio)
+/empresa/verificar            Confirmación de email
+/api/empresa/registro         Alta — con límite de tasa; crea SIEMPRE una empresa nueva
+/api/empresa/verificar        Confirma el email con un token de un solo uso
 ```
 
 Las rutas `/empresa/*` y `/postulante/*` están detrás de
 `EMPLOYER_DASHBOARD_ENABLED` / `CANDIDATE_ACCOUNTS_ENABLED`: con la flag
-apagada devuelven 404.
+apagada devuelven 404. `/empresa/registro` y `/empresa/verificar` llevan además
+`EMPLOYER_SIGNUP_ENABLED`, para poder tener el panel abierto a las empresas
+invitadas y el alta por autoservicio cerrada.
+
+Los avisos que carga una empresa —invitada o autoregistrada— quedan siempre en
+`pending` y sólo se publican desde `/admin`. No hay flag, rol ni campo que
+cambie eso; `npm run moderation:verify` lo verifica en CI.
 
 ## Desarrollo local
 

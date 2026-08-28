@@ -39,6 +39,13 @@ export type SessionUser = {
   name: string;
   role: Role;
   companyId: number | null;
+  /**
+   * When the address behind this account was proved, or null. Carried on the
+   * session user so the employer layout can prompt for confirmation without a
+   * second query; it is NOT an authorization input and nothing branches on it
+   * for access (lib/db/schema.ts).
+   */
+  emailVerifiedAt: Date | null;
 };
 
 export const SESSION_COOKIE_NAME = 'trabajo_session';
@@ -136,6 +143,7 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
       name: schema.users.name,
       role: schema.users.role,
       companyId: schema.users.companyId,
+      emailVerifiedAt: schema.users.emailVerifiedAt,
     })
     .from(schema.users)
     // isActive is part of the lookup, not a post-check: a disabled user must
@@ -334,6 +342,7 @@ export async function authenticate(email: string, password: string): Promise<Ses
       name: schema.users.name,
       role: schema.users.role,
       companyId: schema.users.companyId,
+      emailVerifiedAt: schema.users.emailVerifiedAt,
       isActive: schema.users.isActive,
       passwordHash: schema.users.passwordHash,
     })
@@ -358,6 +367,7 @@ export async function authenticate(email: string, password: string): Promise<Ses
     name: row.name,
     role: row.role,
     companyId: row.companyId,
+    emailVerifiedAt: row.emailVerifiedAt,
   };
 }
 
