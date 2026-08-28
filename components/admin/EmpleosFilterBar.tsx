@@ -12,12 +12,20 @@ const STATUS_OPTIONS = [
   { value: 'archived', label: 'Archivado' },
 ];
 
+const FEATURED_OPTIONS = [
+  { value: '', label: 'Destacado: todos' },
+  { value: 'activo', label: 'Destacado activo' },
+  { value: 'vencido', label: 'Destacado vencido' },
+];
+
 export default function EmpleosFilterBar({
   status,
   q,
+  featured,
 }: {
   status: string;
   q: string;
+  featured: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -61,6 +69,20 @@ export default function EmpleosFilterBar({
         className="px-3 py-2 rounded-[10px] border border-border text-sm text-ink bg-white focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand"
       >
         {STATUS_OPTIONS.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      {/* Cuts across `status` rather than extending it — a Destacado listing
+          has an ordinary status and an open window. "Vencido" is the renewal
+          list, which is the reason to be able to ask at all. */}
+      <select
+        value={featured}
+        onChange={(e) => updateParam('featured', e.target.value)}
+        className="px-3 py-2 rounded-[10px] border border-border text-sm text-ink bg-white focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+      >
+        {FEATURED_OPTIONS.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
           </option>

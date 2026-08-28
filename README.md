@@ -277,6 +277,13 @@ apagada devuelven 404. `/empresa/registro` y `/empresa/verificar` llevan además
 `EMPLOYER_SIGNUP_ENABLED`, para poder tener el panel abierto a las empresas
 invitadas y el alta por autoservicio cerrada.
 
+Destacado se vende hoy por WhatsApp: el equipo cotiza, la empresa paga y un
+operador abre la ventana desde `/admin/empleos/[id]` (botones de 15/30/60/90
+días; la fecha la calcula el servidor). La venta —monto, medio de pago y nota—
+queda registrada en `activity_log`. Para renovaciones:
+`/admin/empleos?featured=vencido`. El checkout en línea está especificado en
+`PLAN-PAGOPAR.md` y todavía no está construido.
+
 Los avisos que carga una empresa —invitada o autoregistrada— quedan siempre en
 `pending` y sólo se publican desde `/admin`. No hay flag, rol ni campo que
 cambie eso; `npm run moderation:verify` lo verifica en CI.

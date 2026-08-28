@@ -23,9 +23,11 @@ export default async function AdminEmpleosPage({
   const statusParam = param(sp, 'status');
   const status = jobStatusEnum.find((s) => s === statusParam);
   const q = param(sp, 'q') ?? '';
+  const featuredParam = param(sp, 'featured');
+  const featured = featuredParam === 'activo' || featuredParam === 'vencido' ? featuredParam : undefined;
   const page = param(sp, 'page') ? Number(param(sp, 'page')) : 1;
 
-  const filters: AdminJobFilters = { status, q: q || undefined, page };
+  const filters: AdminJobFilters = { status, q: q || undefined, featured, page };
   const { jobs, total, pageSize } = await getAdminJobs(filters);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -44,7 +46,7 @@ export default async function AdminEmpleosPage({
         </Link>
       </div>
 
-      <EmpleosFilterBar status={statusParam ?? ''} q={q} />
+      <EmpleosFilterBar status={statusParam ?? ''} q={q} featured={featured ?? ''} />
 
       <div className="bg-white rounded-[10px] border border-border overflow-x-auto">
         <table className="w-full text-sm">
@@ -54,6 +56,7 @@ export default async function AdminEmpleosPage({
               <th className="px-4 py-3 font-medium">Empresa</th>
               <th className="px-4 py-3 font-medium">Categoría / Ciudad</th>
               <th className="px-4 py-3 font-medium">Estado</th>
+              <th className="px-4 py-3 font-medium">Destacado</th>
               <th className="px-4 py-3 font-medium">Postulantes</th>
               <th className="px-4 py-3 font-medium">Actualizado</th>
             </tr>
@@ -61,7 +64,7 @@ export default async function AdminEmpleosPage({
           <tbody className="divide-y divide-border">
             {jobs.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-ink-secondary">
+                <td colSpan={7} className="px-4 py-10 text-center text-ink-secondary">
                   No se encontraron empleos con esos filtros.
                 </td>
               </tr>
@@ -82,6 +85,24 @@ export default async function AdminEmpleosPage({
                   </td>
                   <td className="px-4 py-3">
                     <StatusBadge status={job.status} />
+                  </td>
+                  {/* Featured is a predicate over NOW(), never a stored flag
+                      (ARCHITECTURE.md §6) — so this cell answers the same
+                      question the public listing does, computed the same way. */}
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    {job.featuredUntil ? (
+                      Number(job.featuredActive) === 1 ? (
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-brand-tint text-brand">
+                          hasta {new Date(job.featuredUntil).toLocaleDateString('es-PY')}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-ink-3">
+                          venció {new Date(job.featuredUntil).toLocaleDateString('es-PY')}
+                        </span>
+                      )
+                    ) : (
+                      <span className="text-ink-3">—</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-ink-secondary">
                     {job.applicantCount > 0 ? (

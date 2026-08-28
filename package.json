@@ -28,6 +28,7 @@
     "clientip:verify": "tsx --conditions=react-server scripts/verify-client-ip.ts",
     "cachekey:verify": "tsx scripts/verify-cache-key.ts",
     "cascade:verify": "tsx scripts/verify-cascades.ts",
+    "featured:verify": "tsx scripts/verify-featured.ts",
     "moderation:verify": "tsx scripts/verify-moderation.ts",
     "blog:verify": "tsx --conditions=react-server --env-file-if-exists=.env scripts/verify-blog.ts",
     "blog:import": "tsx --conditions=react-server --env-file-if-exists=.env scripts/blog-import.ts",
