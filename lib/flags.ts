@@ -31,3 +31,22 @@ export function employerDashboardEnabled(): boolean {
 export function candidateAccountsEnabled(): boolean {
   return isEnabled(process.env.CANDIDATE_ACCOUNTS_ENABLED);
 }
+
+/**
+ * /empresa/registro — self-serve employer signup (PLAN-PHASE2.md §8 Q2).
+ *
+ * A SECOND flag rather than a widening of the first, because they answer
+ * different questions. EMPLOYER_DASHBOARD_ENABLED asks "may invited employers
+ * use their panel"; this one asks "may a stranger create an account". Q2's
+ * recommendation was to keep invitations only for at least the first year, and
+ * the owner reopened it — so the surface ships dark and turning it on stays a
+ * decision someone makes in hPanel on a date, not a side effect of a merge.
+ *
+ * Subordinate to the dashboard flag by construction: the route lives under
+ * /empresa/*, whose layout 404s the whole tree when the dashboard is off. A
+ * signup that could create accounts for a panel nobody can open would be a
+ * trap, so the AND is structural rather than a second condition to remember.
+ */
+export function employerSignupEnabled(): boolean {
+  return isEnabled(process.env.EMPLOYER_SIGNUP_ENABLED);
+}

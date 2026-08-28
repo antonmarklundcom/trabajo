@@ -45,3 +45,50 @@ export function newApplicationMessage(
     ].join('\n'),
   };
 }
+
+/**
+ * "Confirmá el email de tu empresa" — self-serve signup (PLAN-PHASE2.md §8 Q2).
+ *
+ * Two things this copy has to be honest about, because the account already
+ * works when it arrives:
+ *
+ *   - Confirming gates nothing. The employer can log in and load a posting
+ *     without ever opening this. Saying otherwise would be a lie the app does
+ *     not enforce, and enforcing it would mean an unset RESEND_API_KEY locks
+ *     every new employer out (lib/email.ts).
+ *   - A posting is not live when it is submitted. The moderation queue is not
+ *     a delay to apologise for, it is the product — so it is stated here, in
+ *     the first message the employer gets, rather than discovered when the
+ *     listing does not appear.
+ */
+export function employerVerificationMessage(
+  to: string,
+  name: string,
+  companyName: string,
+  token: string,
+): EmailMessage {
+  const link = emailUrl(`/empresa/verificar?token=${encodeURIComponent(token)}`);
+  return {
+    to,
+    subject: 'Confirmá el email de tu empresa — trabajo.com.py',
+    text: [
+      `Hola ${name},`,
+      '',
+      `Creaste la cuenta de ${companyName} en trabajo.com.py. Confirmá tu email acá:`,
+      '',
+      link,
+      '',
+      'El enlace vence en 24 horas.',
+      '',
+      'Tu cuenta ya funciona aunque no confirmes: podés cargar tus avisos igual.',
+      'Confirmar el email nos ayuda a saber que la dirección es tuya.',
+      '',
+      'Importante: los avisos que cargues quedan pendientes de revisión. Nuestro',
+      'equipo los aprueba antes de que se publiquen en el sitio.',
+      '',
+      'Si no creaste esta cuenta, ignorá este mensaje.',
+      '',
+      '— trabajo.com.py',
+    ].join('\n'),
+  };
+}

@@ -36,6 +36,14 @@ export const users = mysqlTable('users', {
   role: mysqlEnum('role', ['admin', 'editor', 'employer']).notNull(),
   companyId: int('company_id'),
   isActive: boolean('is_active').notNull().default(true),
+  // Set when the address behind this account is proved (lib/db/user-tokens.ts).
+  // NULL on every account that predates self-serve signup and on every
+  // invited one, because an invitation was already sent TO the address —
+  // receiving it is the proof. It gates nothing: an employer with an
+  // unconfirmed address posts exactly like a confirmed one, because their
+  // postings land `pending` either way and the moderation queue is the real
+  // gate. It exists so a reviewer can see whether the address was confirmed.
+  emailVerifiedAt: datetime('email_verified_at'),
   lastLoginAt: datetime('last_login_at'),
   createdAt: datetime('created_at').notNull(),
   updatedAt: datetime('updated_at').notNull(),
@@ -44,6 +52,13 @@ export const users = mysqlTable('users', {
 // ---------------------------------------------------------------------------
 // companies
 // ---------------------------------------------------------------------------
+
+// How a company row came into existence. Not a permission and not a status:
+// nothing in the app branches on it, and a self-registered company's postings
+// go through exactly the same moderation queue as a team-created one. It is a
+// moderation SIGNAL — the reviewer approving a first posting wants to know
+// whether anyone at the platform has ever spoken to this company.
+export const companyOriginEnum = ['admin', 'self_serve'] as const;
 
 export const companies = mysqlTable('companies', {
   id: int('id').autoincrement().primaryKey(),
@@ -67,6 +82,7 @@ export const companies = mysqlTable('companies', {
   // Defaults on — an employer who was invited to receive applications is not
   // helped by silence.
   notifyOnApplication: boolean('notify_on_application').notNull().default(true),
+  createdVia: mysqlEnum('created_via', companyOriginEnum).notNull().default('admin'),
   createdAt: datetime('created_at').notNull(),
   updatedAt: datetime('updated_at').notNull(),
 });
@@ -508,9 +524,19 @@ export const savedJobs = mysqlTable(
 // ---------------------------------------------------------------------------
 // employer_invitations
 //
-// How an employer account comes into existence. There is no self-serve employer
-// signup: an account is a claim on a company's applications, and someone at the
-// platform has to vouch for it (PLAN-PHASE2.md §2.2, open question Q2).
+// How an employer account is attached to a company that ALREADY EXISTS — the
+// only way that ever happens. An invitation is a claim on a company's
+// applications, so someone at the platform has to vouch for it
+// (PLAN-PHASE2.md §2.2).
+//
+// Self-serve signup (§8 Q2, opened 2026-08-28) does not use this table and
+// deliberately cannot reach an existing company: it mints a brand-new
+// `companies` row with `created_via = 'self_serve'` and attaches the new user
+// to that. The two paths therefore have disjoint outcomes — an invitation is
+// the only way to join an existing company, and a signup is the only way to
+// create an unvouched one — which is what keeps Q2's actual risk ("anyone can
+// claim a company and read its applications") unreachable rather than merely
+// discouraged.
 // ---------------------------------------------------------------------------
 
 export const employerInvitations = mysqlTable(
@@ -528,6 +554,41 @@ export const employerInvitations = mysqlTable(
     createdAt: datetime('created_at').notNull(),
   },
   (table) => [index('company_created_idx').on(table.companyId, table.createdAt)],
+);
+
+// ---------------------------------------------------------------------------
+// user_tokens
+//
+// The `users` counterpart of candidate_tokens: single-use, hashed, expiring
+// links mailed to a staff/employer address. Today it carries exactly one
+// purpose — confirming the address a self-serve employer signed up with.
+//
+// A separate table rather than a `subject_type` column on candidate_tokens.
+// The two audiences are separate tables with separate cookies and separate
+// lifecycles (ARCHITECTURE.md §5), and a shared token table would be one
+// forgotten predicate away from redeeming a candidate's token against a user
+// id. Making that unrepresentable costs one small table.
+//
+// Every safety property is the one candidate_tokens documents, for the same
+// reasons: 32 CSPRNG bytes, only the sha256 stored, single use enforced by
+// `used_at`, expiry checked at redemption, and issuing supersedes the user's
+// outstanding tokens of that purpose.
+// ---------------------------------------------------------------------------
+
+export const userTokenPurposeEnum = ['email_verification'] as const;
+
+export const userTokens = mysqlTable(
+  'user_tokens',
+  {
+    id: int('id').autoincrement().primaryKey(),
+    userId: int('user_id').notNull(),
+    purpose: mysqlEnum('purpose', userTokenPurposeEnum).notNull(),
+    tokenHash: varchar('token_hash', { length: 64 }).notNull().unique(),
+    expiresAt: datetime('expires_at').notNull(),
+    usedAt: datetime('used_at'),
+    createdAt: datetime('created_at').notNull(),
+  },
+  (table) => [index('user_purpose_idx').on(table.userId, table.purpose)],
 );
 
 // ---------------------------------------------------------------------------

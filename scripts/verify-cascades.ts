@@ -63,6 +63,29 @@ const DEPENDENCIES: Dependency[] = [
 ];
 
 /**
+ * Children whose parent is never hard-deleted anywhere in lib/db, so there is
+ * no cleanup site for DEPENDENCIES to point at.
+ *
+ * `user_tokens` is the first of these. A `users` row is deactivated
+ * (`is_active = false`, which lib/auth.ts folds into the session lookup), never
+ * destroyed — there is no `.delete(users)` in the codebase and no UI that would
+ * reach one. Registering it in DEPENDENCIES would therefore FAIL on the
+ * registry-is-not-stale assertion, and leaving it out of this file entirely
+ * would make "nobody thought about it" and "somebody decided" look identical.
+ *
+ * The assertion below is the real one: if a `.delete(parent)` ever appears,
+ * this entry fails and the table has to move to DEPENDENCIES with a cleanup
+ * beside that new delete.
+ */
+const NO_PARENT_DELETE: { child: string; parent: string; why: string }[] = [
+  {
+    child: 'userTokens',
+    parent: 'users',
+    why: 'a staff/employer account is deactivated, never destroyed — no delete site exists to clean up after',
+  },
+];
+
+/**
  * Rows that are deliberately left pointing at an id that no longer resolves.
  * Listed so that "this parent has no registered dependents" is a stated
  * decision rather than an omission — see candidate-arco.ts step 6.
@@ -152,6 +175,25 @@ for (const { child, parents } of DEPENDENCIES) {
       }
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// 2a. The parents that are never deleted are still never deleted.
+// ---------------------------------------------------------------------------
+
+for (const { child, parent, why } of NO_PARENT_DELETE) {
+  const sites = files.filter(
+    (f) => f.name !== 'schema.ts' && deleteOffsets(f.source, parent).length > 0,
+  );
+
+  check(
+    `${parent} is still never hard-deleted (${child} has no cleanup site)`,
+    sites.length === 0,
+    `Registered as: ${why}. A .delete(${parent}) now exists in ` +
+      `${sites.map((f) => f.name).join(', ')}, so ${child} rows would be orphaned. ` +
+      `Move { child: '${child}', parents: ['${parent}'] } into DEPENDENCIES and delete ` +
+      `${child} before ${parent} at that site.`,
+  );
 }
 
 // ---------------------------------------------------------------------------

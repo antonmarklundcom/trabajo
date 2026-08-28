@@ -27,6 +27,7 @@ export default async function AdminEmpresasPage() {
           <thead>
             <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-ink-secondary">
               <th className="px-4 py-3 font-medium">Nombre</th>
+              <th className="px-4 py-3 font-medium">Origen</th>
               <th className="px-4 py-3 font-medium">WhatsApp</th>
               <th className="px-4 py-3 font-medium">Sitio web</th>
             </tr>
@@ -34,7 +35,7 @@ export default async function AdminEmpresasPage() {
           <tbody className="divide-y divide-border">
             {companies.length === 0 ? (
               <tr>
-                <td colSpan={3} className="px-4 py-10 text-center text-ink-secondary">
+                <td colSpan={4} className="px-4 py-10 text-center text-ink-secondary">
                   Todavía no hay empresas registradas.
                 </td>
               </tr>
@@ -48,6 +49,18 @@ export default async function AdminEmpresasPage() {
                     >
                       {company.name}
                     </Link>
+                  </td>
+                  {/* A signal for whoever reviews this company's first
+                      posting, not a status: nothing in the app branches on it
+                      (lib/db/schema.ts). */}
+                  <td className="px-4 py-3">
+                    {company.createdVia === 'self_serve' ? (
+                      <span className="inline-block rounded-full bg-surface-2 px-2 py-0.5 text-xs text-ink-secondary">
+                        Autoregistrada
+                      </span>
+                    ) : (
+                      <span className="text-ink-secondary">Equipo</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-ink-secondary">{company.whatsapp || '—'}</td>
                   <td className="px-4 py-3 text-ink-secondary">{company.website || '—'}</td>

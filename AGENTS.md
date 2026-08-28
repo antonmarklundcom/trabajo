@@ -50,6 +50,23 @@ Non-negotiables:
 - **Employer reads go through `lib/db/employer.ts`, and every function there
   takes `companyId` as its first argument.** No admin bypass branch in that
   file, ever.
+- **Every employer-created job lands `pending` and reaches the public site only
+  through `/admin` approval.** This holds identically for an invited employer
+  and a self-serve one — there is no flag, role or request field that relaxes
+  it, and adding one is not a decision a PR gets to make.
+  `createEmployerJob()` hardcodes the status; the single `'published'` write in
+  `lib/db/employer.ts` is the re-approval ternary in `updateEmployerJob()`,
+  whose false branch is reachable only for a job admin already approved.
+  `npm run moderation:verify` (`scripts/verify-moderation.ts`) asserts both
+  halves plus the public visibility predicate, from source, in CI.
+- **Self-serve employer signup creates a NEW company and can never join an
+  existing one.** `lib/db/employer-signup.ts` takes no company id and looks
+  none up; attaching an account to a company that already exists is
+  `lib/db/employer-invitations.ts` only, behind an admin-issued hashed
+  single-use token. That is what keeps PLAN-PHASE2.md §8 Q2's risk — "anyone
+  can claim a company and read its applications" — unreachable rather than
+  merely discouraged. `users.role` stays `admin | editor | employer`; a
+  self-serve account is an ordinary `employer`.
 - **Row-level admin reads of candidate data go through
   `lib/db/candidates-admin.ts`, which logs to `data_access_logs` before it
   returns.** No candidate data read from anywhere else, with three deliberate
