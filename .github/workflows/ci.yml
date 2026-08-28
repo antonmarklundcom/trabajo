@@ -124,6 +124,13 @@ jobs:
       - name: Verify cascade cleanups
         run: npm run cascade:verify
 
+      # What a Destacado customer paid for. Every way of getting the window
+      # arithmetic wrong is invisible — the listing renders, the badge shows,
+      # and the only person who notices is the employer whose 60 days quietly
+      # became 30, a month later. Pure functions, no database.
+      - name: Verify Destacado window arithmetic
+        run: npm run featured:verify
+
       # The one rule self-serve employer signup was not allowed to relax: an
       # employer-created posting reaches the public site only via /admin
       # approval. db:verify-scoping asserts the runtime half but needs a live

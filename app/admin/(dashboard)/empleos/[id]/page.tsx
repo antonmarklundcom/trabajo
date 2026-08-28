@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import {
   getAdminJob,
+  getJobFeatureState,
   listAdminJobImages,
   listCategoryOptions,
   listCityOptions,
@@ -10,6 +11,7 @@ import {
 import { imagePublicUrl } from '@/lib/image-storage';
 import JobForm, { type JobFormInitial } from '@/components/admin/JobForm';
 import JobImageUploader from '@/components/admin/JobImageUploader';
+import FeaturePanel from '@/components/admin/FeaturePanel';
 
 export const metadata: Metadata = { title: 'Editar empleo — trabajo.com.py' };
 
@@ -37,7 +39,10 @@ export default async function EditarEmpleoPage({
   ]);
   if (!job) notFound();
 
-  const images = await listAdminJobImages(id);
+  const [images, featureState] = await Promise.all([
+    listAdminJobImages(id),
+    getJobFeatureState(id),
+  ]);
   const initialImages = images.map((img) => ({
     id: img.id,
     url: imagePublicUrl(img.imageKey),
@@ -72,6 +77,17 @@ export default async function EditarEmpleoPage({
       <h1 className="text-2xl font-bold text-ink mb-6">Editar empleo</h1>
       <div className="bg-white rounded-[10px] border border-border p-6 sm:p-8 max-w-3xl">
         <JobForm companies={companies} categories={categories} cities={cities} initial={initial} />
+      </div>
+      <div className="bg-white rounded-[10px] border border-border p-6 sm:p-8 max-w-3xl mt-6">
+        <h2 className="text-lg font-bold text-ink mb-1">Destacado</h2>
+        <p className="text-sm text-ink-secondary mb-4">
+          Para aplicar una venta hecha por WhatsApp. La fecha se calcula en el servidor.
+        </p>
+        <FeaturePanel
+          jobId={job.id}
+          featuredUntil={featureState?.featuredUntil ? featureState.featuredUntil.toISOString() : null}
+          isActive={featureState?.active ?? false}
+        />
       </div>
       <div className="bg-white rounded-[10px] border border-border p-6 sm:p-8 max-w-3xl mt-6">
         <h2 className="text-lg font-bold text-ink mb-4">Imágenes del empleo</h2>

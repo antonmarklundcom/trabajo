@@ -13,7 +13,7 @@
 // for the public site.
 import 'server-only';
 
-import { and, asc, count, desc, eq, like, ne, or } from 'drizzle-orm';
+import { and, asc, count, desc, eq, like, ne, or, sql } from 'drizzle-orm';
 import {
   activityLog,
   applications,
@@ -29,6 +29,11 @@ import {
 } from './schema';
 import type { Role } from '../auth';
 import { normalizePhone } from '../leads';
+import {
+  computeFeaturedUntil,
+  type FeatureDurationDays,
+  type FeaturePaymentMethod,
+} from '../featured';
 import { slugify, uniqueSlug } from '../slug';
 import { deleteImage } from '../image-storage';
 
@@ -112,6 +117,15 @@ export type AdminJobFilters = {
   status?: (typeof jobStatusEnum)[number];
   q?: string;
   page?: number;
+  /**
+   * Cuts across `status` rather than extending it: a Destacado listing has an
+   * ordinary status and an open `featured_until` window, and the two questions
+   * ("what is waiting for review" / "what did we sell") are asked at different
+   * times by the same person. `activo` is the window that is open now,
+   * `vencido` one that has closed — the second is the renewal list, which is
+   * the whole point of being able to ask.
+   */
+  featured?: 'activo' | 'vencido';
 };
 
 const ADMIN_PAGE_SIZE = 20;
@@ -125,6 +139,14 @@ export async function getAdminJobs(filters: AdminJobFilters) {
     const term = `%${filters.q}%`;
     conditions.push(or(like(jobs.title, term), like(companies.name, term)));
   }
+  // Same NOW() comparison the public isFeatured() and getEmployerPlanSummary()
+  // use. Featured is a predicate, never a stored boolean (ARCHITECTURE.md §6),
+  // so there is nothing here that can drift out of sync with what visitors see.
+  if (filters.featured === 'activo') {
+    conditions.push(sql`${jobs.featuredUntil} IS NOT NULL AND ${jobs.featuredUntil} > NOW()`);
+  } else if (filters.featured === 'vencido') {
+    conditions.push(sql`${jobs.featuredUntil} IS NOT NULL AND ${jobs.featuredUntil} <= NOW()`);
+  }
   const where = conditions.length ? and(...conditions) : undefined;
 
   const selection = {
@@ -136,6 +158,11 @@ export async function getAdminJobs(filters: AdminJobFilters) {
     city: cities.name,
     status: jobs.status,
     featuredUntil: jobs.featuredUntil,
+    // Resolved in SQL, not in the page. Same reason getEmployerPlanSummary()
+    // does it: "featured" is a comparison against NOW(), and doing it in React
+    // would both call an impure function during render and give the admin list
+    // a different clock from the one the public listing sorts by.
+    featuredActive: sql<number>`CASE WHEN ${jobs.featuredUntil} > NOW() THEN 1 ELSE 0 END`,
     publishedAt: jobs.publishedAt,
     createdAt: jobs.createdAt,
     applicantCount: count(applications.id),
@@ -170,6 +197,30 @@ export async function getAdminJob(id: number) {
   const db = await getDb();
   const rows = await db.select().from(jobs).where(eq(jobs.id, id)).limit(1);
   return rows[0] ?? null;
+}
+
+/**
+ * The Destacado state of one job, with the open/closed question answered by the
+ * database rather than by the caller's clock — same reasoning as the
+ * `featuredActive` column above.
+ *
+ * Separate from getAdminJob() so that function's `select()` of every column
+ * stays exactly what JobForm's initial values are built from.
+ */
+export async function getJobFeatureState(
+  id: number,
+): Promise<{ featuredUntil: Date | null; active: boolean } | null> {
+  const db = await getDb();
+  const [row] = await db
+    .select({
+      featuredUntil: jobs.featuredUntil,
+      active: sql<number>`CASE WHEN ${jobs.featuredUntil} > NOW() THEN 1 ELSE 0 END`,
+    })
+    .from(jobs)
+    .where(eq(jobs.id, id))
+    .limit(1);
+  if (!row) return null;
+  return { featuredUntil: row.featuredUntil, active: Number(row.active) === 1 };
 }
 
 export async function jobSlugExists(slug: string, excludeId?: number) {
@@ -259,6 +310,130 @@ export async function updateJob(id: number, input: JobInput, actorUserId: number
       await logActivity(actorUserId, 'job', id, 'feature', { featuredUntil: input.featuredUntil!.toISOString() });
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// Destacado — fulfilling a manual sale (PLAN-NEXT.md §3 P1, PLAN-PAGOPAR.md §1)
+//
+// Today a Destacado is sold over WhatsApp and granted here afterwards. The
+// generic `featuredUntil` field on JobForm still exists and still works — it is
+// the override for the odd case, and it is deliberately not removed. What these
+// two functions add is the ordinary case, where the two things that actually go
+// wrong are arithmetic and memory:
+//
+//   - Arithmetic. "30 days from now" typed into a datetime-local is a date
+//     computed in someone's head at the end of a sales call. The window is
+//     therefore computed HERE, from the server's clock, and the handler accepts
+//     a number of days rather than a date. A client cannot send a wrong end
+//     date because it cannot send an end date.
+//   - Memory. `activity_log` already recorded that a job was featured; it did
+//     not record what was agreed. ARCHITECTURE.md §4 names "a billing dispute
+//     about a featured listing" as the reason that table exists, and a row
+//     saying only "featured until the 30th" does not settle one. So the grant
+//     carries the days sold, the amount, how it was paid and a free-text note.
+//
+// No new table. A sale that is a WhatsApp conversation plus a bank transfer is
+// an event, and `activity_log` is the event log; a payments table with one
+// writer and no reconciliation would be a table pretending to be a ledger.
+// PLAN-PAGOPAR.md §3 is where that table becomes real, because a processor
+// gives it a second writer and something to reconcile against.
+// ---------------------------------------------------------------------------
+
+export type FeatureGrantInput = {
+  days: FeatureDurationDays;
+  /**
+   * True to add the days to a window that is still open, instead of starting a
+   * new one from now. Renewing an active listing mid-window must not shorten
+   * it, which is exactly what "set featured_until = now + 30" would do to a
+   * customer with 20 days left.
+   */
+  extend: boolean;
+  /** Guaraníes, as agreed. Null when the operator did not record it. */
+  amountGs: number | null;
+  method: FeaturePaymentMethod | null;
+  note: string | null;
+};
+
+export type FeatureGrantResult = { featuredUntil: Date } | null;
+
+/**
+ * Opens or extends a job's Destacado window. Returns null when the job does
+ * not exist.
+ */
+export async function grantJobFeature(
+  id: number,
+  actorUserId: number,
+  input: FeatureGrantInput,
+): Promise<FeatureGrantResult> {
+  const db = await getDb();
+  const now = new Date();
+
+  const [existing] = await db
+    .select({ id: jobs.id, featuredUntil: jobs.featuredUntil })
+    .from(jobs)
+    .where(eq(jobs.id, id))
+    .limit(1);
+  if (!existing) return null;
+
+  const featuredUntil = computeFeaturedUntil(now, existing.featuredUntil, input.days, input.extend);
+  const wasExtended =
+    input.extend && existing.featuredUntil !== null && existing.featuredUntil.getTime() > now.getTime();
+
+  await db
+    .update(jobs)
+    .set({ featuredUntil, updatedBy: actorUserId, updatedAt: now })
+    .where(eq(jobs.id, id));
+
+  // Deliberately NOT `updateJob`'s generic 'feature' action: that one records
+  // the resulting date, this one records the sale behind it.
+  await logActivity(actorUserId, 'job', id, 'feature_grant', {
+    days: input.days,
+    extended: wasExtended,
+    previousFeaturedUntil: existing.featuredUntil?.toISOString() ?? null,
+    featuredUntil: featuredUntil.toISOString(),
+    amountGs: input.amountGs,
+    method: input.method,
+    note: input.note,
+    channel: 'whatsapp_manual',
+  });
+
+  return { featuredUntil };
+}
+
+/**
+ * Closes the window immediately — a refund, a mis-keyed grant, a listing taken
+ * down. Returns null when the job does not exist.
+ *
+ * Clears the column rather than back-dating it, so "was never featured" and
+ * "was featured and it was revoked" stay distinguishable in `activity_log`
+ * rather than only in the column.
+ */
+export async function revokeJobFeature(
+  id: number,
+  actorUserId: number,
+  note: string | null,
+): Promise<{ ok: true } | null> {
+  const db = await getDb();
+  const now = new Date();
+
+  const [existing] = await db
+    .select({ id: jobs.id, featuredUntil: jobs.featuredUntil })
+    .from(jobs)
+    .where(eq(jobs.id, id))
+    .limit(1);
+  if (!existing) return null;
+
+  await db
+    .update(jobs)
+    .set({ featuredUntil: null, updatedBy: actorUserId, updatedAt: now })
+    .where(eq(jobs.id, id));
+
+  await logActivity(actorUserId, 'job', id, 'feature_revoke', {
+    previousFeaturedUntil: existing.featuredUntil?.toISOString() ?? null,
+    note,
+  });
+
+  return { ok: true };
 }
 
 export async function deleteJob(id: number, actorUserId: number) {

@@ -14,6 +14,7 @@ Read before writing code:
 | `PLAN-PHASE2.md` | Next body of work: employer dashboard + job seeker profiles — schema, consent/ARCO model, 14 PRs with model per PR |
 | `PLAN-IMAGES.md` | The shared public image pipeline: backend decision, validation rules, key scheme, what PR 19–21 inherit |
 | `PLAN-NEXT.md` | The current build program (2026-08-19): audit fixes B1–B7 + email core + notifications + ops hardening + public UX, as two ordered PR batches with owner ops checklist |
+| `PLAN-PAGOPAR.md` | Not started, on purpose: the self-serve Destacado checkout — processor decision, webhook rules, schema, and a copy-paste prompt (§9) for the session that builds it. Read §1 before touching `featured_until`. |
 | `ARCHITECTURE.md` | Target backend design: the data seam, DB schema, auth, job lifecycle, caching |
 | `MIGRATION.md` | WordPress → MySQL cutover runbook and rollback |
 | `DEPLOY.md` | Hostinger + MySQL operations and their known traps |
@@ -111,6 +112,15 @@ Non-negotiables:
   WYSIWYG editor that would: the body now arrives over HTTP from an admin
   session, so the escape is the boundary between "an editor writes an article"
   and "an editor writes JavaScript that runs in every visitor's browser".
+- **`featured_until` is the only mechanism behind Destacado, and payment never
+  publishes.** It is a `DATETIME`; "featured" is the predicate
+  `featured_until > NOW()` and there is no boolean anywhere. The window
+  arithmetic lives once, in `computeFeaturedUntil()` (`lib/featured.ts`), and
+  `npm run featured:verify` asserts it — a renewal bought mid-window must
+  lengthen it, and a grant on a long-lapsed listing must never land in the past.
+  A future checkout buys placement, never approval: `PLAN-PAGOPAR.md` §7. The
+  admin grant path (`grantJobFeature()`, `components/admin/FeaturePanel.tsx`,
+  and the raw field on `JobForm`) is the manual fallback and is never removed.
 - **Consent is append-only.** Withdrawal is a new row, never an UPDATE on
   `consents`.
 - **Deletion of candidate data is a hard DELETE.** `candidateCvs.deletedAt` is

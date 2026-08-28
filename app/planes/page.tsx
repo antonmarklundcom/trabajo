@@ -7,6 +7,21 @@ export const metadata: Metadata = {
     'Publicá tus empleos en trabajo.com.py. Gratuito para comenzar. Planes con mayor visibilidad disponibles.',
 };
 
+// The Destacado CTA goes to WhatsApp, not to /contacto.
+//
+// This is the flow that actually closes a sale today: the team quotes a price,
+// the employer pays by transfer, and an operator opens the window from
+// /admin/empleos/[id] (lib/db/admin.ts grantJobFeature). A contact form adds a
+// step to a conversation that was always going to happen on WhatsApp anyway.
+// The prefilled message names the plan so the team knows what the message is
+// about before opening it. PLAN-PAGOPAR.md is where this becomes a checkout.
+const DESTACADO_MESSAGE = 'Hola, quiero destacar un empleo en trabajo.com.py. ¿Cuánto sale?';
+
+function whatsappHref(message: string): string | null {
+  const number = process.env.NEXT_PUBLIC_WHATSAPP_LEADS ?? '';
+  return number ? `https://wa.me/${number}?text=${encodeURIComponent(message)}` : null;
+}
+
 const plans = [
   {
     name: 'Básico',
@@ -38,8 +53,9 @@ const plans = [
       'Activo por 30–60 días',
       'Soporte prioritario del equipo',
     ],
-    cta: 'Consultá precios',
+    cta: 'Consultá precios por WhatsApp',
     ctaHref: '/contacto',
+    whatsappMessage: DESTACADO_MESSAGE,
   },
   {
     name: 'Empresa',
@@ -116,16 +132,26 @@ export default function PlanesPage() {
                   </li>
                 ))}
               </ul>
-              <Link
-                href={plan.ctaHref}
-                className={`mt-8 w-full py-3 px-4 rounded-[10px] text-center font-semibold text-sm transition-colors ${
+              {/* Falls back to ctaHref when NEXT_PUBLIC_WHATSAPP_LEADS is
+                  unset, so a missing number is a working /contacto link rather
+                  than a wa.me/ that goes nowhere. */}
+              {(() => {
+                const href = plan.whatsappMessage ? whatsappHref(plan.whatsappMessage) : null;
+                const className = `mt-8 w-full py-3 px-4 rounded-[10px] text-center font-semibold text-sm transition-colors ${
                   plan.featured
                     ? 'bg-brand hover:bg-brand-hover text-white'
                     : 'border-2 border-brand text-brand hover:bg-brand-tint'
-                }`}
-              >
-                {plan.cta}
-              </Link>
+                }`;
+                return href ? (
+                  <a href={href} target="_blank" rel="noopener noreferrer" className={className}>
+                    {plan.cta}
+                  </a>
+                ) : (
+                  <Link href={plan.ctaHref} className={className}>
+                    {plan.whatsappMessage ? 'Consultá precios' : plan.cta}
+                  </Link>
+                );
+              })()}
             </div>
           ))}
         </div>
