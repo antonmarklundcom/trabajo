@@ -811,3 +811,134 @@ export const opsState = mysqlTable('ops_state', {
   value: varchar('value', { length: 255 }).notNull(),
   updatedAt: datetime('updated_at').notNull(),
 });
+
+// ===========================================================================
+// PagoPar checkout — the self-serve Destacado (PLAN-PAGOPAR.md §3)
+//
+// Schema only, landing on its own: merging to main is a production deploy with
+// no staging, so the migration is its own reviewable event and the webhook
+// that writes these rows arrives in the next PR (PLAN-PAGOPAR.md §8, "Do not
+// fold A into B").
+//
+// Nothing here publishes anything. A paid Destacado is still a `published` job
+// that /admin approved — payment buys placement in the list, never a place ON
+// it (PLAN-PAGOPAR.md §7, asserted by scripts/verify-moderation.ts).
+// ===========================================================================
+
+// The order lifecycle. `pending` is where every order starts and the only
+// state a payment callback may claim from — see PAID_CLAIM in
+// lib/db/feature-orders.ts, which is what makes a retried delivery a no-op.
+export const featureOrderStatusEnum = [
+  'pending',
+  'paid',
+  'failed',
+  'expired',
+  'cancelled',
+] as const;
+
+// Both processors from the first migration, so the Bancard adapter
+// (PLAN-PAGOPAR.md §10) is a new module and a second route rather than an
+// ALTER TABLE on a table that by then holds live orders.
+export const paymentProcessorEnum = ['pagopar', 'bancard'] as const;
+
+// ---------------------------------------------------------------------------
+// feature_orders
+//
+// One row per checkout attempt. What was bought is recorded here, and only
+// here: the webhook reads `days` and `amount_gs` from this row and never from
+// the callback body, because a callback that can name the number of days is a
+// callback that can buy a year for one guaraní (PLAN-PAGOPAR.md §4 point 8).
+// ---------------------------------------------------------------------------
+
+export const featureOrders = mysqlTable(
+  'feature_orders',
+  {
+    id: int('id').autoincrement().primaryKey(),
+    // Plain ints, no FK — the schema-wide convention at the top of this file.
+    // scripts/verify-cascades.ts registers this table against `jobs`, whose
+    // hard delete (deleteJob() in lib/db/admin.ts) must purge its orders.
+    jobId: int('job_id').notNull(),
+    // Denormalised rather than joined through `jobs`: an order must survive
+    // its job being re-pointed, and an employer-scoped read filters on
+    // company_id like every other query an employer can reach.
+    companyId: int('company_id').notNull(),
+    // What was bought, not when it ends. The end date is computed at
+    // fulfilment by computeFeaturedUntil(), because a window bought today and
+    // fulfilled tomorrow must run from the fulfilment.
+    days: int('days').notNull(),
+    // Guaraníes have no decimal places, so the amount is an integer and no
+    // rounding rule exists to get wrong.
+    amountGs: int('amount_gs').notNull(),
+    status: mysqlEnum('status', featureOrderStatusEnum).notNull().default('pending'),
+    processor: mysqlEnum('processor', paymentProcessorEnum).notNull(),
+    // Whatever identifies this order to the processor. UNIQUE is load-bearing:
+    // it is half of the idempotency guarantee (PLAN-PAGOPAR.md §4 point 4) —
+    // it makes "one order per processor reference" a property of the database
+    // rather than of whichever handler remembered to check.
+    processorOrderId: varchar('processor_order_id', { length: 191 }).notNull().unique(),
+    paidAt: datetime('paid_at'),
+    // Deliberately distinct from paid_at. "The money arrived" and "the window
+    // was opened" are two facts, and a bug between them — a claimed order
+    // whose job was never granted anything — is only visible if both are
+    // recorded separately.
+    fulfilledAt: datetime('fulfilled_at'),
+    // The window this order actually produced, copied at fulfilment. A later
+    // manual grant or revoke (PLAN-PAGOPAR.md §6, which stays forever) rewrites
+    // jobs.featured_until; it must not rewrite what this order delivered.
+    featuredUntil: datetime('featured_until'),
+    createdAt: datetime('created_at').notNull(),
+    updatedAt: datetime('updated_at').notNull(),
+  },
+  (table) => [
+    // The employer's own order history, newest first.
+    index('company_created_idx').on(table.companyId, table.createdAt),
+    // Every order ever raised against one listing.
+    index('job_created_idx').on(table.jobId, table.createdAt),
+    // Reconciliation: what is still pending, what failed, and when.
+    index('status_created_idx').on(table.status, table.createdAt),
+  ],
+);
+
+// ---------------------------------------------------------------------------
+// payment_events
+//
+// Every callback delivery ever received, verified or not, stored raw. The row
+// is written BEFORE verification and BEFORE any state change, so a forged,
+// malformed or replayed delivery still leaves evidence (PLAN-PAGOPAR.md §4
+// point 2). It is the reconciliation trail, and the only thing that answers
+// "they say they paid and nothing happened" without asking the processor.
+//
+// `order_id` is nullable because the delivery that cannot be matched to an
+// order is exactly the one worth keeping: an unparseable body, a reference
+// we never issued, or a callback that arrived for an order since deleted.
+// That last case is why this table is a DELIBERATE_ORPHAN in
+// scripts/verify-cascades.ts rather than a DEPENDENCIES entry — see the note
+// there.
+// ---------------------------------------------------------------------------
+
+export const paymentEvents = mysqlTable(
+  'payment_events',
+  {
+    id: int('id').autoincrement().primaryKey(),
+    orderId: int('order_id'),
+    processor: mysqlEnum('processor', paymentProcessorEnum).notNull(),
+    // Recorded, never trusted: a `false` row is the evidence of a rejected
+    // delivery, and nothing downstream may read this column as permission.
+    signatureValid: boolean('signature_valid').notNull(),
+    // The body as it arrived. Raw, so what we were sent can be re-read later
+    // against a processor's own record without depending on how a parser of
+    // ours happened to interpret it that day.
+    payload: json('payload').notNull(),
+    receivedAt: datetime('received_at').notNull(),
+    // IPv6-sized. Nullable because a delivery through a proxy that strips it
+    // must still be logged rather than dropped.
+    ip: varchar('ip', { length: 45 }),
+  },
+  (table) => [
+    // "What did we receive for this order?" — the reconciliation question.
+    index('order_received_idx').on(table.orderId, table.receivedAt),
+    // "What arrived from this processor, in what order?" — including the
+    // deliveries that matched no order at all.
+    index('processor_received_idx').on(table.processor, table.receivedAt),
+  ],
+);
