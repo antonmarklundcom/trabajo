@@ -50,3 +50,36 @@ export function candidateAccountsEnabled(): boolean {
 export function employerSignupEnabled(): boolean {
   return isEnabled(process.env.EMPLOYER_SIGNUP_ENABLED);
 }
+
+/**
+ * Whether the PagoPar checkout may be offered at all (PLAN-PAGOPAR.md §5).
+ *
+ * Unlike the three flags above, this one is DERIVED from the credentials being
+ * present rather than read from a switch of its own. There is no useful state
+ * where the keys exist and checkout is off: a separate boolean would only add a
+ * way to half-configure it, and "the keys are set but I forgot the flag" and
+ * "the keys are not set" would look identical from the outside.
+ *
+ * What false must mean, per §5 — and it is NOT a broken checkout:
+ *
+ *   - no "Pagar en línea" button is RENDERED anywhere (a server-side check,
+ *     never CSS or a disabled attribute);
+ *   - /planes and components/empresa/PlanCard.tsx keep exactly today's
+ *     WhatsApp CTA;
+ *   - the webhook route, when it exists, returns 404 rather than 500;
+ *   - every part of the manual sale (PLAN-PAGOPAR.md §1) keeps working.
+ *
+ * A half-configured deploy must look like today's site, not like a payment page
+ * that fails after the customer has committed.
+ *
+ * Both keys, not either: a request signed with a public key whose private
+ * counterpart is missing cannot be verified when it comes back.
+ */
+export function pagoparConfigured(): boolean {
+  return isPresent(process.env.PAGOPAR_PUBLIC_KEY) && isPresent(process.env.PAGOPAR_PRIVATE_KEY);
+}
+
+/** Set-but-blank is unset. hPanel stores an emptied field as an empty string. */
+function isPresent(value: string | undefined): boolean {
+  return (value ?? '').trim().length > 0;
+}
