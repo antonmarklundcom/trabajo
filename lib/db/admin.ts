@@ -92,8 +92,12 @@ export async function getDashboardStats() {
   };
 }
 
+// `actorUserId` is nullable because not every entry has a human behind it:
+// a payment webhook fulfils an order with no session and no operator, and
+// recording the machine as some staff member's action would be a lie in the one
+// table a billing dispute is settled from (PLAN-PAGOPAR.md §4 point 6).
 async function logActivity(
-  actorUserId: number,
+  actorUserId: number | null,
   entityType: string,
   entityId: number,
   action: string,
@@ -358,13 +362,37 @@ export type FeatureGrantInput = {
 export type FeatureGrantResult = { featuredUntil: Date } | null;
 
 /**
- * Opens or extends a job's Destacado window. Returns null when the job does
- * not exist.
+ * How a window came to be open. Both channels write the same `feature_grant`
+ * action with the same meta shape, so reconciling "every Destacado sold in
+ * August" is one query over `activity_log` rather than a union of two
+ * (PLAN-PAGOPAR.md §1, §4 point 6).
  */
-export async function grantJobFeature(
+export const FEATURE_GRANT_CHANNELS = ['whatsapp_manual', 'pagopar'] as const;
+export type FeatureGrantChannel = (typeof FEATURE_GRANT_CHANNELS)[number];
+
+/**
+ * THE grant. The only place in this codebase that writes `jobs.featured_until`
+ * as a sale, and the only place that computes the window.
+ *
+ * Both channels come through here — the manual WhatsApp sale via
+ * grantJobFeature() below, and a verified payment via
+ * fulfilFeatureOrder() in lib/db/feature-fulfilment.ts. PLAN-PAGOPAR.md §4
+ * point 5 requires exactly that: "not a second UPDATE jobs somewhere", so that
+ * the arithmetic npm run featured:verify asserts is the arithmetic both
+ * channels get.
+ *
+ * `actorUserId` is null for a machine fulfilment: nobody pressed a button, and
+ * `updated_by` naming a staff member who was asleep is worse than a null.
+ * Returns null when the job does not exist.
+ */
+export async function applyFeatureGrant(
   id: number,
-  actorUserId: number,
-  input: FeatureGrantInput,
+  actorUserId: number | null,
+  input: FeatureGrantInput & {
+    channel: FeatureGrantChannel;
+    /** The feature_orders row behind a paid grant; null for a manual sale. */
+    orderId?: number | null;
+  },
 ): Promise<FeatureGrantResult> {
   const db = await getDb();
   const now = new Date();
@@ -395,10 +423,29 @@ export async function grantJobFeature(
     amountGs: input.amountGs,
     method: input.method,
     note: input.note,
-    channel: 'whatsapp_manual',
+    channel: input.channel,
+    orderId: input.orderId ?? null,
   });
 
   return { featuredUntil };
+}
+
+/**
+ * Opens or extends a job's Destacado window after a manual sale — the WhatsApp
+ * conversation plus a bank transfer that is how a Destacado is sold today
+ * (PLAN-PAGOPAR.md §1). Returns null when the job does not exist.
+ *
+ * Unchanged in signature and in what it writes: the channel it records was
+ * always `whatsapp_manual`, and it stays the fallback for a phone sale, a
+ * refund, a comped listing and a mis-keyed order for as long as those happen —
+ * which is forever (PLAN-PAGOPAR.md §6).
+ */
+export async function grantJobFeature(
+  id: number,
+  actorUserId: number,
+  input: FeatureGrantInput,
+): Promise<FeatureGrantResult> {
+  return applyFeatureGrant(id, actorUserId, { ...input, channel: 'whatsapp_manual', orderId: null });
 }
 
 /**

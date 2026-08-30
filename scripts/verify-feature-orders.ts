@@ -1,4 +1,6 @@
-// Asserts that a payment callback cannot be replayed into a second Destacado.
+// Asserts that a payment callback cannot be replayed into a second Destacado,
+// that fulfilment runs through the one grant path, and that an unconfigured
+// deploy is today's site.
 //
 //   npm run orders:verify
 //
@@ -43,6 +45,7 @@ import {
   type FeatureOrderStatus,
 } from '../lib/db/feature-orders';
 import { featureOrderStatusEnum } from '../lib/db/schema';
+import { pagoparConfigured } from '../lib/flags';
 
 let failures = 0;
 
@@ -389,9 +392,200 @@ for (const fn of [
   );
 }
 
+// ---------------------------------------------------------------------------
+// 7. Fulfilment: the claim gates the grant, and the grant has one implementation
+//
+// lib/db/feature-fulfilment.ts is the processor-independent half of the
+// checkout (PLAN-PAGOPAR.md §10) — everything §4 points 4, 5, 6 and 8 require,
+// with none of PagoPar's wire format in it. The adapter and the route are not
+// written yet, so what protects these properties until a handler calls them is
+// this section.
+// ---------------------------------------------------------------------------
+
+const FULFILMENT = join(process.cwd(), 'lib/db/feature-fulfilment.ts');
+const fulfilment = readFileSync(FULFILMENT, 'utf8');
+
+function withoutComments(text: string): string {
+  return text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+}
+
+const fulfilCode = withoutComments(fulfilment);
+
+check(
+  'fulfilFeatureOrder() takes an order id, not an amount or a number of days',
+  /export async function fulfilFeatureOrder\(\s*orderId: number,\s*paidAt: Date,?\s*\)/.test(
+    fulfilment,
+  ) && !/\b(days|amountGs|featuredUntil):\s*(number|Date)/.test(
+    fulfilment.slice(
+      fulfilment.indexOf('export async function fulfilFeatureOrder('),
+      fulfilment.indexOf('): Promise<FulfilmentResult>'),
+    ),
+  ),
+  'A parameter a callback body could reach is a callback that names its own price ' +
+    '(PLAN-PAGOPAR.md §4 point 8). What was bought is read from our own row.',
+);
+
+check(
+  'what is granted comes from our own order row',
+  fulfilCode.includes('days: order.days') && fulfilCode.includes('amountGs: order.amountGs'),
+  'The grant must read `days` and `amountGs` from feature_orders, never from a ' +
+    'delivery body.',
+);
+
+{
+  const claimAt = fulfilCode.indexOf('claimFeatureOrderPaid(');
+  const grantAt = fulfilCode.indexOf('applyFeatureGrant(');
+  const recordAt = fulfilCode.indexOf('recordFeatureOrderFulfilment(');
+
+  check(
+    'the claim happens before the grant',
+    claimAt !== -1 && grantAt !== -1 && claimAt < grantAt,
+    'Granting first and claiming afterwards opens the window on every retry and ' +
+      'discovers the duplicate too late to undo it.',
+  );
+
+  check(
+    'nothing is granted unless the claim won',
+    /if\s*\(!claimed\)\s*return/.test(fulfilCode) &&
+      fulfilCode.indexOf('if (!claimed) return') < grantAt,
+    'affectedRows === 1 is the permission to fulfil. Without the early return, a ' +
+      'lost claim still reaches the grant.',
+  );
+
+  check(
+    'fulfilment is recorded after the grant',
+    recordAt !== -1 && grantAt < recordAt,
+    'fulfilled_at must describe a window that exists. Writing it first records a ' +
+      'fulfilment that a failing grant then never performs.',
+  );
+}
+
+check(
+  'the module never writes the job itself',
+  !/\.update\(/.test(fulfilCode) && !/\.insert\(/.test(fulfilCode),
+  'PLAN-PAGOPAR.md §4 point 5: "not a second UPDATE jobs somewhere". The grant ' +
+    'goes through applyFeatureGrant() so the window arithmetic keeps one ' +
+    'implementation — the one npm run featured:verify covers.',
+);
+
+check(
+  'payment cannot publish: fulfilment never touches a job status',
+  !/status/.test(fulfilCode) && !/published/.test(fulfilCode),
+  'A paid Destacado on a pending listing stays invisible until /admin approves ' +
+    'it. Payment buys placement, never publication (PLAN-PAGOPAR.md §7).',
+);
+
+check(
+  'the grant is logged as pagopar, by nobody',
+  fulfilCode.includes("channel: 'pagopar'") &&
+    /applyFeatureGrant\(\s*order\.jobId,\s*null,/.test(fulfilCode),
+  'PLAN-PAGOPAR.md §4 point 6: channel `pagopar` and a NULL actor. Recording a ' +
+    'machine fulfilment as a staff member is a lie in the one table a billing ' +
+    'dispute is settled from.',
+);
+
+check(
+  'a renewal extends an open window rather than restarting it',
+  fulfilCode.includes('extend: true'),
+  'A Destacado bought while one is still running must ADD to it — restarting ' +
+    'would shorten the window of a customer with 20 days left.',
+);
+
+check(
+  'the duration is checked against the closed list before anything is claimed',
+  fulfilCode.indexOf('isFeatureDuration(order.days)') !== -1 &&
+    fulfilCode.indexOf('isFeatureDuration(order.days)') < fulfilCode.indexOf('claimFeatureOrderPaid('),
+  'A row holding a duration nobody sells must leave the order pending for a human ' +
+    'rather than granting a window nobody priced.',
+);
+
+// ---------------------------------------------------------------------------
+// 8. One grant path, and the manual sale still on it
+//
+// The manual WhatsApp sale (PLAN-PAGOPAR.md §1) is how a Destacado is sold
+// today and stays the fallback for a phone sale, a refund and a comped listing
+// forever (§6). It and the paid path must remain the SAME write — that is what
+// makes "every Destacado sold in August" one query, and what keeps both
+// channels on the arithmetic featured:verify asserts.
+// ---------------------------------------------------------------------------
+
+const adminSource = readFileSync(join(process.cwd(), 'lib/db/admin.ts'), 'utf8');
+
+check(
+  'the window is computed in exactly one place outside lib/featured.ts',
+  (withoutComments(adminSource).match(/computeFeaturedUntil\(/g) ?? []).length === 1 &&
+    !/computeFeaturedUntil\(/.test(fulfilCode),
+  'Two call sites are two arithmetics, and only one of them stays covered by ' +
+    'npm run featured:verify.',
+);
+
+check(
+  'grantJobFeature() still exists and still records the manual channel',
+  /export async function grantJobFeature\(/.test(adminSource) &&
+    /channel: 'whatsapp_manual'/.test(adminSource),
+  'The manual path is not removed and not deprecated (PLAN-PAGOPAR.md §6).',
+);
+
+check(
+  'revokeJobFeature() still exists',
+  /export async function revokeJobFeature\(/.test(adminSource),
+  'A refund, a mis-keyed grant and a listing taken down all need it, and all three ' +
+    'still happen after a checkout ships.',
+);
+
+check(
+  'both channels write the same activity_log action',
+  (adminSource.match(/'feature_grant'/g) ?? []).length === 1,
+  'One `feature_grant` write, parameterised by channel. A second one is a second ' +
+    'meta shape, and reconciliation becomes a union of two queries that drift.',
+);
+
+// ---------------------------------------------------------------------------
+// 9. The degrade rule (PLAN-PAGOPAR.md §5)
+//
+// With either key unset the site must be today's site — not a checkout that
+// fails after the customer has committed. The flag is DERIVED from the
+// credentials rather than switched separately, so this is a behavioural check
+// of that derivation.
+// ---------------------------------------------------------------------------
+
+const { PAGOPAR_PUBLIC_KEY: publicKeyBefore, PAGOPAR_PRIVATE_KEY: privateKeyBefore } = process.env;
+
+function withKeys(publicKey: string | undefined, privateKey: string | undefined): boolean {
+  if (publicKey === undefined) delete process.env.PAGOPAR_PUBLIC_KEY;
+  else process.env.PAGOPAR_PUBLIC_KEY = publicKey;
+  if (privateKey === undefined) delete process.env.PAGOPAR_PRIVATE_KEY;
+  else process.env.PAGOPAR_PRIVATE_KEY = privateKey;
+  return pagoparConfigured();
+}
+
+check('both keys set means configured', withKeys('pk_live', 'sk_live') === true);
+check('neither key set means not configured', withKeys(undefined, undefined) === false);
+check(
+  'ONE key set is not configured',
+  withKeys('pk_live', undefined) === false && withKeys(undefined, 'sk_live') === false,
+  'A request signed with a public key whose private counterpart is missing cannot ' +
+    'be verified when it comes back. Half-configured must read as off.',
+);
+check(
+  'a blank key is an unset key',
+  withKeys('', '') === false && withKeys('pk_live', '   ') === false,
+  'hPanel stores an emptied field as an empty string, so "" must not enable a ' +
+    'checkout that cannot sign anything.',
+);
+
+withKeys(publicKeyBefore, privateKeyBefore);
+
+check(
+  'the flag is derived from the credentials, not from a switch',
+  !/PAGOPAR_ENABLED|PAGOPAR_CHECKOUT_ENABLED/.test(readFileSync(join(process.cwd(), 'lib/flags.ts'), 'utf8')),
+  'PLAN-PAGOPAR.md §5: there is no useful state where the keys exist and checkout ' +
+    'is off, and a second variable only adds a way to half-configure it.',
+);
+
 if (failures > 0) {
   console.error(`\n${failures} assertion(s) FAILED.`);
   process.exit(1);
 }
-console.log('\nAll feature-order idempotency assertions passed.');
+console.log('\nAll feature-order, fulfilment and degrade assertions passed.');
 process.exit(0);

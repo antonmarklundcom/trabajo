@@ -222,8 +222,40 @@ deploy with no staging.
 | PR | Scope | Model |
 |---|---|---|
 | A | Schema + `lib/db/feature-orders.ts` + cascade registration + a verify script for the idempotency predicate. No routes, no UI. | Opus |
-| B | The PagoPar adapter and the webhook. Signature verification, `payment_events`, idempotent fulfilment through `computeFeaturedUntil()`. Env-gated. | Opus |
+| B1 | The processor-independent half of B: fulfilment, the derived flag, `.env.example`. No adapter, no route. | Opus |
+| B2 | The PagoPar adapter and the webhook. Signature verification, `payment_events`, the route. Env-gated. **Blocked — see below.** | Opus |
 | C | Checkout UI: the button on `PlanCard` / `/planes` / the employer job page, return and cancel pages, and the employer's order history. | Sonnet |
+
+### Status, 2026-08-30
+
+**A is merged** (#79). The two tables exist and are empty; nothing reads or
+writes them.
+
+**B was split, and the split was forced rather than chosen.** B1 merged: every
+part of §4 that does not depend on PagoPar's wire format — the claim-gated
+fulfilment in `lib/db/feature-fulfilment.ts`, the single grant path shared with
+the manual sale, `channel: 'pagopar'` with a NULL actor, and the credential-
+derived flag in `lib/flags.ts`. §10 is why that is safe to land early: the
+fulfilment path is processor-independent, so a Bancard adapter would reuse it
+unchanged.
+
+**B2 is blocked on two things, neither of them code:**
+
+1. **The merchant account does not exist yet.** The owner is incorporating an
+   EAS in September 2026 and opening the banking behind it; PagoPar onboarding
+   follows that, "weeks or a month+". Until then there are no credentials, not
+   even sandbox ones, so a signature implementation could not be tested against
+   a single real delivery.
+2. **The documentation is unreachable from build sessions.** Every PagoPar host
+   (`pagopar.com`, `www.`, `api.`, `cdn.`, `docs.`) is refused with a 403 at the
+   egress proxy. §2's four questions — the payment-request shape and amount
+   units, the exact token/signature scheme, the callback contract and retry
+   behaviour, and who mints the order id — are therefore all still unanswered,
+   and §2 says to stop rather than infer them.
+
+So B2's session needs the docs pasted in or the host allowlisted, plus at least
+sandbox keys. Nothing about the manual sale in §1 waits on any of it: a
+Destacado is sold today, on WhatsApp, from the owner's existing RUC.
 
 Do not fold A into B. The schema landing on its own means the migration runs
 against production as its own reviewable event, which is the one thing this repo
