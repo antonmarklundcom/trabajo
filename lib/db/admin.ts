@@ -21,6 +21,7 @@ import {
   categories,
   cities,
   companies,
+  featureOrders,
   jobImages,
   jobs,
   jobStatusEnum,
@@ -453,6 +454,13 @@ export async function deleteJob(id: number, actorUserId: number) {
   }
   await db.delete(jobImages).where(eq(jobImages.jobId, id));
   await db.delete(savedJobs).where(eq(savedJobs.jobId, id));
+  // Destacado orders raised against this listing. Same reasoning and same
+  // ordering: dependents before the parent, so a crash between the statements
+  // loses an order row rather than orphaning one (PLAN-PAGOPAR.md §3). The
+  // callback deliveries in payment_events are NOT removed — they are the record
+  // of what a processor sent us and survive the order by design
+  // (scripts/verify-cascades.ts, DELIBERATE_ORPHANS).
+  await db.delete(featureOrders).where(eq(featureOrders.jobId, id));
   await db.delete(jobs).where(eq(jobs.id, id));
   await logActivity(actorUserId, 'job', id, 'delete');
 }

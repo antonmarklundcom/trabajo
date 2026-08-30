@@ -60,6 +60,13 @@ const DEPENDENCIES: Dependency[] = [
   // a hop that then dead-ends. Deleting the post must retire its redirects
   // first (PLAN-PHASE3-DRAFT.md §11).
   { child: 'blogPostRedirects', parents: ['blogPosts'] },
+  // A Destacado order names the listing it was bought for, and `jobs` is hard-
+  // deleted (deleteJob() in lib/db/admin.ts). An order pointing at a job id
+  // that no longer resolves is worse than useless in the one situation orders
+  // exist for — a billing dispute — because it looks like a sale of something
+  // nobody can name (PLAN-PAGOPAR.md §3). The evidence of what the PROCESSOR
+  // sent is payment_events, which deliberately survives; see DELIBERATE_ORPHANS.
+  { child: 'featureOrders', parents: ['jobs'] },
 ];
 
 /**
@@ -97,6 +104,18 @@ const DELIBERATE_ORPHANS: Record<string, string> = {
   deletionRequests: 'the record that the candidate row was destroyed; cannot reference it',
   dataAccessLogs: 'audit of staff reads; purged on its own retention clock, not with the subject',
   applications: 'redacted to a husk rather than deleted, so employer/admin counts stay coherent',
+  // Decided in PR A rather than inherited: payment_events.order_id is the only
+  // reference this table holds, and deleting its rows with the order would
+  // destroy exactly the evidence they exist for. A delivery log row is a record
+  // of what a PROCESSOR sent us — not the customer's data, and not ours to
+  // edit once a payment is disputed. The order can go; what arrived at our
+  // endpoint, verified or not, must outlive it, or "they say they paid and
+  // nothing happened" becomes a question only the processor can answer
+  // (PLAN-PAGOPAR.md §3, §4 point 2). scripts/verify-feature-orders.ts asserts
+  // the other half — that nothing in lib/db updates or deletes these rows at
+  // all.
+  paymentEvents:
+    'evidence of what a processor sent us, verified or not; append-only and outlives the order it names',
 };
 
 // ---------------------------------------------------------------------------
