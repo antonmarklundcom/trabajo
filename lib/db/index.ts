@@ -14,6 +14,12 @@ function getPool(): mysql.Pool {
       uri: url,
       connectionLimit: 8,
       timezone: 'Z',
+      // A request that can't get a connection must fail in seconds so its
+      // process is released, rather than hang and eat into the account's
+      // shared process limit on Hostinger.
+      waitForConnections: true,
+      queueLimit: 24,
+      connectTimeout: 8_000,
     });
   }
   return globalForDb.dbPool;
