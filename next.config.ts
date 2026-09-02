@@ -51,6 +51,16 @@ const CSP_REPORT_ONLY = [
 ].join('; ');
 
 const nextConfig: NextConfig = {
+  experimental: {
+    // Next defaults its build workers to `os.cpus().length - 1`, which on
+    // Hostinger's shared box is the physical core count of the host, not
+    // this account's share. Each worker is a Node process with its own
+    // threads, all counted against the account-wide 200 "Max Processes" cap
+    // shared with the other 8 sites. One worker keeps a deploy from tipping
+    // the account over the cap (and failing its own build) — see vendercrm
+    // PR #84 and propia.node PR #81 for the same fix.
+    cpus: 1,
+  },
   async headers() {
     return [
       {
