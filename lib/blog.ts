@@ -178,7 +178,9 @@ function toMeta(row: BlogPostRow): BlogPostMeta {
     description: row.description,
     category: row.category,
     publishedAt: row.publishedAt ?? '',
-    updatedAt: row.updatedAt.toISOString(),
+    // unstable_cache round-trips its return value through JSON, so on the
+    // cached path row.updatedAt arrives as a string rather than a Date.
+    updatedAt: new Date(row.updatedAt).toISOString(),
     relatedCategory: row.relatedCategorySlug ?? undefined,
     relatedCity: row.relatedCitySlug ?? undefined,
     coverUrl: row.coverImageKey ? blogCoverUrl(row.coverImageKey) : undefined,
