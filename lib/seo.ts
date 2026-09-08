@@ -138,10 +138,9 @@ export function listingIndexRule(params: ListingParams): IndexRule {
     return { index: false, canonical: `/trabajo/${categoria}`, reason: 'categoria' };
   }
   if (ciudad) {
-    // S4 introduces /trabajo-en/{ciudad} (PLAN-GROWTH.md §7 D7) and this line
-    // becomes `/trabajo-en/${ciudad}`. Until that route exists, canonicalising
-    // to it would point at a 404, which is worse than pointing at the index.
-    return { index: false, canonical: '/empleos', reason: 'ciudad' };
+    // S4 shipped /trabajo-en/{ciudad} (PLAN-GROWTH.md §7 D7) — this is the
+    // hand-off scripts/verify-seo.ts's own failure message named.
+    return { index: false, canonical: `/trabajo-en/${ciudad}`, reason: 'ciudad' };
   }
 
   // A bare listing, page 1 or page N. `?page=1` never appears in a canonical:

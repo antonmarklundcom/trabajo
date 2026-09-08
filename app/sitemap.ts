@@ -33,11 +33,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // `new Date()` on every build told Google every category changed on every
   // crawl, which is exactly the noise a lastModified exists to avoid.
   const latestUpdateByCategory = new Map<string, Date>();
+  const latestUpdateByCity = new Map<string, Date>();
   const latestUpdateByCombo = new Map<string, Date>();
   for (const job of jobs) {
     const updated = new Date(job.updatedAt);
     const byCategory = latestUpdateByCategory.get(job.categorySlug);
     if (!byCategory || updated > byCategory) latestUpdateByCategory.set(job.categorySlug, updated);
+    const byCity = latestUpdateByCity.get(job.citySlug);
+    if (!byCity || updated > byCity) latestUpdateByCity.set(job.citySlug, updated);
     const comboKey = `${job.categorySlug}|${job.citySlug}`;
     const byCombo = latestUpdateByCombo.get(comboKey);
     if (!byCombo || updated > byCombo) latestUpdateByCombo.set(comboKey, updated);
@@ -93,6 +96,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
   }
 
+  // City landing pages (PLAN-GROWTH.md §4 S4, only non-empty).
+  const cityPages: MetadataRoute.Sitemap = cities
+    .filter((city) => (city.jobCount ?? 0) > 0)
+    .map((city) => ({
+      url: `${siteUrl}/trabajo-en/${city.slug}`,
+      lastModified: latestUpdateByCity.get(city.slug),
+      changeFrequency: 'daily' as const,
+      priority: 0.7,
+    }));
+
   const blogPages: MetadataRoute.Sitemap = posts.map((post) => ({
     url: `${siteUrl}/blog/${post.slug}`,
     lastModified: new Date(post.updatedAt),
@@ -100,5 +113,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.5,
   }));
 
-  return [...staticPages, ...jobPages, ...categoryPages, ...landingPages, ...blogPages];
+  return [
+    ...staticPages,
+    ...jobPages,
+    ...categoryPages,
+    ...cityPages,
+    ...landingPages,
+    ...blogPages,
+  ];
 }
