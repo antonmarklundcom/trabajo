@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import { canonicalFor } from '@/lib/seo';
-import { waHref } from '@/lib/whatsapp';
+import { WHATSAPP_HOURS_COPY } from '@/lib/whatsapp';
 import ContactForm from '@/components/ContactForm';
+import WhatsAppCta from '@/components/WhatsAppCta';
 import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
 import FloatingWhatsApp from '@/components/FloatingWhatsApp';
 
@@ -12,8 +13,6 @@ export const metadata: Metadata = {
 };
 
 export default function ContactoPage() {
-  const whatsapp = process.env.NEXT_PUBLIC_WHATSAPP_LEADS ?? '';
-
   return (
     <>
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -25,27 +24,29 @@ export default function ContactoPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-10">
-        {/* WhatsApp contact */}
-        {whatsapp && (
-          <a
-            href={waHref(whatsapp, 'Hola, quisiera consultar sobre trabajo.com.py')}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-4 p-5 bg-white rounded-[10px] border border-border hover:border-wa hover:shadow-sm transition-all group"
-          >
+        {/* WhatsApp contact — first, per the market's channel of choice */}
+        <div className="p-5 bg-white rounded-[10px] border border-border flex flex-col gap-4">
+          <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-[10px] bg-wa/10 text-wa flex items-center justify-center flex-shrink-0">
               <WhatsAppIcon size={24} />
             </div>
             <div>
-              <p className="font-semibold text-ink group-hover:text-wa transition-colors">
-                WhatsApp
-              </p>
-              <p className="text-sm text-ink-secondary">Respondemos en minutos</p>
+              <p className="font-semibold text-ink">WhatsApp</p>
+              <p className="text-sm text-ink-secondary">{WHATSAPP_HOURS_COPY}</p>
             </div>
-          </a>
-        )}
+          </div>
+          <WhatsAppCta intent="contacto" sourcePage="/contacto" />
+          <WhatsAppCta
+            intent="publicar"
+            variant="pill"
+            size="sm"
+            label="Quiero publicar un empleo"
+            sourcePage="/contacto"
+            className="self-start"
+          />
+        </div>
 
-        {/* General contact */}
+        {/* General contact / form */}
         <div className="flex items-center gap-4 p-5 bg-white rounded-[10px] border border-border">
           <div className="w-12 h-12 rounded-[10px] bg-brand-tint flex items-center justify-center flex-shrink-0">
             <svg width="22" height="22" viewBox="0 0 20 20" fill="#C0362A">
@@ -55,7 +56,7 @@ export default function ContactoPage() {
           </div>
           <div>
             <p className="font-semibold text-ink">Formulario</p>
-            <p className="text-sm text-ink-secondary">Respondemos en 24 horas</p>
+            <p className="text-sm text-ink-secondary">{WHATSAPP_HOURS_COPY}</p>
           </div>
         </div>
       </div>

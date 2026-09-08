@@ -5,7 +5,7 @@
 // one would be a promise the site cannot keep. The action offered is the one
 // that actually works: a WhatsApp message to the team.
 import Link from 'next/link';
-import { waHref } from '@/lib/whatsapp';
+import WhatsAppCta from '@/components/WhatsAppCta';
 
 type Props = {
   activeFeaturedCount: number;
@@ -24,12 +24,7 @@ export default function PlanCard({
   lastFeaturedUntil,
   companyName,
 }: Props) {
-  const whatsapp = process.env.NEXT_PUBLIC_WHATSAPP_LEADS ?? '';
   const isFeatured = featuredUntil !== null;
-
-  const renewHref = whatsapp
-    ? waHref(whatsapp, `Hola, soy de ${companyName} y quiero renovar el plan Destacado.`)
-    : null;
 
   return (
     <div
@@ -58,16 +53,13 @@ export default function PlanCard({
               ? '1 empleo aparece primero en los resultados.'
               : `${activeFeaturedCount} empleos aparecen primero en los resultados.`}
           </p>
-          {renewHref && (
-            <a
-              href={renewHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block mt-3 text-sm font-semibold text-brand hover:underline"
-            >
-              Renovar por WhatsApp →
-            </a>
-          )}
+          <WhatsAppCta
+            intent="renovar"
+            variant="link"
+            context={{ companyName }}
+            sourcePage="/empresa"
+            className="mt-3"
+          />
         </>
       ) : (
         <>
@@ -84,15 +76,14 @@ export default function PlanCard({
               Ver planes
             </Link>
           </p>
-          {lastFeaturedUntil && renewHref && (
-            <a
-              href={renewHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block mt-3 text-sm font-semibold text-brand hover:underline"
-            >
-              Renovar por WhatsApp →
-            </a>
+          {lastFeaturedUntil && (
+            <WhatsAppCta
+              intent="renovar"
+              variant="link"
+              context={{ companyName }}
+              sourcePage="/empresa"
+              className="mt-3"
+            />
           )}
         </>
       )}

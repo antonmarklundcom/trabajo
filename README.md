@@ -189,7 +189,7 @@ logger nunca falla la postulación del usuario.
   `GHL_WEBHOOK_URL` y `GOOGLE_SHEETS_WEBHOOK_URL` con `Promise.allSettled` y **3 reintentos
   con backoff exponencial** (1s, 2s, 4s) por destino.
 - **Degradación elegante:** si una variable está vacía, ese destino se omite en silencio.
-- **Un único webhook de GHL** recibe ambos tipos de lead; se distinguen por `lead_type`.
+- **Un único webhook de GHL** recibe los tres tipos de lead; se distinguen por `lead_type`.
 - **Leave-page-safe:** el botón de WhatsApp dispara `navigator.sendBeacon()` en el mismo
   handler que la navegación; la API parsea el JSON desde el body de texto crudo.
 - Nunca se loguea nada sensible en el cliente.
@@ -198,7 +198,7 @@ logger nunca falla la postulación del usuario.
 
 | Campo | Descripción |
 |-------|-------------|
-| `lead_type` | `"employer"` o `"seeker"` |
+| `lead_type` | `"employer"`, `"seeker"` o `"contact"` (consulta general desde /contacto — no es un aviso de empleo) |
 | `full_name` | Nombre del contacto / postulante |
 | `email` | Email (opcional) |
 | `phone` | Solo dígitos, E.164 cuando es posible (PY `09…` → `595…`) |

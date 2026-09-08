@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { z } from 'zod';
 import { track } from '@/lib/analytics';
+import { HONEYPOT_FIELD } from '@/lib/leads';
+import HoneypotField from '@/components/HoneypotField';
 
 const schema = z.object({
   name: z.string().min(2, 'Ingresá tu nombre'),
@@ -17,6 +19,7 @@ export default function ContactForm() {
   const [state, setState] = useState<FormState>('idle');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [values, setValues] = useState({ name: '', phone: '', email: '', message: '' });
+  const [honeypot, setHoneypot] = useState('');
 
   type FieldKey = keyof typeof values;
 
@@ -43,16 +46,10 @@ export default function ContactForm() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          type: 'employer_post',
-          companyName: 'Contacto general',
-          contactName: parsed.data.name,
-          contactWhatsapp: parsed.data.phone,
-          email: parsed.data.email ?? '',
-          jobTitle: 'Consulta general',
-          categorySlug: 'administracion',
-          citySlug: 'asuncion',
-          description: parsed.data.message,
+          type: 'contact',
+          ...parsed.data,
           sourcePage: typeof window !== 'undefined' ? window.location.pathname : undefined,
+          [HONEYPOT_FIELD]: honeypot,
         }),
       });
       if (!res.ok) throw new Error();
@@ -79,6 +76,7 @@ export default function ContactForm() {
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-4">
+      <HoneypotField value={honeypot} onChange={setHoneypot} />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Field label="Nombre" required error={errors.name}>
           <input
