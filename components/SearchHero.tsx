@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import type { City } from '@/lib/types';
 import { categoryLabel } from '@/lib/labels';
 import { NandutiMotif } from './Logo';
@@ -106,13 +107,13 @@ export default function SearchHero({ cities }: Props) {
         <div className="mt-5 flex flex-wrap items-center gap-2">
           <span className="text-sm text-white/75">Populares:</span>
           {['tecnologia', 'ventas', 'administracion', 'salud'].map((cat) => (
-            <a
+            <Link
               key={cat}
               href={`/trabajo/${cat}`}
               className="px-3.5 py-1.5 rounded-full text-sm font-medium text-white bg-white/12 border border-white/20 hover:bg-white/20 transition-colors"
             >
               {categoryLabel(cat)}
-            </a>
+            </Link>
           ))}
         </div>
       </div>

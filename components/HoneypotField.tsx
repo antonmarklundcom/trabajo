@@ -1,6 +1,6 @@
 'use client';
 
-import { HONEYPOT_FIELD } from '@/lib/leads';
+import { HONEYPOT_FIELD } from '@/lib/honeypot';
 
 /**
  * Hidden from real users (off-screen, unreachable by Tab, no autofill) but

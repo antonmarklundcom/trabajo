@@ -1,26 +1,51 @@
 'use client';
 
 import { useState } from 'react';
-import { z } from 'zod';
 import Link from 'next/link';
 import { track } from '@/lib/analytics';
 import { captureError } from '@/lib/observability';
-import { HONEYPOT_FIELD } from '@/lib/leads';
+import { HONEYPOT_FIELD } from '@/lib/honeypot';
 import { WHATSAPP_HOURS_COPY } from '@/lib/whatsapp';
+import { validateEmail, validateMinLength } from '@/lib/form-validation';
 import HoneypotField from '@/components/HoneypotField';
 import WhatsAppCta from '@/components/WhatsAppCta';
 import type { Category, City } from '@/lib/types';
 
-const schema = z.object({
-  companyName: z.string().min(2, 'Ingresá el nombre de tu empresa'),
-  contactName: z.string().min(2, 'Ingresá tu nombre completo'),
-  contactWhatsapp: z.string().min(6, 'Ingresá un número de WhatsApp válido'),
-  email: z.string().email('Email inválido').optional().or(z.literal('')),
-  jobTitle: z.string().min(3, 'Ingresá el título del puesto'),
-  categorySlug: z.string().min(1, 'Seleccioná una categoría'),
-  citySlug: z.string().min(1, 'Seleccioná una ciudad'),
-  description: z.string().min(20, 'Describí el puesto (mínimo 20 caracteres)').max(3000),
-});
+function validate(values: {
+  companyName: string;
+  contactName: string;
+  contactWhatsapp: string;
+  email: string;
+  jobTitle: string;
+  categorySlug: string;
+  citySlug: string;
+  description: string;
+}) {
+  const errors: Record<string, string> = {};
+  const companyNameError = validateMinLength(values.companyName, 2, 'Ingresá el nombre de tu empresa');
+  if (companyNameError) errors.companyName = companyNameError;
+  const contactNameError = validateMinLength(values.contactName, 2, 'Ingresá tu nombre completo');
+  if (contactNameError) errors.contactName = contactNameError;
+  const contactWhatsappError = validateMinLength(
+    values.contactWhatsapp,
+    6,
+    'Ingresá un número de WhatsApp válido',
+  );
+  if (contactWhatsappError) errors.contactWhatsapp = contactWhatsappError;
+  const emailError = validateEmail(values.email);
+  if (emailError) errors.email = emailError;
+  const jobTitleError = validateMinLength(values.jobTitle, 3, 'Ingresá el título del puesto');
+  if (jobTitleError) errors.jobTitle = jobTitleError;
+  if (!values.categorySlug) errors.categorySlug = 'Seleccioná una categoría';
+  if (!values.citySlug) errors.citySlug = 'Seleccioná una ciudad';
+  const descriptionError = validateMinLength(
+    values.description,
+    20,
+    'Describí el puesto (mínimo 20 caracteres)',
+  );
+  if (descriptionError) errors.description = descriptionError;
+  return errors;
+}
 
 type FormState = 'idle' | 'submitting' | 'success' | 'error';
 
@@ -50,12 +75,8 @@ export default function EmployerForm({ categories, cities }: Props) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const parsed = schema.safeParse(values);
-    if (!parsed.success) {
-      const fieldErrors: Record<string, string> = {};
-      for (const issue of parsed.error.issues) {
-        fieldErrors[String(issue.path[0])] = issue.message;
-      }
+    const fieldErrors = validate(values);
+    if (Object.keys(fieldErrors).length > 0) {
       setErrors(fieldErrors);
       return;
     }
@@ -67,7 +88,7 @@ export default function EmployerForm({ categories, cities }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'employer_post',
-          ...parsed.data,
+          ...values,
           sourcePage: typeof window !== 'undefined' ? window.location.pathname : undefined,
           [HONEYPOT_FIELD]: honeypot,
         }),
@@ -84,7 +105,7 @@ export default function EmployerForm({ categories, cities }: Props) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...parsed.data,
+          ...values,
           [HONEYPOT_FIELD]: honeypot,
         }),
       })
@@ -230,6 +251,7 @@ export default function EmployerForm({ categories, cities }: Props) {
           onChange={(e) => setField('description', e.target.value)}
           placeholder="Contanos sobre el puesto: tareas, requisitos, lo que ofrecés. Cuanto más detalle, mejor el candidato."
           rows={6}
+          maxLength={3000}
           className={`${inputCls(!!errors.description)} resize-none`}
         />
         <span className="text-xs text-ink-secondary mt-1 block">

@@ -1,17 +1,21 @@
 'use client';
 
 import { useState } from 'react';
-import { z } from 'zod';
 import { track } from '@/lib/analytics';
-import { HONEYPOT_FIELD } from '@/lib/leads';
+import { HONEYPOT_FIELD } from '@/lib/honeypot';
+import { validateEmail, validateMinLength } from '@/lib/form-validation';
 import HoneypotField from '@/components/HoneypotField';
 
-const formSchema = z.object({
-  name: z.string().min(2, 'Ingresá tu nombre completo'),
-  phone: z.string().min(6, 'Ingresá un teléfono válido'),
-  email: z.string().email('Email inválido').optional().or(z.literal('')),
-  message: z.string().max(1000).optional(),
-});
+function validate(values: { name: string; phone: string; email: string }) {
+  const errors: Record<string, string> = {};
+  const nameError = validateMinLength(values.name, 2, 'Ingresá tu nombre completo');
+  if (nameError) errors.name = nameError;
+  const phoneError = validateMinLength(values.phone, 6, 'Ingresá un teléfono válido');
+  if (phoneError) errors.phone = phoneError;
+  const emailError = validateEmail(values.email);
+  if (emailError) errors.email = emailError;
+  return errors;
+}
 
 type Props = {
   jobSlug: string;
@@ -36,13 +40,8 @@ export default function LeadForm({ jobSlug, jobTitle, citySlug, categorySlug, co
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const parsed = formSchema.safeParse(values);
-    if (!parsed.success) {
-      const fieldErrors: Record<string, string> = {};
-      for (const issue of parsed.error.issues) {
-        const key = String(issue.path[0]);
-        fieldErrors[key] = issue.message;
-      }
+    const fieldErrors = validate(values);
+    if (Object.keys(fieldErrors).length > 0) {
       setErrors(fieldErrors);
       return;
     }
@@ -61,7 +60,7 @@ export default function LeadForm({ jobSlug, jobTitle, citySlug, categorySlug, co
           contractType,
           channel: 'form',
           sourcePage: typeof window !== 'undefined' ? window.location.pathname : undefined,
-          ...parsed.data,
+          ...values,
           [HONEYPOT_FIELD]: honeypot,
         }),
       });
@@ -134,6 +133,7 @@ export default function LeadForm({ jobSlug, jobTitle, citySlug, categorySlug, co
           onChange={(e) => setField('message', e.target.value)}
           placeholder="Contanos brevemente tu experiencia relacionada al puesto (opcional)"
           rows={4}
+          maxLength={1000}
           className={`${inputClass(false)} resize-none`}
         />
       </Field>

@@ -77,3 +77,14 @@ button, a, input, select, textarea {
 body[data-mobile-menu-open='true'] .floating-whatsapp {
   display: none;
 }
+
+/* Job description prose (S6). Moved out of a per-render <style> tag in
+   app/empleos/[slug]/page.tsx: that block re-serialised the same rules into
+   every job page's HTML instead of shipping them once in the shared
+   stylesheet. */
+.prose-job p { margin-bottom: 0.75rem; color: #44403A; line-height: 1.7; }
+.prose-job h2 { font-size: 1.1rem; font-weight: 700; color: #1E1B17; margin: 1.25rem 0 0.5rem; }
+.prose-job h3 { font-size: 1rem; font-weight: 600; color: #1E1B17; margin: 1rem 0 0.375rem; }
+.prose-job ul { list-style: disc; padding-left: 1.25rem; margin-bottom: 0.75rem; }
+.prose-job li { margin-bottom: 0.25rem; color: #44403A; line-height: 1.6; }
+.prose-job strong { color: #1E1B17; font-weight: 600; }

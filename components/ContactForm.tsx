@@ -1,17 +1,27 @@
 'use client';
 
 import { useState } from 'react';
-import { z } from 'zod';
 import { track } from '@/lib/analytics';
-import { HONEYPOT_FIELD } from '@/lib/leads';
+import { HONEYPOT_FIELD } from '@/lib/honeypot';
+import { validateEmail, validateMinLength } from '@/lib/form-validation';
 import HoneypotField from '@/components/HoneypotField';
 
-const schema = z.object({
-  name: z.string().min(2, 'Ingresá tu nombre'),
-  phone: z.string().min(6, 'Ingresá tu teléfono'),
-  email: z.string().email('Email inválido').optional().or(z.literal('')),
-  message: z.string().min(10, 'Contanos un poco más (mínimo 10 caracteres)').max(2000),
-});
+function validate(values: { name: string; phone: string; email: string; message: string }) {
+  const errors: Record<string, string> = {};
+  const nameError = validateMinLength(values.name, 2, 'Ingresá tu nombre');
+  if (nameError) errors.name = nameError;
+  const phoneError = validateMinLength(values.phone, 6, 'Ingresá tu teléfono');
+  if (phoneError) errors.phone = phoneError;
+  const emailError = validateEmail(values.email);
+  if (emailError) errors.email = emailError;
+  const messageError = validateMinLength(
+    values.message,
+    10,
+    'Contanos un poco más (mínimo 10 caracteres)',
+  );
+  if (messageError) errors.message = messageError;
+  return errors;
+}
 
 type FormState = 'idle' | 'submitting' | 'success' | 'error';
 
@@ -30,12 +40,8 @@ export default function ContactForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const parsed = schema.safeParse(values);
-    if (!parsed.success) {
-      const fieldErrors: Record<string, string> = {};
-      for (const issue of parsed.error.issues) {
-        fieldErrors[String(issue.path[0])] = issue.message;
-      }
+    const fieldErrors = validate(values);
+    if (Object.keys(fieldErrors).length > 0) {
       setErrors(fieldErrors);
       return;
     }
@@ -47,7 +53,7 @@ export default function ContactForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'contact',
-          ...parsed.data,
+          ...values,
           sourcePage: typeof window !== 'undefined' ? window.location.pathname : undefined,
           [HONEYPOT_FIELD]: honeypot,
         }),
@@ -112,6 +118,7 @@ export default function ContactForm() {
           onChange={(e) => setField('message', e.target.value)}
           placeholder="¿En qué podemos ayudarte?"
           rows={5}
+          maxLength={2000}
           className={`${iCls(!!errors.message)} resize-none`}
         />
       </Field>
