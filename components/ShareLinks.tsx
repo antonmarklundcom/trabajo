@@ -9,6 +9,7 @@
 // One component rather than the same markup twice: U1's brief is "exactly the
 // blog's pattern", and the way to make that literally true, and to keep it true
 // after the next copy tweak, is for there to be one pattern.
+import { waHref } from '@/lib/whatsapp';
 import CopyLinkButton from './CopyLinkButton';
 
 type Props = {
@@ -25,7 +26,7 @@ export default function ShareLinks({ title, url, className = '' }: Props) {
       <h2 className="text-sm font-bold text-ink mb-3">Compartir</h2>
       <div className="flex flex-wrap gap-4 text-sm">
         <a
-          href={`https://wa.me/?text=${encodeURIComponent(`${title} ${url}`)}`}
+          href={waHref(null, `${title} ${url}`)}
           target="_blank"
           rel="noopener noreferrer"
           className="text-brand font-medium hover:underline"

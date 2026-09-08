@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { canonicalFor } from '@/lib/seo';
+import { waHref } from '@/lib/whatsapp';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
@@ -21,7 +22,7 @@ const DESTACADO_MESSAGE = 'Hola, quiero destacar un empleo en trabajo.com.py. ¿
 
 function whatsappHref(message: string): string | null {
   const number = process.env.NEXT_PUBLIC_WHATSAPP_LEADS ?? '';
-  return number ? `https://wa.me/${number}?text=${encodeURIComponent(message)}` : null;
+  return number ? waHref(number, message) : null;
 }
 
 const plans = [
