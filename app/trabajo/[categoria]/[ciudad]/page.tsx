@@ -2,8 +2,12 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { canonicalFor } from '@/lib/seo';
 import Link from 'next/link';
-import { getJobs, getCategory, getCity } from '@/lib/data';
+import { getJobs, getCategory, getCity, getCategories, getCities, getTaxonomyCounts } from '@/lib/data';
+import { categoryCopyFor } from '@/lib/seo/category-copy';
+import { categoryLabel } from '@/lib/labels';
+import { JOBS_PAGE_SIZE } from '@/lib/pagination';
 import JobCard from '@/components/JobCard';
+import Pagination from '@/components/Pagination';
 
 // Cached reads are invalidated on demand by every admin mutation
 // (lib/cache.ts), so this timer is only the safety net for job expiry and
@@ -11,32 +15,75 @@ import JobCard from '@/components/JobCard';
 export const revalidate = 300;
 
 type Params = Promise<{ categoria: string; ciudad: string }>;
+type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
 
-export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+// Every categoría × ciudad combination, not just the ones with jobs today —
+// an empty combo is cheap to prerender and already noindexes itself
+// (§3.6: "10 + up to 70 pages render cold" without this).
+export async function generateStaticParams() {
+  const [categories, cities] = await Promise.all([getCategories(), getCities()]);
+  return categories.flatMap((cat) => cities.map((city) => ({ categoria: cat.slug, ciudad: city.slug })));
+}
+
+function pageFromSearchParams(sp: Awaited<SearchParams>): number {
+  const raw = Array.isArray(sp.page) ? sp.page[0] : sp.page;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 1 ? n : 1;
+}
+
+export async function generateMetadata({
+  params,
+  searchParams,
+}: {
+  params: Params;
+  searchParams: SearchParams;
+}): Promise<Metadata> {
   const { categoria, ciudad } = await params;
-  const [category, city] = await Promise.all([getCategory(categoria), getCity(ciudad)]);
+  const page = pageFromSearchParams(await searchParams);
+  const [category, city, taxonomyCounts] = await Promise.all([
+    getCategory(categoria),
+    getCity(ciudad),
+    getTaxonomyCounts({ categoria }),
+  ]);
   if (!category || !city) return { title: 'Página no encontrada' };
 
-  const { total } = await getJobs({ categoria, ciudad });
-  const hasJobs = total > 0;
+  // Reuses the same seam call the page body makes for its "Otras ciudades"
+  // cross-link, instead of a second getJobs() just to decide robots (§3.6).
+  const hasJobs = (taxonomyCounts.cities.find((c) => c.slug === ciudad)?.jobCount ?? 0) > 0;
+
+  const pageSuffix = page > 1 ? ` — página ${page}` : '';
+  const canonicalPath =
+    page > 1 ? `/trabajo/${categoria}/${ciudad}?page=${page}` : `/trabajo/${categoria}/${ciudad}`;
 
   return {
-    title: `Trabajo de ${category.name} en ${city.name}`,
+    title: `Trabajo de ${category.name} en ${city.name}${pageSuffix}`,
     description: `Encontrá empleos de ${category.name} en ${city.name}, Paraguay. Postulate gratis en trabajo.com.py`,
     robots: hasJobs ? { index: true, follow: true } : { index: false, follow: true },
     // This URL is what /empleos?categoria=X&ciudad=Y canonicalises to
     // (lib/seo.ts), so it has to name itself — a target that does not declare
     // its own canonical leaves the pair pointing at each other loosely.
-    alternates: { canonical: canonicalFor(`/trabajo/${categoria}/${ciudad}`) },
+    alternates: { canonical: canonicalFor(canonicalPath) },
   };
 }
 
-export default async function CategoriaciudadPage({ params }: { params: Params }) {
+export default async function CategoriaciudadPage({
+  params,
+  searchParams,
+}: {
+  params: Params;
+  searchParams: SearchParams;
+}) {
   const { categoria, ciudad } = await params;
-  const [category, city, { jobs, total }] = await Promise.all([
+  const sp = await searchParams;
+  const page = pageFromSearchParams(sp);
+
+  const [category, city, { jobs, total }, taxonomyCounts] = await Promise.all([
     getCategory(categoria),
     getCity(ciudad),
-    getJobs({ categoria, ciudad, orden: 'recientes' }),
+    getJobs({ categoria, ciudad, orden: 'recientes', page }),
+    // Sibling cities for "Otras ciudades" — every city with a job in this
+    // category, same seam S5 adds for the parent category page.
+    getTaxonomyCounts({ categoria }),
   ]);
 
   if (!category || !city) notFound();
@@ -66,6 +113,11 @@ export default async function CategoriaciudadPage({ params }: { params: Params }
       name: job.title,
     })),
   } : null;
+
+  const otherCities = taxonomyCounts.cities.filter(
+    (c) => (c.jobCount ?? 0) > 0 && c.slug !== ciudad,
+  );
+  const copy = categoryCopyFor(categoria);
 
   return (
     <>
@@ -120,10 +172,62 @@ export default async function CategoriaciudadPage({ params }: { params: Params }
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {jobs.map((job) => (
-              <JobCard key={job.slug} job={job} />
-            ))}
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {jobs.map((job) => (
+                <JobCard key={job.slug} job={job} />
+              ))}
+            </div>
+            <Pagination
+              basePath={`/trabajo/${categoria}/${ciudad}`}
+              currentPage={page}
+              totalPages={Math.ceil(total / JOBS_PAGE_SIZE)}
+              searchParams={sp}
+            />
+          </>
+        )}
+
+        {/* Cross-links (PLAN-GROWTH.md §4 S5) */}
+        {(otherCities.length > 0 || (copy && copy.related.length > 0)) && (
+          <div className="mt-10 pt-8 border-t border-border space-y-8">
+            {otherCities.length > 0 && (
+              <section>
+                <h2 className="text-sm font-semibold text-ink-secondary uppercase tracking-wide mb-3">
+                  Otras ciudades
+                </h2>
+                <div className="flex flex-wrap gap-2">
+                  {otherCities.map((c) => (
+                    <Link
+                      key={c.slug}
+                      href={`/trabajo/${categoria}/${c.slug}`}
+                      className="px-3 py-1.5 rounded-full text-sm border border-border text-ink-secondary hover:border-brand hover:text-brand transition-colors"
+                    >
+                      {c.name}
+                      <span className="ml-1.5 text-xs text-ink-3">{c.jobCount}</span>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {copy && copy.related.length > 0 && (
+              <section>
+                <h2 className="text-sm font-semibold text-ink-secondary uppercase tracking-wide mb-3">
+                  Categorías relacionadas
+                </h2>
+                <div className="flex flex-wrap gap-2">
+                  {copy.related.map((slug) => (
+                    <Link
+                      key={slug}
+                      href={`/trabajo/${slug}/${ciudad}`}
+                      className="px-3 py-1.5 rounded-full text-sm border border-border text-ink-secondary hover:border-brand hover:text-brand transition-colors"
+                    >
+                      {categoryLabel(slug)} en {city.name}
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
         )}
       </div>

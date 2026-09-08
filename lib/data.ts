@@ -1,4 +1,14 @@
 import type { Job, Category, City, ClosedJob, JobFilters } from './types';
+
+/**
+ * Per-city and per-category job counts, each optionally narrowed by the
+ * OTHER dimension — `getTaxonomyCounts({ categoria: 'ventas' })` returns
+ * every city's count of `ventas` jobs plus every category's unfiltered
+ * count; `getTaxonomyCounts({ ciudad: 'asuncion' })` is the mirror image.
+ * Both arrays include zero-count rows, same convention as
+ * `getCategories()`/`getCities()`.
+ */
+export type TaxonomyCounts = { cities: City[]; categories: Category[] };
 import { JOBS_PAGE_SIZE as PAGE_SIZE } from './pagination';
 
 // Seed imports — used when DATA_SOURCE !== 'db'
@@ -203,6 +213,28 @@ async function seedGetCity(slug: string): Promise<City | null> {
   return { ...city, jobCount: seedJobs.filter((j) => isVisible(j) && j.citySlug === slug).length };
 }
 
+async function seedGetTaxonomyCounts(filter: {
+  categoria?: string;
+  ciudad?: string;
+}): Promise<TaxonomyCounts> {
+  const cities = seedCities.map((city) => ({
+    ...city,
+    jobCount: seedJobs.filter(
+      (j) =>
+        isVisible(j) &&
+        j.citySlug === city.slug &&
+        (!filter.categoria || j.categorySlug === filter.categoria),
+    ).length,
+  }));
+  const categories = seedCategories.map((cat) => ({
+    ...cat,
+    jobCount: seedJobs.filter(
+      (j) => isVisible(j) && j.categorySlug === cat.slug && (!filter.ciudad || j.citySlug === filter.ciudad),
+    ).length,
+  }));
+  return { cities, categories };
+}
+
 // ---------------------------------------------------------------------------
 // DB backend
 // ---------------------------------------------------------------------------
@@ -310,4 +342,11 @@ export async function getCategory(slug: string): Promise<Category | null> {
 export async function getCity(slug: string): Promise<City | null> {
   if (getSource() === 'db') return (await getDbModule()).getCity(slug);
   return seedGetCity(slug);
+}
+
+export async function getTaxonomyCounts(
+  filter: { categoria?: string; ciudad?: string } = {},
+): Promise<TaxonomyCounts> {
+  if (getSource() === 'db') return (await getDbModule()).getTaxonomyCounts(filter);
+  return seedGetTaxonomyCounts(filter);
 }

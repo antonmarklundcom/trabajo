@@ -168,6 +168,24 @@ async function main() {
     diff(`getCity(${city.slug})`, seedCity, dbCity);
   }
 
+  // getTaxonomyCounts (PLAN-GROWTH.md §4 S5) — every category filter, every
+  // city filter, and the unfiltered case.
+  for (const cat of seedCategories) {
+    const seedCounts = await withSource('seed', () => data.getTaxonomyCounts({ categoria: cat.slug }));
+    const dbCounts = await withSource('db', () => data.getTaxonomyCounts({ categoria: cat.slug }));
+    diff(`getTaxonomyCounts(categoria=${cat.slug})`, seedCounts, dbCounts);
+  }
+  for (const city of seedCities) {
+    const seedCounts = await withSource('seed', () => data.getTaxonomyCounts({ ciudad: city.slug }));
+    const dbCounts = await withSource('db', () => data.getTaxonomyCounts({ ciudad: city.slug }));
+    diff(`getTaxonomyCounts(ciudad=${city.slug})`, seedCounts, dbCounts);
+  }
+  diff(
+    'getTaxonomyCounts()',
+    await withSource('seed', () => data.getTaxonomyCounts({})),
+    await withSource('db', () => data.getTaxonomyCounts({})),
+  );
+
   // Non-existent slug must return null on both paths
   diff(
     'getJob(nonexistent)',
