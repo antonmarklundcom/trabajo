@@ -111,13 +111,12 @@ for (const page of [2, 3, 17]) {
 {
   const rule = listingIndexRule({ ciudad: 'asuncion' });
   check('?ciudad=Y is noindexed', rule.index === false);
-  // Until S4 ships /trabajo-en/{ciudad} (PLAN-GROWTH.md §7 D7) there is no
-  // city landing to point at, and a canonical to a 404 is worse than one to
-  // the index. When S4 lands, this expectation changes with the rule.
+  // S4 shipped /trabajo-en/{ciudad} (PLAN-GROWTH.md §7 D7), updated here
+  // together with the rule in lib/seo.ts as the old comment asked.
   check(
-    '?ciudad=Y canonicalises to /empleos until S4 ships the city landing',
-    rule.canonical === '/empleos',
-    `${rule.canonical}. If /trabajo-en/${'{ciudad}'} now exists, update lib/seo.ts and this check together.`,
+    '?ciudad=Y canonicalises to /trabajo-en/{ciudad}',
+    rule.canonical === '/trabajo-en/asuncion',
+    rule.canonical,
   );
 }
 

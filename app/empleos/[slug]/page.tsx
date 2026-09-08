@@ -265,7 +265,12 @@ export default async function JobDetailPage({ params }: { params: Params }) {
 
               {/* Key details */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-5 border-t border-b border-border mb-6">
-                <Detail label="Ciudad" value={city?.name ?? job.citySlug} icon={<LocationIcon />} />
+                <Detail
+                  label="Ciudad"
+                  value={city?.name ?? job.citySlug}
+                  icon={<LocationIcon />}
+                  href={`/trabajo-en/${job.citySlug}`}
+                />
                 <Detail
                   label="Salario"
                   value={job.salaryHidden ? 'A convenir' : formatSalary(job.salaryMin, job.salaryMax)}
@@ -377,6 +382,17 @@ export default async function JobDetailPage({ params }: { params: Params }) {
                   <Link href={`/trabajo/${category.slug}`} className="text-brand font-medium hover:underline">
                     {category.name}
                   </Link>
+                  {city && (
+                    <>
+                      {' '}en{' '}
+                      <Link
+                        href={`/trabajo/${category.slug}/${job.citySlug}`}
+                        className="text-brand font-medium hover:underline"
+                      >
+                        {city.name}
+                      </Link>
+                    </>
+                  )}
                 </p>
               </div>
             )}
@@ -397,14 +413,31 @@ export default async function JobDetailPage({ params }: { params: Params }) {
   );
 }
 
-function Detail({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
+function Detail({
+  label,
+  value,
+  icon,
+  href,
+}: {
+  label: string;
+  value: string;
+  icon: React.ReactNode;
+  /** Optional (PLAN-GROWTH.md §4 S4 — the city detail links to its landing). */
+  href?: string;
+}) {
   return (
     <div className="flex flex-col gap-1">
       <span className="flex items-center gap-1.5 text-xs text-ink-secondary uppercase tracking-wide font-medium">
         <span className="text-ink-secondary">{icon}</span>
         {label}
       </span>
-      <span className="text-sm font-semibold text-ink">{value}</span>
+      {href ? (
+        <Link href={href} className="text-sm font-semibold text-brand hover:underline">
+          {value}
+        </Link>
+      ) : (
+        <span className="text-sm font-semibold text-ink">{value}</span>
+      )}
     </div>
   );
 }

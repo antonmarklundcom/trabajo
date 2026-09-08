@@ -271,13 +271,9 @@ function TaxonomyLinks({ categories, cities }: { categories: Category[]; cities:
       <ul className="mt-3 flex flex-wrap gap-2">
         {citiesWithJobs.map((city) => (
           <li key={city.slug}>
-            {/*
-              S4 replaces this with /trabajo-en/{ciudad} (PLAN-GROWTH.md §7 D7).
-              Until that route exists the filtered URL is the only address these
-              listings have — it noindexes itself and canonicalises to /empleos
-              per the rule table, so it is a crawl path, not an indexable page.
-            */}
-            <Link href={`/empleos?ciudad=${city.slug}`} className={chipCls}>
+            {/* S4 (PLAN-GROWTH.md §7 D7): the indexable city landing, not the
+                self-noindexing ?ciudad= filter this used to point at. */}
+            <Link href={`/trabajo-en/${city.slug}`} className={chipCls}>
               {city.name}
               <span className="text-xs text-ink-3">{city.jobCount}</span>
             </Link>
