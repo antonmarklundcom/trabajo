@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { canonicalFor } from '@/lib/seo';
 import Link from 'next/link';
 import {
   CANDIDATE_INACTIVITY_MONTHS,
@@ -11,6 +12,7 @@ export const metadata: Metadata = {
   title: 'Política de privacidad',
   description:
     'Cómo trabajo.com.py recopila, usa y protege tus datos personales cuando usás nuestro portal de empleos.',
+  alternates: { canonical: canonicalFor('/privacidad') },
 };
 
 const sections = [

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { canonicalFor } from '@/lib/seo';
 import Link from 'next/link';
 import { getCategories, getCities } from '@/lib/data';
 import { employerDashboardEnabled, employerSignupEnabled } from '@/lib/flags';
@@ -8,6 +9,7 @@ export const metadata: Metadata = {
   title: 'Publicá tu empleo gratis en Paraguay',
   description:
     'Publicá tu oferta de empleo en trabajo.com.py. Nuestro equipo te ayuda a encontrar el candidato ideal. Gratuito para comenzar.',
+  alternates: { canonical: canonicalFor('/publicar') },
 };
 
 export default async function PublicarPage() {

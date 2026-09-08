@@ -1,4 +1,6 @@
+import type { Metadata } from 'next';
 import { getFeaturedJobs, getRecentJobs, getCategories, getCities } from '@/lib/data';
+import { canonicalFor } from '@/lib/seo';
 import SearchHero from '@/components/SearchHero';
 import CategoryGrid from '@/components/CategoryGrid';
 import JobCard from '@/components/JobCard';
@@ -9,6 +11,14 @@ import { NandutiMotif } from '@/components/Logo';
 // (lib/cache.ts), so this timer is only the safety net for job expiry and
 // featured_until lapsing — both query predicates with no write to hook onto.
 export const revalidate = 300;
+
+// The homepage inherited its title and description from app/layout.tsx and
+// exported no metadata of its own, which meant it also had no canonical — and
+// `/` is the one URL a site is most likely to be reached at under a second
+// address (a preview host, a trailing-slash variant, a tracking parameter).
+export const metadata: Metadata = {
+  alternates: { canonical: canonicalFor('/') },
+};
 
 export default async function HomePage() {
   const [featured, recent, categories, cities] = await Promise.all([

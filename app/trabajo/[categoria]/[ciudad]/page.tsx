@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { canonicalFor } from '@/lib/seo';
 import Link from 'next/link';
 import { getJobs, getCategory, getCity } from '@/lib/data';
 import JobCard from '@/components/JobCard';
@@ -22,7 +23,11 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   return {
     title: `Trabajo de ${category.name.toLowerCase()} en ${city.name}`,
     description: `Encontrá empleos de ${category.name.toLowerCase()} en ${city.name}, Paraguay. Postulate gratis en trabajo.com.py`,
-    robots: hasJobs ? { index: true, follow: true } : { index: false },
+    robots: hasJobs ? { index: true, follow: true } : { index: false, follow: true },
+    // This URL is what /empleos?categoria=X&ciudad=Y canonicalises to
+    // (lib/seo.ts), so it has to name itself — a target that does not declare
+    // its own canonical leaves the pair pointing at each other loosely.
+    alternates: { canonical: canonicalFor(`/trabajo/${categoria}/${ciudad}`) },
   };
 }
 

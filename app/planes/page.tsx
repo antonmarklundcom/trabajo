@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
+import { canonicalFor } from '@/lib/seo';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
   title: 'Planes y precios para empleadores',
   description:
     'Publicá tus empleos en trabajo.com.py. Gratuito para comenzar. Planes con mayor visibilidad disponibles.',
+  alternates: { canonical: canonicalFor('/planes') },
 };
 
 // The Destacado CTA goes to WhatsApp, not to /contacto.

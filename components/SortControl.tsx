@@ -7,7 +7,6 @@ const SORT_OPTIONS = [
   { value: 'recientes', label: 'Más recientes' },
   { value: 'destacados', label: 'Destacados primero' },
   { value: 'salario', label: 'Mayor salario' },
-  { value: 'relevancia', label: 'Relevancia' },
 ];
 
 type Props = { currentOrden: string; total: number };

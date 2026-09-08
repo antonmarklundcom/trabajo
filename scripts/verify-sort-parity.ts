@@ -140,7 +140,6 @@ async function main() {
     { orden: 'salario', keys: SALARIO_KEYS },
     { orden: 'recientes', keys: DEFAULT_KEYS },
     { orden: 'destacados', keys: DEFAULT_KEYS },
-    { orden: 'relevancia', keys: DEFAULT_KEYS },
   ];
 
   const notExercised: string[] = [];

@@ -179,6 +179,15 @@ jobs:
       - name: Verify seed and DB sort keys
         run: npm run sort:verify
 
+      # Which catalogue URLs Google may index, and which address each one calls
+      # its own. Every way of getting this wrong is invisible in a browser: a
+      # wrong noindex silently removes pages from search, a wrong canonical
+      # silently merges two pages that are not the same one, and neither
+      # changes a pixel. Evaluates the rule table in lib/seo.ts directly and
+      # reads the wiring from source — no database, no env, no network.
+      - name: Verify SEO index control
+        run: npm run seo:verify
+
       # O1's promise is that no event leaving this app carries a credential or
       # a data subject, and a scrubber that misses a field looks exactly like
       # one that doesn't: errors still arrive, the issues still read correctly,

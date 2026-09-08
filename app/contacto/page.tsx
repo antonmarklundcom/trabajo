@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
+import { canonicalFor } from '@/lib/seo';
 import ContactForm from '@/components/ContactForm';
 
 export const metadata: Metadata = {
   title: 'Contacto',
   description: 'Contactá al equipo de trabajo.com.py. Estamos para ayudarte.',
+  alternates: { canonical: canonicalFor('/contacto') },
 };
 
 export default function ContactoPage() {
