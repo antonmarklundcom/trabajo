@@ -27,21 +27,26 @@ postulantes por WhatsApp en minutos" and links to a form that promises a
 callback "en menos de 24 horas", the site has no employer-facing WhatsApp entry
 point above `/planes`, the one it has is red instead of green and untracked,
 the success screen is a dead end, and the 24-hour promise is backed by no
-notification to anyone. **Batch W** (five Sonnet PRs, small) fixes that with
-one shared WhatsApp module, a consistent green tracked CTA, a two-path
-`/publicar`, and a team notification. The SEO baseline is solid but has six
+notification to anyone. **Batch W** (five small Sonnet PRs) fixes that with one
+shared WhatsApp module, a consistent green tracked CTA, a two-path `/publicar`,
+a team notification — and, by owner decision, **no promise about applicant
+volume or speed anywhere**, because the traffic to keep it does not exist yet.
+**Batch P** is the launch promotion that builds job supply: the first 100
+approved listings get Destacado for 90 days free, applied by an admin at
+approval through the existing `featured_until` grant, with a public counter
+that switches the copy off by itself. The SEO baseline is solid but has six
 real holes: `validThrough` is the *paid-promotion* date, expired jobs hard-404,
-filtered `/empleos` URLs are an uncanonicalised duplicate-content surface,
-the taxonomy landings show only 20 jobs with no pagination and no static
+filtered `/empleos` URLs are an uncanonicalised duplicate-content surface, the
+taxonomy landings show only 20 jobs with no pagination and no static
 generation, there are no city-level landings, and the blog is reachable from
-nowhere. **Batch S** fixes those (two of them Opus, because a mistake deindexes
-the catalogue). **Batch C** turns the blog from three orphan articles into a
-topical-cluster content engine with category archives, related posts and
-two-way links to the job taxonomy — gated on content existing first. **Batch
-D** is the redesign direction: mobile-first job detail with a sticky apply
-bar, a homepage that speaks to both audiences, a listing page with an `h1`,
-and one design-token pass. §7 is the owner's decision list; nothing in W or S
-is blocked on it except the WhatsApp hours copy (Q1).
+nowhere. **Batch S** fixes those. **Batch C** turns the blog from three orphan
+articles into a topical-cluster content engine with category archives, related
+posts and two-way links to the job taxonomy — gated on content existing first.
+**Batch D** is the redesign direction: mobile-first job detail with a sticky
+apply bar, a homepage that speaks to both audiences, a listing page with an
+`h1`, and one design-token pass. Every owner decision is recorded in §7; the
+work runs as one Opus session followed by four Sonnet sessions, each from a
+single prompt in §10; §11 is the job-supply playbook the promotion serves.
 
 ---
 
@@ -159,9 +164,10 @@ description; it is not the primary path. So the site should:
 - Keep the form as the explicit second option with an honest promise.
 - Never leave an employer on a screen with nothing to tap next.
 - Make an honest response-time promise. "En minutos" is only true inside
-  business hours; §7 Q1 asks the owner for the hours so the copy can say
-  "Respondemos en minutos de lunes a viernes de 8 a 18; fuera de ese horario,
-  el mismo día hábil" or whatever is true.
+  business hours, and the owner has ruled (§7 D1) that the site promises
+  nothing about applicant speed or volume at all. The only time promise is
+  the team's own: "Te respondemos el mismo día hábil (lunes a viernes, 8 a
+  18)."
 - Measure every WhatsApp tap with audience + intent.
 
 ---
@@ -362,13 +368,17 @@ still opens the site number with the PR #78 message.
 #### W2 — the homepage band and the global entry points
 
 - **Homepage band** (`app/page.tsx:84-100`): keep `¿Necesitás contratar?`.
-  Body: `Mandanos el puesto por WhatsApp y lo publicamos gratis. Recibís
-  postulantes por WhatsApp desde el primer día.` Primary:
+  Body: `Publicá tu empleo gratis. Los postulantes te escriben directo a tu
+  WhatsApp.` (§7 D1: **no promise about applicant volume or speed anywhere
+  on the site** — the current "en minutos" line is removed, not softened.)
+  While the launch promotion (Batch P) is active, a second line from
+  `lib/promo.ts`: `Promoción de lanzamiento: los primeros 100 avisos salen
+  destacados 90 días, gratis. Quedan {remaining}.` Primary:
   `<WhatsAppCta intent="publicar" variant="button">Publicá por WhatsApp</WhatsAppCta>`
   (green, on the dark band). Secondary, outline, beside it: `Publicar con el
   formulario` → `/publicar`. Third, text link: `Ver planes y precios` →
   `/planes` (the page is currently unreachable from the homepage). Response
-  time line under the buttons from Q1's answer, rendered from one constant
+  time line under the buttons (§7 D1), rendered from one constant
   `WHATSAPP_HOURS_COPY` in `lib/whatsapp.ts` so every page says the same thing.
 - **Mobile menu** (`components/NavMenu.tsx:105-118`): the bottom block becomes
   `Publicá por WhatsApp` (green, `intent="publicar"`) + `Publicá tu empleo`
@@ -377,8 +387,8 @@ still opens the site number with the PR #78 message.
   the one place where a green button would read as seeker-facing).
 - **Footer**: new "Contacto" line in the brand column — WhatsApp pill
   (`intent="contacto"`), the hours copy, and the `/contacto` link. No email
-  unless the owner supplies one (Q9).
-- **Floating WhatsApp button** — scope per Q2. Default assumption: rendered
+  (§7 D9: WhatsApp is the only contact channel).
+- **Floating WhatsApp button** — scope per §7 D2: rendered
   by a `<FloatingWhatsApp />` component mounted in the *page* of `/`,
   `/publicar`, `/planes`, `/contacto` only — **not** in `app/layout.tsx`, so
   it never appears on `/empleos*`, `/trabajo/*`, `/blog*` where a seeker
@@ -386,8 +396,7 @@ still opens the site number with the PR #78 message.
   short label that disambiguates (`¿Publicás un empleo?`), `aria-label`, hides
   while the mobile menu is open, respects a `pb-` safe-area. `position:
   fixed` element with no layout impact = zero CLS.
-- Gold unification rides along only if Q3 is answered before this PR; else
-  leave the literal hex and W5 handles it.
+- Gold: leave the literal hex here; D1 (Batch D) applies §7 D3 mechanically.
 
 #### W3 — `/publicar` as a two-path page
 
@@ -399,7 +408,7 @@ still opens the site number with the PR #78 message.
     `intent="publicar"`.
   - **Card B — Con el formulario.** `Ideal si querés pegar la descripción
     completa. Te contactamos por WhatsApp el mismo día hábil.` (the honest
-    version of "24 horas"; exact wording from Q1). The existing form.
+    version of "24 horas"; wording is `WHATSAPP_HOURS_COPY`). The existing form.
 - The three emoji badges go; the copy above carries the message.
 - **Success screen** (`components/EmployerForm.tsx:96-110`): keep the check
   and the headline; body `Te contactamos por WhatsApp al {contactWhatsapp
@@ -428,7 +437,7 @@ still opens the site number with the PR #78 message.
   `Hola, tengo una consulta sobre trabajo.com.py.` with a second tracked
   pill `Quiero publicar un empleo` (`intent="publicar"`) — the page's own
   subhead already says `¿Tenés preguntas o querés publicar un empleo?`.
-  The "Formulario — Respondemos en 24 horas" tile copy aligns with Q1.
+  The "Formulario — Respondemos en 24 horas" tile uses `WHATSAPP_HOURS_COPY`.
 - **`ContactForm` stops posting fake jobs**: add a `contact` member to the
   `leadSchema` discriminated union in `lib/leads.ts` (`type: 'contact'`:
   name, phone, email?, message, sourcePage) → `buildPayload` emits
@@ -437,14 +446,14 @@ still opens the site number with the PR #78 message.
   table gains the third `lead_type`.
 - `/planes`: Destacado CTA → `WhatsAppCta intent="destacado"` (green now;
   message unchanged). Empresa `Hablemos` → `WhatsAppCta intent="empresa"`
-  (Q5 can override to keep the form). Básico `Publicar gratis` → `/publicar`
+  (§7 D5). Básico `Publicar gratis` → `/publicar`
   unchanged. Fix `Activo por 30–60 días` to match what `FeaturePanel`
   actually sells (15/30/60/90 — say `Activo por el período que elijas: 15,
   30, 60 o 90 días`). FAQ item "¿Cómo publico?" rewritten to name WhatsApp
   first.
 - `components/empresa/PlanCard.tsx` renew link → `WhatsAppCta variant="link"
   intent="renovar" context={{ companyName }}`.
-- `/publicar` and `/planes` each get a `FloatingWhatsApp` if Q2 confirms.
+- `/publicar` and `/planes` each get a `FloatingWhatsApp` (§7 D2).
 
 #### W5 — team notification for employer leads (closes finding 4)
 
@@ -468,6 +477,94 @@ green, with intent-named prefilled messages, tracked as `whatsapp_click`
 `{audience:'employer', intent}`; the form remains as the honest second path;
 the team is emailed on every lead; `whatsapp:verify` guards the number.
 
+**Copy rules for Batch W (owner decision D1, §7):** the site never promises
+applicant volume or speed. Allowed: what the product does ("los postulantes
+te escriben directo a tu WhatsApp", "publicación gratis", "revisamos y
+publicamos"). Not allowed: "postulantes en minutos", "cientos de
+candidatos", any number of applicants. The team's own response time is a
+promise the team can keep and is stated once, from one constant:
+`WHATSAPP_HOURS_COPY = 'Te respondemos el mismo día hábil (lunes a viernes,
+8 a 18).'` The `/contacto` tile's `Respondemos en minutos` and the
+`/publicar` badge `⚡ Respuesta rápida` are replaced by that constant.
+
+### Batch P — the launch promotion (job supply)
+
+Owner decision (2026-09-08): **the first 100 approved listings get
+Destacado for 90 days, free.** Básico is already free, so the promotion is
+the *featured* window, which is the one thing the site sells. It rides
+entirely on the existing `featured_until` machinery (`PLAN-PAGOPAR.md` §1)
+and changes none of its rules: approval still happens only in `/admin`, the
+grant still goes through `applyFeatureGrant()`, and the window arithmetic is
+still `computeFeaturedUntil()`. What is new is a third channel, a quota, and
+the public copy that disappears by itself when the quota is spent.
+
+#### P1 — promotion core (Opus; touches the grant path and the approve transition)
+
+- `FEATURE_GRANT_CHANNELS` gains `'promo_launch'` (`lib/db/admin.ts:370`).
+  The grant records `amountGs: 0`, `method: 'promo'`, `note: 'Promoción de
+  lanzamiento'`, `channel: 'promo_launch'` in the same `feature_grant`
+  activity row every other channel writes, so "how many promo grants" is
+  the same `activity_log` query as "how many sales".
+- `lib/promo.ts` (server-only): `LAUNCH_PROMO = { quota: 100, days: 90 }`
+  as constants; `launchPromoEnabled()` reads `LAUNCH_PROMO_ENABLED` with the
+  exact-`"true"` rule from `lib/flags.ts` (so ending it early is a dated
+  hPanel decision, and unset = off, the same as every other flag);
+  `getLaunchPromoStatus(): { enabled, quota, granted, remaining }` where
+  `granted` counts `feature_grant` rows with `channel = 'promo_launch'`
+  (one per job — the grant path refuses a second promo grant on the same
+  job id). Cached under a new tag, invalidated by the grant. Seed mode:
+  `granted = 0`.
+- **Where the grant happens:** in the admin PATCH handler
+  (`app/api/admin/empleos/[id]/route.ts`) when the request transitions
+  `status` to `published` *from* `pending` or `draft` and carries
+  `applyLaunchPromo: true`, and the promo is enabled with `remaining > 0`.
+  The status write and `applyFeatureGrant(id, actor, { days: 90, extend:
+  false, channel: 'promo_launch', … })` run in one transaction; the quota
+  check is inside it. The grant never happens on create, on the employer
+  path, or on `/api/publicar` — **the promotion is applied by a human at
+  approval, which is the moment the listing earns it.** `moderation:verify`
+  gains a source assertion that `'promo_launch'` appears in exactly one
+  write path and that path is the admin status handler; `featured:verify`
+  is unchanged (the arithmetic is unchanged).
+- Admin UI (`components/admin/JobForm.tsx` or the approve control): a
+  checkbox `Aplicar promoción de lanzamiento (Destacado 90 días, gratis) —
+  quedan {remaining} de 100`, default **checked** while eligible, hidden
+  when the promo is off, spent, or the job already had a promo grant. The
+  `FeaturePanel` shows `Promoción de lanzamiento` as the channel on the
+  existing grant history. `/admin` dashboard: `Promoción: {granted}/100`.
+- Expiry: `jobs.expiresAt` is nullable and no UI sets it today, so a
+  90-day window never outlives the listing. P1 adds nothing there; if S3's
+  optional "Vence el" field lands later, the grant path extends `expiresAt`
+  to at least `featuredUntil` when it is shorter — write that rule now in
+  `applyFeatureGrant()` so both channels get it.
+- `/terminos`: a "Promoción de lanzamiento" clause — one grant per aviso,
+  applied only to listings approved by the team, no cash value,
+  non-transferable, the team may end the promotion when the 100 are spent
+  or at any time; renewals after the 90 days at the published price.
+
+#### P2 — promotion surfaces (Sonnet; after P1 and W1)
+
+Every surface reads `getLaunchPromoStatus()` and renders **nothing** when
+`enabled` is false or `remaining` is 0, so no PR is needed to end it.
+
+- `/planes`: a promo strip above the plan grid — `Promoción de lanzamiento
+  · Los primeros 100 avisos aprobados salen destacados 90 días, gratis ·
+  Quedan {remaining}` — and on the Destacado card the price line reads
+  `Gratis para los primeros 100 avisos` with `Consultar` as the after-promo
+  price under it. The card's CTA stays `WhatsAppCta intent="destacado"`; the
+  prefilled message adds `(promoción de lanzamiento)` while active.
+- `/publicar`: the same strip under the `h1`; the WhatsApp card's message
+  becomes `Hola, quiero publicar un empleo con la promoción de lanzamiento
+  (Destacado 90 días gratis).` while active.
+- Homepage band: the second line from W2.
+- `lib/whatsapp.ts`: the `publicar` and `destacado` messages take a
+  `promoActive` boolean so the copy is decided in one place.
+- The W5 notification email gets a line `Promoción de lanzamiento: quedan
+  {remaining}` so the operator sees the quota while replying.
+- Employer dashboard `PlanCard`: `Destacado activo hasta {date} · Promoción
+  de lanzamiento` when the active grant's channel is `promo_launch`, with
+  `Renovar por WhatsApp` unchanged.
+
 ### Batch S — SEO structural fixes (Opus where marked)
 
 #### S1 — metadata hygiene pass (Sonnet)
@@ -477,8 +574,7 @@ the team is emailed on every lead; `whatsapp:verify` guards the number.
   `/planes`, `/contacto`, legal pages. Absolute, from `metadataBase`.
 - Homepage `metadata`: own title (`Empleos en Paraguay — trabajo.com.py`
   style, owner may tune), description, canonical; `Organization` JSON-LD
-  (name, url, logo → the `app/icon.svg` absolute URL, `sameAs` from Q9 if
-  any, `contactPoint` with the WhatsApp number as `telephone` and
+  (name, url, logo → the `app/icon.svg` absolute URL, no `sameAs` (§7 D9), `contactPoint` with the WhatsApp number as `telephone` and
   `contactType: 'sales'`) and `WebSite` with `SearchAction` targeting
   `/empleos?q={search_term_string}`.
 - `twitter: { card: 'summary_large_image' }` in the layout default.
@@ -576,8 +672,8 @@ mistake either leaks an unapproved job or deindexes approved ones.
   description, no apply CTA, **no `JobPosting` JSON-LD**, then the existing
   "Empleos similares" block (`getJobs` by category, fallback city) and a link
   to `/trabajo/{cat}` and the city landing. Both null → `notFound()` as
-  today. Owner may choose a hard 404 instead (Q6); the tombstone is the
-  recommendation because it keeps the visitor and the internal links.
+  today. Decided (§7 D6): the tombstone, because it keeps the visitor and the
+  internal links.
 - `generateStaticParams` walks every page (same loop as the sitemap; factor
   `getAllJobs()` into `lib/data.ts` as `getAllPublishedJobSummaries()` or
   reuse the sitemap's) so every approved job is prerendered at build. Check
@@ -590,7 +686,7 @@ mistake either leaks an unapproved job or deindexes approved ones.
 #### S4 — city landings `/trabajo-en/[ciudad]` (Sonnet, after S2)
 
 - New route `/trabajo-en/[ciudad]` (URL chosen for the query shape "trabajo
-  en Asunción"; Q7 may rename). `generateStaticParams` from `getCities()`.
+  en Asunción"; §7 D7). `generateStaticParams` from `getCities()`.
   Title `Trabajo en {City} — empleos en {City}, Paraguay`; `h1` `Trabajo en
   {City}`; intro copy per city from a static `lib/seo/city-copy.ts` map
   (Spanish, 2–3 sentences each, written by the PR — Asunción, Ciudad del
@@ -693,7 +789,7 @@ per article; no keyword stuffing, voseo, Paraguay-specific vocabulary
 
 - Extend `blogCategoryEnum` to `noticias | analisis-laboral | consejos-cv |
   entrevistas | derechos-laborales | guias-por-sector | para-empresas`
-  (Q4 may edit the set). Drizzle migration altering the enum; **no rename of
+  (§7 D4). Drizzle migration altering the enum; **no rename of
   existing values** (`analisis-laboral` keeps its value, only its label
   changes to "Mercado laboral", so no URL moves).
 - Single source: `lib/blog-categories.ts` exports the tuple, the labels,
@@ -723,12 +819,12 @@ C0 satisfies within its first week.
   empty (mirrors the jobs convention), sitemap entries.
 - `/blog/[slug]`: "Artículos relacionados" (3, same category, exclude self,
   omitted when empty); prev/next by date optional; JSON-LD adds
-  `articleSection`, `inLanguage: 'es-PY'`, `publisher.logo`; byline per Q8
-  (default: `Equipo de trabajo.com.py`, Organization author unchanged).
+  `articleSection`, `inLanguage: 'es-PY'`, `publisher.logo`; byline `Equipo de
+  trabajo.com.py` (§7 D8), Organization author unchanged.
 - Heading ids: `marked` heading renderer adds a slugified `id`; an optional
   "En esta nota" TOC for articles with ≥4 `h2`s.
 - **Linking surfaces** (the point of the batch):
-  - Header nav + footer: `Blog` (or `Consejos`, Q4).
+  - Header nav `Consejos`, footer `Blog` (§7 D4).
   - Job detail: `Consejos para postularte` block under the description —
     2 posts via `queryPostsForJobCategory(job.categorySlug)`, fallback 2
     latest `consejos-cv`.
@@ -766,9 +862,8 @@ hierarchy, mobile order and consistency.
 
 #### D1 — design tokens and primitives (zero-visual-diff first, then the gold)
 
-- Promote to tokens: the CTA gold (Q3 picks `#E6B25A` or `#B0812C` as
-  `--color-gold`; the other becomes `--color-gold-deep` for text on light
-  backgrounds), `--color-surface-featured` (`#FBF3E0`/`#FDF8EC` — pick one),
+- Promote to tokens: the CTA gold (§7 D3: `#E6B25A` is `--color-gold`;
+  `#B0812C` becomes `--color-gold-deep` for text on light backgrounds), `--color-surface-featured` (`#FBF3E0`/`#FDF8EC` — pick one),
   `--color-border-featured` (`#EDDCB4`), `--color-ink-prose` (`#44403A`),
   the avatar palette. Replace literal hexes mechanically; use
   `rounded-card` / `rounded-sm` tokens (set `--radius-card 12px` to match
@@ -812,7 +907,7 @@ the requirement is one fewer stacked control) → "Últimos empleos" (freshness
 is the seeker's signal; 6 cards) → "Explorá por categoría" (5-col grid
 becomes a 2-col list on mobile with counts) → "Empleos por ciudad" (S4) →
 "Destacados" (moves down; it is a paid slot, not the seeker's first need —
-Q10 can overrule) → "Consejos para conseguir trabajo" (C2, 3 cards) → the
+§7 D10) → "Consejos para conseguir trabajo" (C2, 3 cards) → the
 employer band from W2 → footer. Add a one-line trust strip under the hero
 using only numbers the site can source (`{n} empleos activos · {m}
 categorías · gratis para postulantes`). No stock photography; the motif and
@@ -827,7 +922,7 @@ which also makes filter *removal* crawlable); empty state with three
 suggestions derived from the current filters (drop city, drop category, see
 all) as real links.
 
-#### D5 — public company pages `/empresas/[slug]` (only if Q11 = yes)
+#### D5 — public company pages `/empresas/[slug]` (§7 D11: yes)
 
 Logo, name, description, website (`nofollow`), the company's published jobs
 via `getJobs({ empresa })` — a new seam filter — `Organization` JSON-LD,
@@ -859,79 +954,92 @@ queries, which are a meaningful share of job-board organic traffic.
 
 ## 6. Order, dependencies, model per PR
 
-| # | PR | Model | Depends on | Size |
+Owner decision (2026-09-08): **one Opus session first, then one Sonnet
+session per window, each driven by a single prompt** (§10). The Opus
+session takes every PR where a wrong line leaks an unapproved job, deindexes
+the catalogue, or grants a Destacado outside the approval path; it runs
+first so that the Sonnet windows never touch those files. The Opus PRs were
+made self-sufficient for that: S2 creates the canonical helper that S1 later
+applies everywhere, and S3 carries its own `expiresAt` plumbing.
+
+| Session | # | PR | Depends on | Size |
 |---|---|---|---|---|
-| 1 | W1 shared WhatsApp module + vocabulary + verify | Sonnet | — | S |
-| 2 | W2 homepage band, mobile menu, footer, floating button | Sonnet | W1, Q1, Q2 | S |
-| 3 | W3 `/publicar` two paths + success screen + double-write fix | Sonnet | W1 | M |
-| 4 | W4 `/contacto` lead type, `/planes`, PlanCard | Sonnet | W1 | S |
-| 5 | W5 team lead-notification email | Sonnet | W4 (contact type) | S |
-| 6 | S1 metadata hygiene + `capiatá` 301 | Sonnet | — | M |
-| 7 | S2 `/empleos` index control + `seo:verify` | **Opus** | S1 | M |
-| 8 | S3 JobPosting fix + tombstone + full prerender | **Opus** | S1 | M |
-| 9 | S5 taxonomy counts seam + static + paginated landings | Sonnet | S2 | M |
-| 10 | S4 city landings | Sonnet | S5 | M |
-| 11 | S6 performance hygiene | Sonnet | — | S |
-| 12 | C1 blog category schema | Sonnet | Q4 | S |
-| — | C0 content sprint (parallel, from the moment C1 merges) | Sonnet content subagents | C1 | ~20 articles |
-| 13 | C2 archives, related posts, linking surfaces | Sonnet | C1, ≥5 posts live | L |
-| 14 | C3 admin ergonomics | Sonnet | C2 | S |
-| 15 | D1 tokens + primitives | Sonnet | Q3, W done | M |
-| 16 | D2 job detail mobile-first + sticky bar | Sonnet | D1, S3 | M |
-| 17 | D3 homepage | Sonnet | D1, S4, C2 | M |
-| 18 | D4 listing page | Sonnet | D1, S2 | M |
-| 19 | D5 company pages | Sonnet | Q11 = yes | M |
+| **Opus** | 1 | P1 launch-promotion core (channel, quota, grant on approval, terms) | — | M |
+| **Opus** | 2 | S3 JobPosting fix + closed-job tombstone + full prerender (+ `Job.expiresAt`) | — | M |
+| **Opus** | 3 | S2 `/empleos` index control + `lib/seo.ts` canonical helper + `seo:verify` | — | M |
+| **Sonnet A** | 4 | W1 shared WhatsApp module + event vocabulary + `whatsapp:verify` | — | S |
+| Sonnet A | 5 | W2 homepage band, mobile menu, footer, floating button | W1 | S |
+| Sonnet A | 6 | W3 `/publicar` two paths + success screen + double-write fix | W1 | M |
+| Sonnet A | 7 | W4 `/contacto` lead type, `/planes`, PlanCard | W1 | S |
+| Sonnet A | 8 | W5 team lead-notification email | W4 | S |
+| Sonnet A | 9 | P2 promotion surfaces | P1, W1 | S |
+| **Sonnet B** | 10 | S1 metadata hygiene (uses `lib/seo.ts`) + `capiatá` 301 | S2 | M |
+| Sonnet B | 11 | S5 taxonomy counts seam + static + paginated landings | S2 | M |
+| Sonnet B | 12 | S4 city landings `/trabajo-en/[ciudad]` | S5 | M |
+| Sonnet B | 13 | S6 performance hygiene | — | S |
+| Sonnet B | 14 | C1 blog category schema | — | S |
+| **Sonnet C** | — | C0 content sprint: ~20 articles as parallel subagents, one PR of Markdown under `content/blog/drafts/` for the owner to paste/import | C1 | L |
+| Sonnet C | 15 | C2 archives, related posts, linking surfaces | C1, ≥5 posts live | L |
+| Sonnet C | 16 | C3 admin ergonomics | C2 | S |
+| **Sonnet D** | 17 | D1 tokens + primitives | W done | M |
+| Sonnet D | 18 | D2 job detail mobile-first + sticky bar | D1, S3 | M |
+| Sonnet D | 19 | D3 homepage | D1, S4, C2 | M |
+| Sonnet D | 20 | D4 listing page | D1, S2 | M |
+| Sonnet D | 21 | D5 company pages `/empresas/[slug]` | D2 | M |
 
-Two chats is the natural split, as in `PLAN-NEXT.md`: **Chat 1 (Sonnet)**
-runs W1–W5 then S1, S5, S4, S6, C1; **Chat 2 (Opus)** runs S2 and S3 as
-soon as S1 has merged (they touch different files from W, so they can go in
-parallel with Chat 1 after PR 6). **Chat 3 (Sonnet)** runs the content
-sprint as parallel subagents and then C2–C3 and D1–D5. Auto-merge on green
-per the standing decision, with the standing exception: anything touching
-production env or a rollback path stops for the owner.
+Sonnet A can start the moment the Opus session has merged P1 (W1–W5 touch
+none of the Opus files; P2 needs P1). Sonnet B starts after the Opus
+session is fully merged. Sonnet C starts after Sonnet B's C1 merges and
+after the owner has published at least five articles from the C0 drafts.
+Sonnet D starts after A, B and C2 are merged. Every session: PR → CI green
+→ merge → pull `main` → next, never stacked; auto-merge on green with the
+standing exception (production env, rollback paths, anything not in the PR's
+section stops for the owner).
 
-Why exactly two Opus PRs: S2 and S3 are the two places where a wrong line
-either serves an unapproved job (a tombstone that reads `pending`) or
-removes the catalogue from the index (a canonical that points every filtered
-page at `/empleos` *including* the paginated bare listing). Everything else
-is mechanical against this spec.
-
----
-
-## 7. Open questions for the owner (answer before the matching PR)
-
-| Q | Question | Default if unanswered | Blocks |
-|---|---|---|---|
-| **Q1** | **Response-time promise and hours.** What is true? e.g. "Respondemos en minutos, lunes a viernes de 8 a 18. Fuera de ese horario, el mismo día hábil." | That sentence, with those hours | W2, W3, W4 |
-| **Q2** | **Floating WhatsApp button scope.** Recommended: employer pages only (`/`, `/publicar`, `/planes`, `/contacto`), labelled `¿Publicás un empleo?`. Alternative: site-wide (risk: seekers tap it on job pages and message the site instead of the employer). | Employer pages only | W2 |
-| **Q3** | **Which gold is *the* gold?** The CTA `#E6B25A` (warm, high contrast on dark) or the token `#B0812C` (deeper, used in the header). | `#E6B25A` for buttons, `#B0812C` for text/badges | D1 (W2 leaves the hex until then) |
-| **Q4** | **Blog category set and nav label.** Approve `entrevistas`, `derechos-laborales`, `guias-por-sector`, `para-empresas`; relabel `analisis-laboral` → "Mercado laboral"; header label `Blog` vs `Consejos`. | Approve all; label `Consejos` in the header, `Blog` in the footer | C1 |
-| **Q5** | **Plan Empresa CTA**: WhatsApp (recommended) or keep the form? | WhatsApp | W4 |
-| **Q6** | **Expired job URL**: tombstone (200, noindex, similar jobs — recommended) or hard 404? | Tombstone | S3 |
-| **Q7** | **City landing URL**: `/trabajo-en/asuncion` (recommended, matches the query) vs `/empleos-en/asuncion` vs `/trabajo/asuncion` (clashes with category slugs — not possible). | `/trabajo-en/` | S4 |
-| **Q8** | **Byline**: named authors (needs a public name per admin/editor and their consent) or `Equipo de trabajo.com.py`? | Team byline | C2 |
-| **Q9** | **Contact details for Organization JSON-LD + footer**: a public email? Social profiles (`sameAs`)? | None; WhatsApp only | S1, W2 |
-| **Q10** | **Homepage order**: may "Destacados" move below "Últimos empleos"? It is the paid slot; moving it down helps seekers, may hurt the Destacado pitch. | Move it, but keep it above the fold on desktop | D3 |
-| **Q11** | **Public company pages** `/empresas/[slug]`: yes/no? Employers are already named on every listing; a page adds brand-query traffic. | Yes, after D2 | D5 |
-| **Q12** | **Is `EMPLOYER_SIGNUP_ENABLED` on in production?** Decides whether `/publicar` shows the self-serve card as a third path (W3 renders it only when both flags are true, same as today). | Not assumed either way; the code gates it | copy only |
-| **Q13** | **Team notification address** for W5 (`LEADS_NOTIFY_EMAIL`). | Unset = log-and-skip, like every other email | W5 (verification only) |
-| **Q14** | **Content volume and review**: ~20 drafts in the first sprint, then ~4/month? Who reviews the labour-law ones (a lawyer read is recommended for `derechos-laborales`, same as the `/privacidad` review)? | 20 then 4/month; owner reviews; law articles flagged `Revisión pendiente` as drafts until read | C0 |
+Why exactly three Opus PRs: P1 writes `featured_until` from a new channel
+inside the approval transition; S3 adds a read that deliberately steps
+outside the visibility predicate; S2 decides which catalogue URLs Google
+may index. Everything else is mechanical against this spec.
 
 ---
+
+## 7. Decisions (owner, 2026-09-08 — "go with the recommendations")
+
+Every question from the first draft of this plan is answered; the build
+sessions read this table, not the defaults that used to sit here.
+
+| # | Decision |
+|---|---|
+| **D1** | **No promise of applicant volume or speed anywhere on the site.** The site does not yet have the traffic to keep "postulantes en minutos", so the copy describes what the product does, never how fast candidates arrive. The team's own response time is stated once: `Te respondemos el mismo día hábil (lunes a viernes, 8 a 18).` (`WHATSAPP_HOURS_COPY`). |
+| **D2** | Floating WhatsApp button on employer pages only: `/`, `/publicar`, `/planes`, `/contacto`, labelled `¿Publicás un empleo?`. Never on `/empleos*`, `/trabajo*`, `/blog*`. |
+| **D3** | Gold: `#E6B25A` is the button gold (`--color-gold`), `#B0812C` becomes `--color-gold-deep` for text and badges. |
+| **D4** | Blog categories: add `entrevistas`, `derechos-laborales`, `guias-por-sector`, `para-empresas`; relabel `analisis-laboral` → "Mercado laboral" (value unchanged). Header label `Consejos`, footer label `Blog`. |
+| **D5** | Plan Empresa CTA → WhatsApp (`intent="empresa"`). |
+| **D6** | Expired job URL → tombstone: HTTP 200, `noindex, follow`, title + company, similar jobs, no `JobPosting`. |
+| **D7** | City landings at `/trabajo-en/[ciudad]`. |
+| **D8** | Byline `Equipo de trabajo.com.py`; JSON-LD author stays the Organization. |
+| **D9** | No public email, no social profiles in Organization JSON-LD or footer. WhatsApp is the contact channel. |
+| **D10** | Homepage: "Últimos empleos" above "Destacados"; Destacados stays above the fold on desktop. |
+| **D11** | Public company pages `/empresas/[slug]`: yes, after D2. |
+| **D12** | `EMPLOYER_SIGNUP_ENABLED`: the code keeps gating the self-serve card on both flags; §11 recommends the owner flips both flags on as part of the supply push. |
+| **D13** | `LEADS_NOTIFY_EMAIL`: owner sets it in hPanel; unset = log-and-skip. |
+| **D14** | Content: ~20 drafts in the first sprint, then ~4/month; owner reviews; `derechos-laborales` articles stay drafts flagged `Revisión pendiente` until a lawyer has read them. |
+| **D15** | **Launch promotion: the first 100 approved listings get Destacado for 90 days, free.** Batch P. Ends when the quota is spent or when the owner sets `LAUNCH_PROMO_ENABLED=false`. |
+| **D16** | Sessions: one Opus session (P1, S3, S2), then one Sonnet session per window (A: W + P2; B: S1, S5, S4, S6, C1; C: content + C2, C3; D: D1–D5), each driven by one prompt from §10. |
 
 ## 8. Owner ops checklist (parallel, not PRs)
 
 | When | Action |
 |---|---|
-| Now | Answer Q1–Q4 (they gate the first week) |
 | Now | Search Console: verify `trabajo.com.py`, submit the sitemap, export "Pages" + "Job postings" reports as the baseline |
 | Now | GA4: confirm `NEXT_PUBLIC_GA_ID` is set in hPanel; after W1, mark `whatsapp_click` + `lead_submit` as conversions |
-| Now | WhatsApp Business on the leads number: business profile (name, description, hours matching Q1, website), a greeting message for out-of-hours, quick replies for "precio Destacado" and "cómo publico" |
-| Before W5 | Pick `LEADS_NOTIFY_EMAIL`; Resend is already configured from E1 |
-| After C1 | Paste the C0 drafts into `/admin/blog` (or run `blog:import`), set cover images through the existing uploader, publish ≥5 across ≥2 categories so C2 can ship |
-| After S3 | Check the Job postings report two weeks later: `validThrough` errors → 0 |
-
----
+| Now | WhatsApp Business on the leads number: business profile (name, description, hours matching D1, website), out-of-hours greeting, quick replies for "precio Destacado", "cómo publico", "promoción de lanzamiento" |
+| After P1 merges | Set `LAUNCH_PROMO_ENABLED=true` in hPanel, redeploy — the promotion is dark until then |
+| After P1 merges | Flip `EMPLOYER_DASHBOARD_ENABLED=true` and `EMPLOYER_SIGNUP_ENABLED=true` (§11 step 2) — both were built for this |
+| Before W5 verification | Set `LEADS_NOTIFY_EMAIL` in hPanel; Resend is already configured from E1 |
+| After C1 | Paste the C0 drafts into `/admin/blog` (or `npm run blog:import -- --write` from `content/blog/drafts/`), set covers through the uploader, publish ≥5 across ≥2 categories so Sonnet C can ship C2 |
+| After S3 | Search Console "Job postings" report two weeks later: `validThrough` errors → 0 |
+| Weekly during the promo | `/admin` shows `Promoción: {granted}/100`; when it reaches 100, set `LAUNCH_PROMO_ENABLED=false` (the copy already disappears at 0 remaining; the flag stops further grants) |
 
 ## 9. Deliberately not in this program
 
@@ -959,21 +1067,139 @@ is mechanical against this spec.
 
 ---
 
-## 10. Copy-paste prompt for the build session
+## 10. Session prompts (one per session; paste as the first message)
 
-> Read `AGENTS.md`, then `PLAN-GROWTH.md` in full. You are executing Batch W
-> of `PLAN-GROWTH.md` §4 (or: S / C / D — name the batch), PR by PR, in the
-> order of §6, on this repo (Next.js 16 — consult
-> `node_modules/next/dist/docs/` before writing metadata, caching,
-> `searchParams` or route code; run `npm install` first). The owner's answers
-> to §7 are: [paste answers; unanswered questions take the table's default].
-> For each PR: branch from a fresh `main`, build exactly what the PR's
-> section says, keep every `*:verify` script and `npm run build`, `lint`,
-> `typecheck` green locally before pushing, open the PR with a body that
-> lists pages touched and screenshots for visual changes, wait for CI, merge
-> on green, pull `main`, continue. Do not stack PRs. Anything that would
-> touch production env, the visibility predicate, job status, or a rollback
-> path outside what the PR section explicitly specifies: stop and ask. UI
-> copy is Spanish (Paraguay), voseo. When a PR section and the code
-> disagree about a file:line, the code wins and you note the drift in the PR
-> body.
+All five share a preamble. Paste the preamble, then the session's block.
+
+**Preamble (every session):**
+
+> Read `AGENTS.md`, then `PLAN-GROWTH.md` in full — §1 (what binds you), §7
+> (every decision is taken; do not re-ask), and your session's PRs in §4 as
+> ordered in §6. This repo runs **Next.js 16**: run `npm install` first and
+> consult `node_modules/next/dist/docs/` before writing metadata, caching,
+> `searchParams`, route or image code. Work PR by PR: branch from a fresh
+> `main`, build exactly what the PR's section says, keep `npm run build`,
+> `npm run lint`, `npm run typecheck` and every `*:verify` script green
+> locally before pushing, open the PR with a body listing pages touched
+> (screenshots for visual changes from `npm run build && npm start`), wait
+> for CI, merge on green, `git pull`, continue. Never stack PRs. UI copy is
+> Spanish (Paraguay), voseo; §4's "Copy rules for Batch W" apply to every
+> session: never promise applicant volume or speed. Anything that would
+> touch production env, the visibility predicate, job status, `featured_until`
+> outside what your PR section specifies, or a rollback path: stop and ask.
+> When a PR section and the code disagree about a file:line, the code wins
+> and you note the drift in the PR body. Do not use Fable for anything.
+
+**Session 1 — Opus:**
+
+> You are the Opus session (§6, PRs 1–3): **P1** launch-promotion core, then
+> **S3** JobPosting + closed-job tombstone + full prerender, then **S2**
+> `/empleos` index control with `lib/seo.ts` (`canonicalFor()` + the robots
+> rule table) and `scripts/verify-seo.ts`. Read `PLAN-PAGOPAR.md` §1 before
+> P1 — the grant goes through `applyFeatureGrant()` and nowhere else, with
+> the new channel, and happens only inside the admin status transition to
+> `published`. For S3, `getClosedJob()` reads only `published`-and-expired
+> or `archived` rows and `moderation:verify` asserts it. For S2, the
+> paginated bare `/empleos?page=N` stays indexable — assert that in
+> `verify-seo.ts` before anything else. Add both new verify scripts as
+> steps in the existing CI job. When all three are merged, post a short
+> summary of what Sonnet A and B may now rely on (helper names, the promo
+> status function, the `Job.expiresAt` field).
+
+**Session 2 — Sonnet A (WhatsApp + promotion surfaces):**
+
+> You are Sonnet A (§6, PRs 4–9): **W1, W2, W3, W4, W5, P2** in that order.
+> P1 is merged: use `getLaunchPromoStatus()` from `lib/promo.ts` and the
+> `'promo_launch'` channel as they exist. Copy constants live in
+> `lib/whatsapp.ts` (`WHATSAPP_HOURS_COPY`, the intent messages with the
+> `promoActive` variant). The floating button is mounted per page (D2),
+> never in `app/layout.tsx`. Finish with `npm run whatsapp:verify` green in
+> CI and the README analytics section documenting the two events.
+
+**Session 3 — Sonnet B (SEO structure):**
+
+> You are Sonnet B (§6, PRs 10–14): **S1, S5, S4, S6, C1** in that order.
+> S2 and S3 are merged: apply `canonicalFor()` from `lib/seo.ts` in S1
+> rather than writing canonicals by hand, and keep `seo:verify` green. New
+> seam functions (`getTaxonomyCounts`, the city landing reads) get a seed
+> and a DB implementation and a `parity-check` case. The `capiatá` rename
+> ships with its 301s in the same PR. C1 is a Drizzle migration that extends
+> the enum without renaming any value.
+
+**Session 4 — Sonnet C (content + blog architecture):**
+
+> You are Sonnet C (§6, C0, C2, C3). C1 is merged. First run **C0**: spawn
+> one Sonnet subagent per article from the §4 C0 table (the ten sector
+> guides plus two per other cluster, ~20), each writing one Markdown file
+> with the `content/blog/README.md` frontmatter into `content/blog/drafts/`,
+> `published: false`, `relatedCategorySlug` set (required for
+> `guias-por-sector`), no unsourced numbers, `derechos-laborales` articles
+> carrying the informational disclaimer and a `Revisión pendiente` line at
+> the top. Review every draft yourself for voseo, Paraguay vocabulary, one
+> landing link in the first 200 words, and the content rules; open one PR
+> with the drafts. Then stop and tell the owner to publish at least five
+> across two categories. Resume with **C2** and **C3** only after the owner
+> confirms that.
+
+**Session 5 — Sonnet D (redesign):**
+
+> You are Sonnet D (§6, PRs 17–21): **D1, D2, D3, D4, D5** in that order.
+> A, B and C2 are merged. D1 is zero-visual-diff except the gold decision
+> (D3 in §7); post before/after screenshots at 360 px and 1280 px for every
+> D PR. The sticky mobile apply bar uses `WhatsAppCta` and the shared
+> `whatsapp_click` event with `audience: 'seeker'`. D5 adds an `empresa`
+> filter to `getJobs` as a seam change with parity, not a direct query.
+
+---
+
+## 11. Getting job supply — the playbook behind Batch P
+
+The promotion is the offer; this is how it gets used. Nothing here is a PR
+except where marked; it is what the owner and the team do with the tools
+the site already has.
+
+1. **Run the promotion as an outbound campaign, not a banner.** The 100
+   free Destacados are a reason to message employers, not something to wait
+   for. Target list, in order of yield: companies currently posting
+   vacancies in Paraguayan Facebook groups and on Instagram (they have a
+   live need this week), consultoras de RRHH and agencies (volume per
+   contact), franchise/retail chains with constant hiring (gastronomía,
+   atención al cliente, ventas), and the employers who already applied
+   through `/publicar` and never converted. One WhatsApp script:
+   `Hola {nombre}, soy {yo} de trabajo.com.py. Vimos que están buscando
+   {puesto}. Estamos lanzando y los primeros 100 avisos salen destacados 90
+   días, gratis — lo cargamos nosotros, solo necesitamos el texto y un
+   WhatsApp de contacto. ¿Les interesa?` Track in the CRM with a `promo`
+   tag; the site's `/admin` counter is the source of truth for the quota.
+2. **Open the employer dashboard and self-serve signup now** (`EMPLOYER_DASHBOARD_ENABLED`,
+   `EMPLOYER_SIGNUP_ENABLED`, both built and dark). Every employer the team
+   loads a job for gets an invitation link (`employer_invitations`, admin-
+   issued) in the same WhatsApp thread so they can post the next one
+   themselves. Moderation is unchanged: everything still lands `pending`.
+3. **Team-loaded listings with authorization, never scraping.** `PLAN.md`
+   §1 rules out aggregation and this plan keeps that. The team may load a
+   listing the employer sent or agreed to in writing (a WhatsApp "sí, dale"
+   is written), attach the employer's WhatsApp as the apply number, and
+   apply the promo at approval. Listings the team writes from a public post
+   without the employer's answer are not loaded.
+4. **Plan Empresa free for agencies during the promo.** A consultora that
+   brings ten listings is worth ten outreach conversations; offer the
+   monthly package free for the first three months via the same
+   `promo_launch` grants per listing (no new mechanism), and record the
+   agreement in the company's `activity_log` note.
+5. **Close the loop on traffic so the WhatsApp promise stays honest.**
+   Every approved listing is shared by the team into the relevant Facebook
+   groups and WhatsApp communities with the job page's own share links
+   (`ShareLinks`, U1). This is what produces the applicants the site does
+   not yet generate organically; it is also what makes the employer come
+   back. After S3, listings also surface in Google's job carousel, which is
+   the organic version of the same loop.
+6. **Measure supply weekly**: published listings, promo grants used,
+   employers with a dashboard login, listings per employer, and the
+   `whatsapp_click` (`audience: seeker`) count per listing — the number the
+   team quotes back to the employer when the 90 days end and the renewal
+   conversation starts (`/admin/empleos?featured=vencido`).
+7. **What not to do**: no fake listings, no "100 empresas ya confían"
+   copy, no applicant counts on public pages (`AGENTS.md`), no bulk import
+   from other boards. The promotion's copy says what it is — a launch offer
+   with a counter — and nothing more.
