@@ -250,26 +250,9 @@ export async function processLead(lead: LeadInput): Promise<void> {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Abuse hardening guard (PLAN.md step 9) — shared by POST /api/v1/leads and
-// POST /api/publicar, the two public write endpoints reachable from
-// /publicar and every job page's apply form.
-//
-// Rejections must be a SILENT 2xx to whatever submitted them (a bot watching
-// for a non-2xx just adapts) and logged server-side only.
-// ---------------------------------------------------------------------------
+// The honeypot guard (PLAN.md step 9) moved to lib/honeypot.ts in S6: it is
+// the one thing a client form component needs from this file, and this file
+// imports zod at module scope.
+export { HONEYPOT_FIELD, isHoneypotFilled } from './honeypot';
 
-/**
- * Hidden form field name. Real users never see or fill it (CSS-hidden +
- * `tabIndex={-1}` + `autoComplete="off"` in the form components); a bot that
- * fills every field it can see trips it.
- */
-export const HONEYPOT_FIELD = 'website_url';
-
-export function isHoneypotFilled(value: unknown): boolean {
-  return typeof value === 'string' && value.trim().length > 0;
-}
-
-// The anonymous-write rate limiter moved to lib/public-write-limiter.ts in B1:
-// this module is imported by a client component for its Zod schema, so it may
-// not pull in `server-only` code.
+// The anonymous-write rate limiter moved to lib/public-write-limiter.ts in B1.

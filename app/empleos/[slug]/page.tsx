@@ -257,6 +257,8 @@ export default async function JobDetailPage({ params }: { params: Params }) {
                       key={url}
                       src={url}
                       alt={`Foto ${index + 1} de ${job.images.length} del puesto ${job.title}`}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full aspect-video object-cover rounded-[10px] border border-border"
                     />
                   ))}
@@ -399,16 +401,6 @@ export default async function JobDetailPage({ params }: { params: Params }) {
           </aside>
         </div>
       </div>
-
-      {/* Prose styles for job descriptions */}
-      <style>{`
-        .prose-job p { margin-bottom: 0.75rem; color: #44403A; line-height: 1.7; }
-        .prose-job h2 { font-size: 1.1rem; font-weight: 700; color: #1E1B17; margin: 1.25rem 0 0.5rem; }
-        .prose-job h3 { font-size: 1rem; font-weight: 600; color: #1E1B17; margin: 1rem 0 0.375rem; }
-        .prose-job ul { list-style: disc; padding-left: 1.25rem; margin-bottom: 0.75rem; }
-        .prose-job li { margin-bottom: 0.25rem; color: #44403A; line-height: 1.6; }
-        .prose-job strong { color: #1E1B17; font-weight: 600; }
-      `}</style>
     </>
   );
 }
