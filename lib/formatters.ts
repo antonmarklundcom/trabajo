@@ -22,6 +22,19 @@ export function formatRelativeDate(iso: string): string {
   return `Publicado hace ${Math.floor(days / 30)} meses`;
 }
 
+/**
+ * "Último pedido de publicación" on the admin dashboard (PLAN-GROWTH.md §4
+ * W5) — a missed W5 notification email is invisible in a browser, so the
+ * panel names it out loud the same way PurgeStatus does for the purge sweep.
+ */
+export function formatLastSubmission(at: Date | null): string {
+  if (at === null) return 'Todavía no hay pedidos';
+  const days = Math.floor((Date.now() - at.getTime()) / 86_400_000);
+  if (days <= 0) return 'Hoy';
+  if (days === 1) return 'Ayer';
+  return `Hace ${days} días`;
+}
+
 export function contractTypeLabel(type: ContractType): string {
   const labels: Record<ContractType, string> = {
     tiempo_completo: 'Tiempo completo',

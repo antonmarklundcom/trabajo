@@ -30,6 +30,7 @@ Managed GitHub integration — no SSH, PM2 or Nginx.
 | `LAUNCH_PROMO_ENABLED` | Exact `"true"` to run the launch promotion (PLAN-GROWTH.md §4 Batch P); unset/anything else is off |
 | `GHL_WEBHOOK_URL` | Optional lead sink |
 | `GOOGLE_SHEETS_WEBHOOK_URL` | Optional lead sink |
+| `LEADS_NOTIFY_EMAIL` | Optional — team inbox for the "Nuevo pedido de publicación" / "Nueva consulta" emails (requires `RESEND_API_KEY` + `EMAIL_FROM` too) |
 | `VENDERCRM_API_KEY` | Optional — only if VenderCRM is switched on |
 
 The live app connects to MySQL over `localhost`. The remote host below is for

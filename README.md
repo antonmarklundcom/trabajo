@@ -173,6 +173,13 @@ Para activarlos:
 1. Creá el webhook en GHL → copiá la URL a `GHL_WEBHOOK_URL` en Hostinger
 2. Creá un Google Apps Script que reciba POST JSON → copiá la URL a `GOOGLE_SHEETS_WEBHOOK_URL`
 
+Además, los leads `employer` y `contact` (no `seeker`) generan un correo interno
+al equipo — "Nuevo pedido de publicación" / "Nueva consulta" — con el enlace de
+WhatsApp ya armado para responder en un toque, si `LEADS_NOTIFY_EMAIL` está
+seteado (requiere `RESEND_API_KEY` + `EMAIL_FROM`). Sin la variable, el envío
+se omite y se loguea; el panel `/admin` muestra "Último pedido de
+publicación" para que un envío perdido no pase inadvertido.
+
 ---
 
 ## Lead routing — campos enviados, variables de entorno, cómo configurar GHL/Sheets
