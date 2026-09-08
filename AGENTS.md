@@ -15,6 +15,7 @@ Read before writing code:
 | `PLAN-IMAGES.md` | The shared public image pipeline: backend decision, validation rules, key scheme, what PR 19–21 inherit |
 | `PLAN-NEXT.md` | The current build program (2026-08-19): audit fixes B1–B7 + email core + notifications + ops hardening + public UX, as two ordered PR batches with owner ops checklist |
 | `PLAN-PAGOPAR.md` | Not started, on purpose: the self-serve Destacado checkout — processor decision, webhook rules, schema, and a copy-paste prompt (§9) for the session that builds it. Read §1 before touching `featured_until`. |
+| `PLAN-GROWTH.md` | Planned, not started (2026-09-08): employer WhatsApp conversion (Batch W), SEO structural fixes (Batch S, two Opus PRs), blog content architecture (Batch C), redesign direction (Batch D) — with the owner's open questions (§7) and a copy-paste prompt (§10). |
 | `ARCHITECTURE.md` | Target backend design: the data seam, DB schema, auth, job lifecycle, caching |
 | `MIGRATION.md` | WordPress → MySQL cutover runbook and rollback |
 | `DEPLOY.md` | Hostinger + MySQL operations and their known traps |
