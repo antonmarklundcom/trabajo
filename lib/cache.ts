@@ -84,6 +84,18 @@ export function invalidatePublicContent(): void {
 }
 
 /**
+ * The launch promotion counter (lib/promo.ts, PLAN-GROWTH.md §4 Batch P).
+ *
+ * Called by the one write that can move it: the admin status transition that
+ * grants a promo Destacado. No path entry — the counter is read inside pages
+ * that invalidatePublicContent() already covers (/planes, /publicar) and in
+ * /admin, which is never cached.
+ */
+export function invalidateLaunchPromo(): void {
+  revalidateTag(CACHE_TAGS.promo, { expire: 0 });
+}
+
+/**
  * Blog routes. Kept apart from PUBLIC_PATHS because the blog and the job
  * catalog have no write in common: an article edit cannot change a job listing
  * and a job edit cannot change an article. The sitemap appears in both lists —

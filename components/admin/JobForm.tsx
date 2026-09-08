@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { LAUNCH_PROMO } from '@/lib/featured';
 
 type Option = { id: number; name: string };
 type CategoryOption = { id: number; slug: string; name: string };
@@ -76,19 +77,47 @@ const EMPTY: JobFormInitial = {
   rejectionReason: '',
 };
 
+/**
+ * The launch promotion, as the server saw it when this page rendered
+ * (PLAN-GROWTH.md §4 P1). `null` when the promotion is off, spent, or this job
+ * already had a promo grant — in every one of those cases the checkbox is not
+ * rendered at all, rather than rendered disabled: an option the handler would
+ * decline is not an option.
+ *
+ * Nothing here is a permission. The handler re-checks the flag, the quota, the
+ * per-job grant and the status transition inside the transaction that writes
+ * them; this prop only decides what the operator is shown.
+ */
+export type LaunchPromoOffer = { remaining: number };
+
 type Props = {
   companies: Option[];
   categories: CategoryOption[];
   cities: CategoryOption[];
   initial?: JobFormInitial;
+  promo?: LaunchPromoOffer | null;
 };
 
-export default function JobForm({ companies, categories, cities, initial }: Props) {
+export default function JobForm({ companies, categories, cities, initial, promo }: Props) {
   const router = useRouter();
   const [values, setValues] = useState<JobFormInitial>(initial ?? EMPTY);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [needsSlugConfirm, setNeedsSlugConfirm] = useState(false);
+  // Default CHECKED while eligible: the promotion is the standing offer during
+  // the launch, so approving a listing without it should be the deliberate act.
+  const [applyLaunchPromo, setApplyLaunchPromo] = useState(true);
+
+  // The promotion applies at approval — the save that moves a listing INTO
+  // `published` from something else. Re-saving one that is already published
+  // is an edit, not an approval, so the offer disappears there.
+  const promoOffered =
+    !!promo &&
+    promo.remaining > 0 &&
+    values.status === 'published' &&
+    initial?.originalStatus !== undefined &&
+    initial.originalStatus !== 'published';
 
   function setField<K extends keyof JobFormInitial>(key: K, value: JobFormInitial[K]) {
     setValues((v) => ({ ...v, [key]: value }));
@@ -97,6 +126,7 @@ export default function JobForm({ companies, categories, cities, initial }: Prop
   async function submit(confirmSlugChange = false) {
     setSubmitting(true);
     setError('');
+    setNotice('');
 
     const payload = {
       title: values.title,
@@ -116,6 +146,7 @@ export default function JobForm({ companies, categories, cities, initial }: Prop
       featuredUntil: values.featuredUntil ? new Date(values.featuredUntil).toISOString() : null,
       rejectionReason: values.rejectionReason || null,
       confirmSlugChange,
+      applyLaunchPromo: promoOffered && applyLaunchPromo,
     };
 
     const url = values.id ? `/api/admin/empleos/${values.id}` : '/api/admin/empleos';
@@ -137,6 +168,20 @@ export default function JobForm({ companies, categories, cities, initial }: Prop
       if (!res.ok) {
         setError(data.error ?? 'No se pudo guardar el empleo.');
         setSubmitting(false);
+        return;
+      }
+
+      // The promotion was asked for and the server declined it — the edit is
+      // saved either way, so this is a notice, not an error, and the operator
+      // stays on the page rather than discovering it later on the list.
+      if (payload.applyLaunchPromo && data.promoGranted === false) {
+        setNotice(
+          'El empleo se guardó, pero la promoción de lanzamiento no se aplicó (el cupo ya está ' +
+            'agotado o este aviso ya la había recibido). Podés otorgar el Destacado a mano desde ' +
+            'el panel de abajo.',
+        );
+        setSubmitting(false);
+        router.refresh();
         return;
       }
 
@@ -352,6 +397,21 @@ export default function JobForm({ companies, categories, cities, initial }: Prop
         </Field>
       </div>
 
+      {promoOffered && (
+        <label className="flex items-start gap-2.5 rounded-[10px] border border-brand/30 bg-brand-tint px-4 py-3 text-sm text-ink">
+          <input
+            type="checkbox"
+            checked={applyLaunchPromo}
+            onChange={(e) => setApplyLaunchPromo(e.target.checked)}
+            className="mt-0.5 w-4 h-4 rounded border-border text-brand focus:ring-brand"
+          />
+          <span>
+            Aplicar promoción de lanzamiento (Destacado {LAUNCH_PROMO.days} días, gratis) — quedan{' '}
+            {promo!.remaining} de {LAUNCH_PROMO.quota}
+          </span>
+        </label>
+      )}
+
       {values.status === 'rejected' && (
         <Field label="Motivo de rechazo" required>
           <textarea
@@ -380,6 +440,12 @@ export default function JobForm({ companies, categories, cities, initial }: Prop
             Confirmar cambio de slug
           </button>
         </div>
+      )}
+
+      {notice && (
+        <p className="text-sm text-ink bg-brand-tint border border-brand/30 rounded-[10px] px-4 py-3">
+          {notice}
+        </p>
       )}
 
       {error && (

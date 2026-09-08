@@ -216,7 +216,114 @@ for (const file of walk('app/api/empresa')) {
 }
 
 // ---------------------------------------------------------------------------
-// 5. And the other end of it: the public site still shows `published` only, so
+// 5. The launch promotion is a consequence of approval, never a route to it
+//    (PLAN-GROWTH.md §4 P1).
+//
+//    The promotion grants a free 90-day Destacado to the first 100 approved
+//    listings. The risk it introduces is not a wrong window — featured:verify
+//    covers the arithmetic — but a second place that decides a job is
+//    published. So: `promo_launch` may be written in exactly ONE place, that
+//    place is the admin status handler's transaction, and the grant it makes
+//    is gated on a transition INTO `published` from something that was not.
+//
+//    A promo grant on create, on the employer path, or on /api/publicar would
+//    be a listing promoting itself with a coupon, and would look on the public
+//    site exactly like one the team approved.
+// ---------------------------------------------------------------------------
+
+const PROMO_CHANNEL = "'promo_launch'";
+
+{
+  // Every source file, minus the two that are ALLOWED to name the channel:
+  // lib/featured.ts declares it, lib/db/admin.ts writes it.
+  const roots = ['app', 'components', 'lib', 'scripts'];
+  const offenders: string[] = [];
+  for (const root of roots) {
+    for (const file of walk(root)) {
+      if (file === 'lib/db/admin.ts' || file === 'lib/featured.ts') continue;
+      if (file === 'scripts/verify-moderation.ts') continue;
+      if (code(read(file)).includes(PROMO_CHANNEL)) offenders.push(file);
+    }
+  }
+  check(
+    'the promo channel is named only where it is declared and written',
+    offenders.length === 0,
+    `Found in: ${offenders.join(', ')}. lib/featured.ts declares LAUNCH_PROMO_CHANNEL and ` +
+      'lib/db/admin.ts writes it. Anywhere else is a second grant path.',
+  );
+}
+
+const admin = read('lib/db/admin.ts');
+const adminCode = code(admin);
+const promoBody = functionBody(admin, 'updateJobWithLaunchPromo');
+
+check(
+  'updateJobWithLaunchPromo() exists and is inspectable',
+  promoBody.length > 0,
+  'Could not find updateJobWithLaunchPromo() in lib/db/admin.ts. If the promo grant moved, ' +
+    'move this check with it.',
+);
+
+check(
+  'lib/db/admin.ts names the promo channel only where it counts and where it grants',
+  (adminCode.match(/LAUNCH_PROMO_CHANNEL/g) ?? []).length === 4,
+  'Expected exactly four: the import, the two counter predicates (total granted, and this ' +
+    "job's own grant), and the grant itself. A fifth is a fifth thing to prove.",
+);
+
+check(
+  'the promo grant goes through applyFeatureGrant()',
+  /applyFeatureGrant\(/.test(code(promoBody)),
+  'PLAN-PAGOPAR.md §4 point 5: not a second UPDATE jobs somewhere. The promotion is a ' +
+    'channel on the one grant, so featured:verify still covers its arithmetic.',
+);
+
+check(
+  'the promo grant runs inside a transaction with the status write',
+  /db\.transaction\(/.test(code(promoBody)) &&
+    code(promoBody).indexOf('updateJob(') < code(promoBody).indexOf('applyFeatureGrant('),
+  'The quota check and the status write must not be able to half-happen: a counter that ' +
+    'disagrees with the grants behind it is a promotion nobody can reconcile.',
+);
+
+check(
+  'the promo grant requires a transition INTO published from something else',
+  code(promoBody).includes("input.status === 'published'") &&
+    code(promoBody).includes("before.status !== 'published'") &&
+    code(promoBody).includes('if (!isApproval) return'),
+  'Approval is the only moment the promotion applies. Without both halves, re-saving an ' +
+    'already-published listing would grant a second free window, and — worse in kind — a ' +
+    'grant could be reached on a save that never published anything.',
+);
+
+check(
+  'the promo grant is refused once the quota is spent or the job already had one',
+  code(promoBody).includes('jobHasLaunchPromoGrant(') &&
+    code(promoBody).includes('countLaunchPromoGrants(') &&
+    code(promoBody).includes('LAUNCH_PROMO.quota'),
+  'One grant per aviso and 100 in total is what /terminos promises. Both checks belong ' +
+    'inside the transaction, where the status write is.',
+);
+
+check(
+  'the promotion never sets a job status itself',
+  (promoBody.match(/status:\s*'(draft|pending|published|rejected|archived)'/g) ?? []).length === 0,
+  'The status comes from JobInput, written by updateJob(). A status literal here would be ' +
+    'the promotion publishing something.',
+);
+
+for (const file of [...walk('app/api/empresa'), ...walk('app/api/publicar')]) {
+  const source = code(read(file));
+  check(
+    `${file} cannot request the launch promotion`,
+    !/applyLaunchPromo/.test(source) && !/promo_launch/.test(source),
+    'The promotion is applied by a human at approval. A public or employer route that could ' +
+      'ask for it would be a listing comping itself.',
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 6. And the other end of it: the public site still shows `published` only, so
 //    "lands pending" and "is not public" are the same statement.
 // ---------------------------------------------------------------------------
 

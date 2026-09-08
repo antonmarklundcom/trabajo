@@ -47,4 +47,11 @@ export const CACHE_TAGS = {
    * and the blog is small enough that its own tag costs nothing.
    */
   blog: 'public-blog',
+  /**
+   * The launch promotion counter (lib/promo.ts). Its own tag because it moves
+   * on exactly one write — a promo grant — and shares none with the catalogue:
+   * expiring every job list because a counter ticked, or leaving the counter
+   * stale because only a job was edited, are both wrong.
+   */
+  promo: 'launch-promo',
 } as const;

@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getDashboardStats } from '@/lib/db/admin';
 import { daysSince, getLastPurgeRun, PURGE_STALE_AFTER_DAYS } from '@/lib/db/ops-state';
+import { getLaunchPromoStatus } from '@/lib/promo';
+import { LAUNCH_PROMO } from '@/lib/featured';
 
 export const metadata: Metadata = { title: 'Panel — trabajo.com.py' };
 
@@ -30,7 +32,11 @@ const ENTITY_LABELS: Record<string, string> = {
 };
 
 export default async function AdminDashboardPage() {
-  const [stats, lastPurgeRun] = await Promise.all([getDashboardStats(), getLastPurgeRun()]);
+  const [stats, lastPurgeRun, promo] = await Promise.all([
+    getDashboardStats(),
+    getLastPurgeRun(),
+    getLaunchPromoStatus(),
+  ]);
 
   return (
     <div className="space-y-8">
@@ -53,6 +59,27 @@ export default async function AdminDashboardPage() {
         />
         <StatCard label="Empresas" value={stats.companyCount} href="/admin/empresas" />
       </div>
+
+      {/*
+        The promotion quota (PLAN-GROWTH.md §8): the owner reads this weekly and
+        sets LAUNCH_PROMO_ENABLED=false once it reaches 100. Rendered only while
+        the flag is on — a counter for a promotion nobody is running is noise.
+        The public copy disappears on its own at 0 remaining; the flag is what
+        stops further grants.
+      */}
+      {promo.enabled && (
+        <div className="rounded-[10px] border border-border bg-white p-5">
+          <p className="text-sm text-ink-secondary">Promoción de lanzamiento</p>
+          <p className="text-base font-semibold text-ink mt-1">
+            Promoción: {promo.granted}/{promo.quota}
+          </p>
+          <p className="text-sm text-ink-secondary mt-1">
+            {promo.remaining > 0
+              ? `Quedan ${promo.remaining} avisos con Destacado de ${LAUNCH_PROMO.days} días gratis. Se aplica al aprobar cada aviso.`
+              : 'El cupo está agotado. Poné LAUNCH_PROMO_ENABLED=false en hPanel para cerrar la promoción.'}
+          </p>
+        </div>
+      )}
 
       <PurgeStatus lastRun={lastPurgeRun} />
 

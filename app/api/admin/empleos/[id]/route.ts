@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import { authErrorResponse, requireApiSession, requireRole } from '@/lib/auth';
-import { deleteJob, getAdminJob, jobSlugExists, updateJob } from '@/lib/db/admin';
-import { invalidatePublicContent } from '@/lib/cache';
+import { deleteJob, getAdminJob, jobSlugExists, updateJobWithLaunchPromo } from '@/lib/db/admin';
+import { invalidateLaunchPromo, invalidatePublicContent } from '@/lib/cache';
+import { launchPromoEnabled } from '@/lib/promo';
 import { slugify, uniqueSlug } from '@/lib/slug';
 import { jobStatusEnum, contractTypeEnum, seniorityEnum, modalityEnum } from '@/lib/db/schema';
 
@@ -26,6 +27,14 @@ const jobSchema = z.object({
   // needs an explicit confirmation from the editor, who is told a 301 is
   // needed — this app has no automated redirect issuance yet.
   confirmSlugChange: z.boolean().optional(),
+  // The launch promotion (PLAN-GROWTH.md §4 P1). A REQUEST, not a decision:
+  // the handler grants only if this save is also the transition to
+  // `published`, the flag is on, the quota is unspent and this job has no
+  // promo grant already — and all four are re-checked server-side, inside the
+  // same transaction as the status write. A client that sends `true` on an
+  // edit, on a rejection, or on a listing that already ran the promotion gets
+  // its edit saved and nothing granted.
+  applyLaunchPromo: z.boolean().optional(),
 }).refine((data) => data.status !== 'rejected' || !!data.rejectionReason?.trim(), {
   message: 'El motivo de rechazo es obligatorio.',
   path: ['rejectionReason'],
@@ -71,7 +80,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       slug = await uniqueSlug(slugify(requestedSlug), (candidate) => jobSlugExists(candidate, id));
     }
 
-    await updateJob(
+    const promo = await updateJobWithLaunchPromo(
       id,
       {
         slug,
@@ -92,6 +101,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         rejectionReason: data.rejectionReason ?? null,
       },
       user.id,
+      {
+        applyLaunchPromo: data.applyLaunchPromo === true,
+        // Read here rather than inside the transaction so the flag is one
+        // request's worth of truth: an operator who saw the checkbox is the
+        // operator whose save is evaluated against the flag they saw.
+        promoEnabled: launchPromoEnabled(),
+      },
     );
 
     // Covers publish, unpublish, reject, archive, feature and plain edits —
@@ -99,8 +115,16 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     // covered too: the '/empleos/[slug]' pattern invalidates every job page,
     // so the old URL stops being served from cache as well.
     invalidatePublicContent();
+    // Only on an actual grant: the counter the public promo copy renders moved,
+    // and nothing else in this handler can move it.
+    if (promo.granted) invalidateLaunchPromo();
 
-    return Response.json({ ok: true, slug });
+    return Response.json({
+      ok: true,
+      slug,
+      promoGranted: promo.granted,
+      promoFeaturedUntil: promo.granted ? promo.featuredUntil.toISOString() : null,
+    });
   } catch (err) {
     return authErrorResponse(err) ?? Response.json({ error: 'Error interno.' }, { status: 500 });
   }
