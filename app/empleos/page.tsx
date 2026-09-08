@@ -3,6 +3,7 @@ import { Suspense } from 'react';
 import Link from 'next/link';
 import { getJobs, getCategories, getCities } from '@/lib/data';
 import { canonicalFor, listingIndexRule, type ListingParams } from '@/lib/seo';
+import { categoryLabel, cityLabel } from '@/lib/labels';
 import type { Category, City, JobFilters } from '@/lib/types';
 import JobCard from '@/components/JobCard';
 import FilterPanel from '@/components/FilterPanel';
@@ -63,11 +64,16 @@ export async function generateMetadata({
   // where it is applied.
   const rule = listingIndexRule(params);
 
+  const pageSuffix = params.page && params.page > 1 ? ` — página ${params.page}` : '';
   const title = params.q
-    ? `Empleos de "${params.q}"${params.ciudad ? ` en ${params.ciudad}` : ''}`
-    : params.page && params.page > 1
-      ? `Todos los empleos en Paraguay — página ${params.page}`
-      : 'Todos los empleos en Paraguay';
+    ? `Empleos de "${params.q}"${params.ciudad ? ` en ${cityLabel(params.ciudad)}` : ''}`
+    : params.categoria && params.ciudad
+      ? `Empleos de ${categoryLabel(params.categoria)} en ${cityLabel(params.ciudad)}${pageSuffix}`
+      : params.categoria
+        ? `Empleos de ${categoryLabel(params.categoria)} en Paraguay${pageSuffix}`
+        : params.ciudad
+          ? `Empleos en ${cityLabel(params.ciudad)}${pageSuffix}`
+          : `Todos los empleos en Paraguay${pageSuffix}`;
 
   return {
     title,
@@ -125,9 +131,9 @@ export default async function EmpleosPage({
   const headingCity = cities.find((c) => c.slug === filters.ciudad);
   const heading =
     headingCategory && headingCity
-      ? `Empleos de ${headingCategory.name.toLowerCase()} en ${headingCity.name}`
+      ? `Empleos de ${headingCategory.name} en ${headingCity.name}`
       : headingCategory
-        ? `Empleos de ${headingCategory.name.toLowerCase()} en Paraguay`
+        ? `Empleos de ${headingCategory.name} en Paraguay`
         : headingCity
           ? `Empleos en ${headingCity.name}`
           : 'Empleos en Paraguay';

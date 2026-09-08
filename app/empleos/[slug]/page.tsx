@@ -294,9 +294,9 @@ export default async function JobDetailPage({ params }: { params: Params }) {
 
               {/* Meta */}
               <div className="mt-8 pt-6 border-t border-border flex flex-col sm:flex-row gap-4 text-sm text-ink-secondary">
-                <span>Publicado: {formatRelativeDate(job.postedAt)}</span>
+                <time dateTime={job.postedAt}>Publicado: {formatRelativeDate(job.postedAt)}</time>
                 {job.updatedAt !== job.postedAt && (
-                  <span>Actualizado: {formatRelativeDate(job.updatedAt)}</span>
+                  <time dateTime={job.updatedAt}>Actualizado: {formatRelativeDate(job.updatedAt)}</time>
                 )}
               </div>
             </article>

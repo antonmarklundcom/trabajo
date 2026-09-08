@@ -18,8 +18,8 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   if (!category) return { title: 'Categoría no encontrada' };
 
   return {
-    title: `Trabajo de ${category.name.toLowerCase()} en Paraguay`,
-    description: `Encontrá los mejores empleos de ${category.name.toLowerCase()} en Paraguay. Postulate gratis en trabajo.com.py`,
+    title: `Trabajo de ${category.name} en Paraguay`,
+    description: `Encontrá los mejores empleos de ${category.name} en Paraguay. Postulate gratis en trabajo.com.py`,
     robots:
       category.jobCount === 0 ? { index: false, follow: true } : { index: true, follow: true },
     alternates: { canonical: canonicalFor(`/trabajo/${categoria}`) },
@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 
 export default async function CategoriaPage({ params }: { params: Params }) {
   const { categoria } = await params;
-  const [category, { jobs }, cities] = await Promise.all([
+  const [category, { jobs, total }, cities] = await Promise.all([
     getCategory(categoria),
     getJobs({ categoria, orden: 'recientes' }),
     getCities(),
@@ -86,11 +86,11 @@ export default async function CategoriaPage({ params }: { params: Params }) {
         {/* Hero */}
         <div className="mb-8">
           <h1 className="text-3xl sm:text-4xl font-bold text-ink">
-            Trabajo de {category.name.toLowerCase()} en Paraguay
+            Trabajo de {category.name} en Paraguay
           </h1>
           <p className="mt-3 text-base text-ink-secondary max-w-2xl">
-            Explorá las {jobs.length > 0 ? jobs.length : 'últimas'} oportunidades laborales en{' '}
-            {category.name.toLowerCase()} disponibles en todo el Paraguay.
+            Explorá las {total > 0 ? total : 'últimas'} oportunidades laborales en{' '}
+            {category.name} disponibles en todo el Paraguay.
             Postulate gratis y encontrá el empleo ideal para vos.
           </p>
         </div>
@@ -137,7 +137,7 @@ export default async function CategoriaPage({ params }: { params: Params }) {
                 href={`/empleos?categoria=${categoria}`}
                 className="text-sm font-medium text-brand hover:underline"
               >
-                Ver todos los empleos de {category.name.toLowerCase()} →
+                Ver todos los empleos de {category.name} →
               </Link>
             </div>
           </>

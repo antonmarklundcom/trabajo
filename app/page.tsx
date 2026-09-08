@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import { getFeaturedJobs, getRecentJobs, getCategories, getCities } from '@/lib/data';
-import { canonicalFor } from '@/lib/seo';
+import { canonicalFor, siteUrl } from '@/lib/seo';
 import { getLaunchPromoStatus } from '@/lib/promo';
-import { WHATSAPP_HOURS_COPY } from '@/lib/whatsapp';
+import { WHATSAPP_HOURS_COPY, siteWhatsAppNumber } from '@/lib/whatsapp';
 import SearchHero from '@/components/SearchHero';
 import CategoryGrid from '@/components/CategoryGrid';
 import JobCard from '@/components/JobCard';
@@ -21,6 +21,9 @@ export const revalidate = 300;
 // `/` is the one URL a site is most likely to be reached at under a second
 // address (a preview host, a trailing-slash variant, a tracking parameter).
 export const metadata: Metadata = {
+  title: 'Empleos en Paraguay — trabajo.com.py',
+  description:
+    'Buscá trabajo en Asunción, Ciudad del Este, Encarnación y todo Paraguay. Publicá tu empleo gratis. El portal de empleos hecho para el móvil.',
   alternates: { canonical: canonicalFor('/') },
 };
 
@@ -34,8 +37,48 @@ export default async function HomePage() {
   ]);
   const promoActive = promo.enabled && promo.remaining > 0;
 
+  const site = siteUrl();
+  const waNumber = siteWhatsAppNumber();
+  const organizationJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'trabajo.com.py',
+    url: site,
+    logo: `${site}/icon.svg`,
+    // No `sameAs` (owner decision D9): WhatsApp is the only contact channel,
+    // and there are no social profiles to point at.
+    ...(waNumber
+      ? {
+          contactPoint: {
+            '@type': 'ContactPoint',
+            telephone: waNumber.startsWith('+') ? waNumber : `+${waNumber}`,
+            contactType: 'sales',
+          },
+        }
+      : {}),
+  };
+  const websiteJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'trabajo.com.py',
+    url: site,
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: `${site}/empleos?q={search_term_string}`,
+      'query-input': 'required name=search_term_string',
+    },
+  };
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
+      />
       <SearchHero cities={cities} />
 
       {/* Featured jobs */}
