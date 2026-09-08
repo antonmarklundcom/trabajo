@@ -1,8 +1,10 @@
 import type { Metadata } from 'next';
 import { canonicalFor } from '@/lib/seo';
 import { siteWhatsAppNumber, WHATSAPP_HOURS_COPY, type EmployerIntent } from '@/lib/whatsapp';
+import { getLaunchPromoStatus } from '@/lib/promo';
 import FloatingWhatsApp from '@/components/FloatingWhatsApp';
 import WhatsAppCta from '@/components/WhatsAppCta';
+import LaunchPromoStrip from '@/components/LaunchPromoStrip';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
@@ -82,12 +84,14 @@ const plans: Array<{
   },
 ];
 
-export default function PlanesPage() {
+export default async function PlanesPage() {
   const showPlans = process.env.NEXT_PUBLIC_SHOW_PLANS !== 'false';
   // Falls back to ctaHref when NEXT_PUBLIC_WHATSAPP_LEADS is unset, so a
   // missing number is a working /contacto link rather than a wa.me/ that
   // goes nowhere (WhatsAppCta itself renders null in that case).
   const hasWhatsApp = Boolean(siteWhatsAppNumber());
+  const promo = await getLaunchPromoStatus();
+  const promoActive = promo.enabled && promo.remaining > 0;
 
   return (
     <>
@@ -98,6 +102,8 @@ export default function PlanesPage() {
           Empezá gratis. Escalá cuando lo necesites. Nuestro equipo te acompaña en todo momento.
         </p>
       </div>
+
+      <LaunchPromoStrip promo={promo} />
 
       {showPlans && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -125,8 +131,21 @@ export default function PlanesPage() {
                 )}
                 <h2 className="text-xl font-bold text-ink">{plan.name}</h2>
                 <div className="mt-3 mb-4">
-                  <span className="text-3xl font-bold text-ink">{plan.price}</span>
-                  <span className="text-sm text-ink-secondary ml-1">{plan.priceNote}</span>
+                  {plan.whatsappIntent === 'destacado' && promoActive ? (
+                    <>
+                      <span className="text-2xl font-bold text-ink">
+                        Gratis para los primeros 100 avisos
+                      </span>
+                      <p className="text-sm text-ink-secondary mt-1">
+                        Después de la promoción: Consultar
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-3xl font-bold text-ink">{plan.price}</span>
+                      <span className="text-sm text-ink-secondary ml-1">{plan.priceNote}</span>
+                    </>
+                  )}
                 </div>
                 <p className="text-sm text-ink-secondary mb-6">{plan.description}</p>
                 <ul className="space-y-3 flex-1">
@@ -152,6 +171,7 @@ export default function PlanesPage() {
                 {plan.whatsappIntent && hasWhatsApp ? (
                   <WhatsAppCta
                     intent={plan.whatsappIntent}
+                    promoActive={promoActive}
                     label={plan.cta}
                     sourcePage="/planes"
                     className="mt-8"

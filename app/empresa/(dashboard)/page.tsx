@@ -54,6 +54,7 @@ export default async function EmpresaDashboardPage() {
         featuredUntil={plan.featuredUntil}
         lastFeaturedUntil={plan.lastFeaturedUntil}
         companyName={company?.name ?? ''}
+        activeIsLaunchPromo={plan.activeIsLaunchPromo}
       />
     </div>
   );

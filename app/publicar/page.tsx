@@ -1,12 +1,14 @@
 import type { Metadata } from 'next';
 import { canonicalFor } from '@/lib/seo';
 import { WHATSAPP_HOURS_COPY } from '@/lib/whatsapp';
+import { getLaunchPromoStatus } from '@/lib/promo';
 import Link from 'next/link';
 import { getCategories, getCities } from '@/lib/data';
 import { employerDashboardEnabled, employerSignupEnabled } from '@/lib/flags';
 import EmployerForm from '@/components/EmployerForm';
 import WhatsAppCta from '@/components/WhatsAppCta';
 import FloatingWhatsApp from '@/components/FloatingWhatsApp';
+import LaunchPromoStrip from '@/components/LaunchPromoStrip';
 
 export const metadata: Metadata = {
   title: 'Publicá tu empleo gratis en Paraguay — por WhatsApp o formulario',
@@ -16,7 +18,12 @@ export const metadata: Metadata = {
 };
 
 export default async function PublicarPage() {
-  const [categories, cities] = await Promise.all([getCategories(), getCities()]);
+  const [categories, cities, promo] = await Promise.all([
+    getCategories(),
+    getCities(),
+    getLaunchPromoStatus(),
+  ]);
+  const promoActive = promo.enabled && promo.remaining > 0;
   // Both flags, same reasoning as the route handler: /empresa/* 404s while the
   // dashboard is dark, so a link to it would be a link to nothing.
   const selfServeEnabled = employerDashboardEnabled() && employerSignupEnabled();
@@ -31,6 +38,8 @@ export default async function PublicarPage() {
         </p>
       </div>
 
+      <LaunchPromoStrip promo={promo} />
+
       <div className="grid grid-cols-1 gap-6">
         {/* Card A — WhatsApp, first on mobile and desktop (PLAN-GROWTH.md §4
             W3 — WhatsApp is the primary path in this market). */}
@@ -40,7 +49,7 @@ export default async function PublicarPage() {
             Mandanos el puesto, la ciudad y un número de contacto. {WHATSAPP_HOURS_COPY} Lo
             publicamos cuando esté aprobado.
           </p>
-          <WhatsAppCta intent="publicar" sourcePage="/publicar" />
+          <WhatsAppCta intent="publicar" promoActive={promoActive} sourcePage="/publicar" />
         </div>
 
         {/* Card B — form, the honest second option */}

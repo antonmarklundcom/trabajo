@@ -45,6 +45,7 @@ import {
 } from './schema';
 import { slugify, uniqueSlug } from '../slug';
 import { deleteImage } from '../image-storage';
+import { LAUNCH_PROMO_CHANNEL } from '../featured';
 
 async function getDb() {
   return (await import('./index')).db;
@@ -128,10 +129,16 @@ export async function getEmployerPlanSummary(companyId: number): Promise<{
   featuredUntil: Date | null;
   /** Latest end of an already-closed one, or null. Drives the "renew" wording. */
   lastFeaturedUntil: Date | null;
+  /**
+   * Whether the active window's last grant came from the launch promotion
+   * (PLAN-GROWTH.md §4 P2), so the panel can label it. `false` when nothing
+   * is active — there is no "last grant" to have a channel.
+   */
+  activeIsLaunchPromo: boolean;
 }> {
   const db = await getDb();
 
-  const [[active], [lapsed]] = await Promise.all([
+  const [[active], [lapsed], [latestActiveJob]] = await Promise.all([
     db
       .select({ n: count(), latest: sql<Date | null>`MAX(${jobs.featuredUntil})` })
       .from(jobs)
@@ -140,12 +147,42 @@ export async function getEmployerPlanSummary(companyId: number): Promise<{
       .select({ latest: sql<Date | null>`MAX(${jobs.featuredUntil})` })
       .from(jobs)
       .where(and(ownedByCompany(companyId), sql`${jobs.featuredUntil} <= NOW()`)),
+    db
+      .select({ id: jobs.id })
+      .from(jobs)
+      .where(and(ownedByCompany(companyId), sql`${jobs.featuredUntil} > NOW()`))
+      .orderBy(desc(jobs.featuredUntil))
+      .limit(1),
   ]);
+
+  let activeIsLaunchPromo = false;
+  if (latestActiveJob) {
+    // Provenance of the active window's grant. lib/db/admin.ts's
+    // getJobFeatureState() reads the same activity_log shape for the admin
+    // panel; kept as a separate query here rather than a cross-import,
+    // per this file's one rule — no admin branch, no admin queries reused.
+    const [lastGrant] = await db
+      .select({
+        channel: sql<string | null>`JSON_UNQUOTE(JSON_EXTRACT(${activityLog.meta}, '$.channel'))`,
+      })
+      .from(activityLog)
+      .where(
+        and(
+          eq(activityLog.entityType, 'job'),
+          eq(activityLog.entityId, latestActiveJob.id),
+          eq(activityLog.action, 'feature_grant'),
+        ),
+      )
+      .orderBy(desc(activityLog.id))
+      .limit(1);
+    activeIsLaunchPromo = lastGrant?.channel === LAUNCH_PROMO_CHANNEL;
+  }
 
   return {
     activeFeaturedCount: active?.n ?? 0,
     featuredUntil: active?.latest ? new Date(active.latest) : null,
     lastFeaturedUntil: lapsed?.latest ? new Date(lapsed.latest) : null,
+    activeIsLaunchPromo,
   };
 }
 
