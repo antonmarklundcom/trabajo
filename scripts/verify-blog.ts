@@ -18,9 +18,11 @@
 //
 // No database, no env, no network — it runs in CI, where neither exists. When
 // DATABASE_URL *is* set, section 4 additionally walks the real articles.
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { getBlogPost, getBlogPosts, getBlogSlugs, renderMarkdown } from '../lib/blog';
+import { BLOG_CATEGORIES, BLOG_CATEGORY_LABELS, BLOG_CATEGORY_COPY } from '../lib/blog-categories';
+import { blogCategoryEnum } from '../lib/db/schema';
 
 let failures = 0;
 
@@ -177,6 +179,66 @@ async function main() {
     !/from '@\/lib\/db\/blog'/.test(pageSource),
     'AGENTS.md: blog content is read through lib/blog.ts, which is where the ' +
       'published rule and the markdown escaping both live.',
+  );
+
+  // -------------------------------------------------------------------------
+  // 3b. Categories have exactly one source (C1, PLAN-GROWTH.md §4).
+  // -------------------------------------------------------------------------
+  // Before lib/blog-categories.ts existed, lib/db/schema.ts, lib/blog.ts and
+  // BlogPostForm.tsx each hardcoded the same array of category slugs — three
+  // chances for one of them to drift when a category is added. This walks the
+  // same directories scripts/verify-whatsapp.ts does, looking for the two
+  // slugs every one of those three copies wrote adjacently, and asserts the
+  // pattern survives in exactly the one file meant to have it.
+  const SCAN_DIRS = ['app', 'components', 'lib'];
+  const SKIP_DIRS = new Set(['node_modules', '.next']);
+
+  function walk(dir: string): string[] {
+    const out: string[] = [];
+    for (const entry of readdirSync(join(process.cwd(), dir))) {
+      if (SKIP_DIRS.has(entry)) continue;
+      const rel = `${dir}/${entry}`;
+      if (statSync(join(process.cwd(), rel)).isDirectory()) out.push(...walk(rel));
+      else if (rel.endsWith('.ts') || rel.endsWith('.tsx')) out.push(rel);
+    }
+    return out;
+  }
+
+  const sourceFiles = SCAN_DIRS.flatMap(walk);
+  const adjacentSlugsRe = /['"]noticias['"]\s*,\s*['"]analisis-laboral['"]/;
+  const filesWithTheArray = sourceFiles.filter((f) =>
+    adjacentSlugsRe.test(readFileSync(join(process.cwd(), f), 'utf8')),
+  );
+
+  check(
+    'exactly one array literal of category slugs exists (lib/blog-categories.ts)',
+    filesWithTheArray.length === 1 && filesWithTheArray[0] === 'lib/blog-categories.ts',
+    `found in: ${filesWithTheArray.join(', ') || '(nowhere)'}`,
+  );
+
+  check(
+    'BLOG_CATEGORIES has all seven categories (§7 D4)',
+    BLOG_CATEGORIES.length === 7,
+    BLOG_CATEGORIES.join(', '),
+  );
+  check(
+    'every category has a label',
+    BLOG_CATEGORIES.every((c) => typeof BLOG_CATEGORY_LABELS[c] === 'string' && BLOG_CATEGORY_LABELS[c].length > 0),
+  );
+  check(
+    'every category has archive copy (title/description/intro)',
+    BLOG_CATEGORIES.every((c) => {
+      const copy = BLOG_CATEGORY_COPY[c];
+      return Boolean(copy?.title && copy.description && copy.intro);
+    }),
+  );
+  check(
+    'analisis-laboral kept its stored value — only its label changed',
+    BLOG_CATEGORIES.includes('analisis-laboral') && BLOG_CATEGORY_LABELS['analisis-laboral'] === 'Mercado laboral',
+  );
+  check(
+    "the database enum is the same tuple as BLOG_CATEGORIES, not a copy",
+    (blogCategoryEnum as readonly string[]) === (BLOG_CATEGORIES as readonly string[]),
   );
 
   // -------------------------------------------------------------------------

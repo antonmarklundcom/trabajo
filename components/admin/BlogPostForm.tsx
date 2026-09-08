@@ -2,14 +2,14 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { BLOG_CATEGORIES, BLOG_CATEGORY_LABELS } from '@/lib/blog-categories';
 
 type TaxonomyOption = { id: number; slug: string; name: string };
 
-const CATEGORY_OPTIONS = [
-  { value: 'noticias', label: 'Noticias' },
-  { value: 'analisis-laboral', label: 'Análisis laboral' },
-  { value: 'consejos-cv', label: 'Consejos de CV' },
-];
+const CATEGORY_OPTIONS = BLOG_CATEGORIES.map((value) => ({
+  value,
+  label: BLOG_CATEGORY_LABELS[value],
+}));
 
 const STATUS_OPTIONS = [
   { value: 'draft', label: 'Borrador' },
