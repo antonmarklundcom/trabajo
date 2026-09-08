@@ -43,43 +43,51 @@ const sections = [
     ],
   },
   {
-    title: '6. Uso correcto del sitio',
+    title: '6. Promoción de lanzamiento',
+    body: [
+      'Durante la promoción de lanzamiento, los primeros 100 avisos aprobados por nuestro equipo reciben el servicio Destacado por 90 días, sin costo. La promoción se aplica sobre avisos que ya pasaron la revisión del equipo: no otorga la aprobación ni la acelera.',
+      'Se aplica una sola vez por aviso, no tiene valor en efectivo, no es transferible ni canjeable por otro servicio. Podemos dar por terminada la promoción cuando se agoten los 100 cupos o en cualquier momento, sin que eso afecte los Destacados ya otorgados.',
+      'Cumplidos los 90 días, el aviso deja de estar destacado y sigue publicado con normalidad. La renovación del Destacado se cobra al precio vigente.',
+    ],
+  },
+  {
+    title: '7. Uso correcto del sitio',
     body: [
       'Te comprometés a usar el sitio de buena fe: no cargar información falsa, no suplantar a otras personas o empresas, no extraer datos de forma masiva (scraping) y no interferir con el funcionamiento técnico del portal.',
     ],
   },
   {
-    title: '7. Contenido de terceros',
+    title: '8. Contenido de terceros',
     body: [
       'Las ofertas publicadas son responsabilidad de las empresas anunciantes. Hacemos esfuerzos razonables de curaduría, pero no garantizamos la exactitud de cada anuncio. Si detectás una oferta sospechosa, avisanos desde la página de contacto. Nunca pagues dinero para postularte a un empleo: ninguna oferta legítima lo exige.',
     ],
   },
   {
-    title: '8. Propiedad intelectual',
+    title: '9. Propiedad intelectual',
     body: [
       'La marca, el diseño y el contenido propio del sitio pertenecen a trabajo.com.py. No podés reproducirlos con fines comerciales sin autorización.',
     ],
   },
   {
-    title: '9. Limitación de responsabilidad',
+    title: '10. Limitación de responsabilidad',
     body: [
       'El sitio se ofrece "tal cual". En la medida permitida por la ley, no respondemos por daños derivados del uso del portal, de la relación entre candidatos y empresas, ni de interrupciones técnicas del servicio.',
     ],
   },
   {
-    title: '10. Privacidad',
+    title: '11. Privacidad',
     body: [
       'El tratamiento de tus datos personales se rige por nuestra Política de privacidad, disponible en /privacidad.',
     ],
   },
   {
-    title: '11. Ley aplicable',
+    title: '12. Ley aplicable',
     body: [
       'Estos términos se rigen por las leyes de la República del Paraguay. Cualquier controversia se someterá a los tribunales ordinarios de la ciudad de Asunción.',
     ],
   },
   {
-    title: '12. Cambios',
+    title: '13. Cambios',
     body: [
       'Podemos actualizar estos términos; la versión vigente estará siempre publicada en esta página. El uso continuado del sitio implica la aceptación de los términos actualizados.',
     ],
@@ -92,7 +100,7 @@ export default function TerminosPage() {
       <h1 className="text-3xl sm:text-4xl font-bold text-ink">
         Términos y condiciones
       </h1>
-      <p className="mt-3 text-sm text-ink-3">Última actualización: julio de 2026</p>
+      <p className="mt-3 text-sm text-ink-3">Última actualización: septiembre de 2026</p>
 
       <div className="mt-8 space-y-8">
         {sections.map((s) => (

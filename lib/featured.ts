@@ -29,6 +29,34 @@ export const FEATURE_PAYMENT_LABELS: Record<FeaturePaymentMethod, string> = {
   otro: 'Otro',
 };
 
+/**
+ * The launch promotion (PLAN-GROWTH.md §4 Batch P, §7 D15): the first 100
+ * approved listings get Destacado for 90 days, free.
+ *
+ * Here rather than in lib/promo.ts because both sides need it and only one of
+ * them may be `server-only`: lib/db/admin.ts writes the channel, the admin
+ * client components render the quota, and lib/promo.ts counts against it. Same
+ * reasoning as the duration and payment lists above.
+ *
+ * `days` is typed as a FeatureDurationDays, not a loose number: the promotion
+ * grants through the same bounded list every sale does, so a typo here is a
+ * type error rather than a comped decade.
+ */
+export const LAUNCH_PROMO: { quota: number; days: FeatureDurationDays } = {
+  quota: 100,
+  days: 90,
+};
+
+/** The grant channel a promo window records. Mirrored in FEATURE_GRANT_CHANNELS. */
+export const LAUNCH_PROMO_CHANNEL = 'promo_launch';
+
+/** Spanish (Paraguay), for the admin surfaces that name how a window opened. */
+export const FEATURE_GRANT_CHANNEL_LABELS: Record<string, string> = {
+  whatsapp_manual: 'Venta por WhatsApp',
+  pagopar: 'Pago en línea',
+  promo_launch: 'Promoción de lanzamiento',
+};
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export function isFeatureDuration(value: number): value is FeatureDurationDays {

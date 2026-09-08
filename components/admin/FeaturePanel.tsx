@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   FEATURE_DURATION_DAYS,
+  FEATURE_GRANT_CHANNEL_LABELS,
   FEATURE_PAYMENT_LABELS,
   FEATURE_PAYMENT_METHODS,
 } from '@/lib/featured';
@@ -26,7 +27,19 @@ import {
  * render is an impure call, and the admin panel must not disagree with the
  * database about whether a window someone just paid for is open.
  */
-type Props = { jobId: number; featuredUntil: string | null; isActive: boolean };
+/**
+ * `channel` is how the LAST grant on this job opened its window — a WhatsApp
+ * sale, an online payment, or the launch promotion (PLAN-GROWTH.md §4 P1).
+ * Read from activity_log server-side, because that is where a window's
+ * provenance lives; naming it here is what stops an operator from selling a
+ * renewal to someone whose 90 days were comped.
+ */
+type Props = {
+  jobId: number;
+  featuredUntil: string | null;
+  isActive: boolean;
+  channel?: string | null;
+};
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString('es-PY', {
@@ -38,7 +51,7 @@ function formatDate(iso: string): string {
   });
 }
 
-export default function FeaturePanel({ jobId, featuredUntil, isActive }: Props) {
+export default function FeaturePanel({ jobId, featuredUntil, isActive, channel }: Props) {
   const router = useRouter();
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState<string>('transferencia');
@@ -122,6 +135,13 @@ export default function FeaturePanel({ jobId, featuredUntil, isActive }: Props) 
           'Este empleo nunca fue destacado.'
         )}
       </p>
+
+      {featuredUntil && channel && FEATURE_GRANT_CHANNEL_LABELS[channel] && (
+        <p className="text-sm text-ink-secondary">
+          Origen del último Destacado:{' '}
+          <span className="font-medium text-ink">{FEATURE_GRANT_CHANNEL_LABELS[channel]}</span>.
+        </p>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>

@@ -32,6 +32,8 @@ import type { Role } from '../auth';
 import { normalizePhone } from '../leads';
 import {
   computeFeaturedUntil,
+  LAUNCH_PROMO,
+  LAUNCH_PROMO_CHANNEL,
   type FeatureDurationDays,
   type FeaturePaymentMethod,
 } from '../featured';
@@ -41,6 +43,20 @@ import { deleteImage } from '../image-storage';
 async function getDb() {
   return (await import('./index')).db;
 }
+
+/**
+ * Anything the writes below can run on: the pooled connection, or a
+ * transaction handle from db.transaction().
+ *
+ * It exists for exactly one caller — updateJobWithLaunchPromo(), where the
+ * status transition, the quota check and the grant have to be one atomic unit
+ * — and the type is DERIVED from the drizzle instance rather than written out,
+ * so a drizzle upgrade that changes the transaction handle is a type error
+ * here instead of a silent `any` in the one place atomicity is load-bearing.
+ */
+type Db = Awaited<ReturnType<typeof getDb>>;
+type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
+export type Executor = Db | Tx;
 
 // ---------------------------------------------------------------------------
 // Lookups — for admin <select> options. Unlike lib/db/queries.ts's
@@ -102,8 +118,9 @@ async function logActivity(
   entityId: number,
   action: string,
   meta?: Record<string, unknown>,
+  executor?: Executor,
 ) {
-  const db = await getDb();
+  const db = executor ?? (await getDb());
   await db.insert(activityLog).values({
     actorUserId,
     entityType,
@@ -198,8 +215,8 @@ export async function getAdminJobs(filters: AdminJobFilters) {
   return { jobs: rows, total, pageSize: ADMIN_PAGE_SIZE };
 }
 
-export async function getAdminJob(id: number) {
-  const db = await getDb();
+export async function getAdminJob(id: number, executor?: Executor) {
+  const db = executor ?? (await getDb());
   const rows = await db.select().from(jobs).where(eq(jobs.id, id)).limit(1);
   return rows[0] ?? null;
 }
@@ -214,7 +231,7 @@ export async function getAdminJob(id: number) {
  */
 export async function getJobFeatureState(
   id: number,
-): Promise<{ featuredUntil: Date | null; active: boolean } | null> {
+): Promise<{ featuredUntil: Date | null; active: boolean; channel: string | null } | null> {
   const db = await getDb();
   const [row] = await db
     .select({
@@ -225,7 +242,29 @@ export async function getJobFeatureState(
     .where(eq(jobs.id, id))
     .limit(1);
   if (!row) return null;
-  return { featuredUntil: row.featuredUntil, active: Number(row.active) === 1 };
+
+  // How the current window was opened, for the panel to name it — a sale, a
+  // payment, or the launch promotion. Read from the last grant rather than
+  // stored on the job: `activity_log` is where a window's provenance lives
+  // (ARCHITECTURE.md §4), and a column would be a second copy to keep true.
+  const [lastGrant] = await db
+    .select({ channel: sql<string | null>`JSON_UNQUOTE(JSON_EXTRACT(${activityLog.meta}, '$.channel'))` })
+    .from(activityLog)
+    .where(
+      and(
+        eq(activityLog.entityType, 'job'),
+        eq(activityLog.entityId, id),
+        eq(activityLog.action, FEATURE_GRANT_ACTION),
+      ),
+    )
+    .orderBy(desc(activityLog.id))
+    .limit(1);
+
+  return {
+    featuredUntil: row.featuredUntil,
+    active: Number(row.active) === 1,
+    channel: lastGrant?.channel ?? null,
+  };
 }
 
 export async function jobSlugExists(slug: string, excludeId?: number) {
@@ -276,9 +315,14 @@ export async function createJob(input: JobInput, actorUserId: number) {
   return insertId;
 }
 
-export async function updateJob(id: number, input: JobInput, actorUserId: number) {
-  const db = await getDb();
-  const existing = await getAdminJob(id);
+export async function updateJob(
+  id: number,
+  input: JobInput,
+  actorUserId: number,
+  executor?: Executor,
+) {
+  const db = executor ?? (await getDb());
+  const existing = await getAdminJob(id, db);
   const now = new Date();
   const wasPublished = existing?.status === 'published';
   const willPublish = input.status === 'published';
@@ -300,19 +344,19 @@ export async function updateJob(id: number, input: JobInput, actorUserId: number
   // status transition, and a feature grant — log each separately.
   if (existing) {
     if (!wasPublished && willPublish) {
-      await logActivity(actorUserId, 'job', id, existing.status === 'pending' ? 'approve' : 'publish');
+      await logActivity(actorUserId, 'job', id, existing.status === 'pending' ? 'approve' : 'publish', undefined, db);
     } else if (input.status === 'rejected' && existing.status !== 'rejected') {
-      await logActivity(actorUserId, 'job', id, 'reject', { rejectionReason: input.rejectionReason });
+      await logActivity(actorUserId, 'job', id, 'reject', { rejectionReason: input.rejectionReason }, db);
     } else if (input.status === 'archived' && existing.status !== 'archived') {
-      await logActivity(actorUserId, 'job', id, 'archive');
+      await logActivity(actorUserId, 'job', id, 'archive', undefined, db);
     } else {
-      await logActivity(actorUserId, 'job', id, 'update');
+      await logActivity(actorUserId, 'job', id, 'update', undefined, db);
     }
 
     const existingFeaturedMs = existing.featuredUntil?.getTime() ?? null;
     const nextFeaturedMs = input.featuredUntil?.getTime() ?? null;
     if (nextFeaturedMs != null && nextFeaturedMs !== existingFeaturedMs) {
-      await logActivity(actorUserId, 'job', id, 'feature', { featuredUntil: input.featuredUntil!.toISOString() });
+      await logActivity(actorUserId, 'job', id, 'feature', { featuredUntil: input.featuredUntil!.toISOString() }, db);
     }
   }
 }
@@ -362,12 +406,25 @@ export type FeatureGrantInput = {
 export type FeatureGrantResult = { featuredUntil: Date } | null;
 
 /**
- * How a window came to be open. Both channels write the same `feature_grant`
- * action with the same meta shape, so reconciling "every Destacado sold in
- * August" is one query over `activity_log` rather than a union of two
+ * How a window came to be open. Every channel writes the same activity action
+ * with the same meta shape, so reconciling "every Destacado sold in August" is
+ * one query over `activity_log` rather than a union of several
  * (PLAN-PAGOPAR.md §1, §4 point 6).
+ *
+ * `promo_launch` is the launch promotion (PLAN-GROWTH.md §4 Batch P): a window
+ * nobody paid for, granted by a human at approval, with `amountGs: 0`. It is a
+ * third value here rather than a table or a boolean for exactly the reason the
+ * other two share this list — "how many promo grants" must be the same query
+ * as "how many sales", and a window is a window whatever opened it.
  */
-export const FEATURE_GRANT_CHANNELS = ['whatsapp_manual', 'pagopar'] as const;
+export const FEATURE_GRANT_CHANNELS = ['whatsapp_manual', 'pagopar', 'promo_launch'] as const;
+
+/**
+ * The one activity action every grant writes, as a constant so the promo
+ * counter can name it without becoming a second literal that could drift from
+ * the write it is supposed to count.
+ */
+const FEATURE_GRANT_ACTION = 'feature_grant';
 export type FeatureGrantChannel = (typeof FEATURE_GRANT_CHANNELS)[number];
 
 /**
@@ -393,12 +450,13 @@ export async function applyFeatureGrant(
     /** The feature_orders row behind a paid grant; null for a manual sale. */
     orderId?: number | null;
   },
+  executor?: Executor,
 ): Promise<FeatureGrantResult> {
-  const db = await getDb();
+  const db = executor ?? (await getDb());
   const now = new Date();
 
   const [existing] = await db
-    .select({ id: jobs.id, featuredUntil: jobs.featuredUntil })
+    .select({ id: jobs.id, featuredUntil: jobs.featuredUntil, expiresAt: jobs.expiresAt })
     .from(jobs)
     .where(eq(jobs.id, id))
     .limit(1);
@@ -408,24 +466,42 @@ export async function applyFeatureGrant(
   const wasExtended =
     input.extend && existing.featuredUntil !== null && existing.featuredUntil.getTime() > now.getTime();
 
+  // A featured window that outlives the listing is a window nobody can see.
+  // `expires_at` is nullable and no UI sets it today, so this is inert on every
+  // current row — but the rule belongs here, on the ONE grant, rather than in
+  // whichever channel happens to be written when an expiry field does ship
+  // (PLAN-GROWTH.md §4 P1). Only ever pushed OUT: a listing that already runs
+  // longer than the window keeps its own date.
+  const expiresAt =
+    existing.expiresAt !== null && existing.expiresAt.getTime() < featuredUntil.getTime()
+      ? featuredUntil
+      : existing.expiresAt;
+
   await db
     .update(jobs)
-    .set({ featuredUntil, updatedBy: actorUserId, updatedAt: now })
+    .set({ featuredUntil, expiresAt, updatedBy: actorUserId, updatedAt: now })
     .where(eq(jobs.id, id));
 
   // Deliberately NOT `updateJob`'s generic 'feature' action: that one records
   // the resulting date, this one records the sale behind it.
-  await logActivity(actorUserId, 'job', id, 'feature_grant', {
-    days: input.days,
-    extended: wasExtended,
-    previousFeaturedUntil: existing.featuredUntil?.toISOString() ?? null,
-    featuredUntil: featuredUntil.toISOString(),
-    amountGs: input.amountGs,
-    method: input.method,
-    note: input.note,
-    channel: input.channel,
-    orderId: input.orderId ?? null,
-  });
+  await logActivity(
+    actorUserId,
+    'job',
+    id,
+    FEATURE_GRANT_ACTION,
+    {
+      days: input.days,
+      extended: wasExtended,
+      previousFeaturedUntil: existing.featuredUntil?.toISOString() ?? null,
+      featuredUntil: featuredUntil.toISOString(),
+      amountGs: input.amountGs,
+      method: input.method,
+      note: input.note,
+      channel: input.channel,
+      orderId: input.orderId ?? null,
+    },
+    db,
+  );
 
   return { featuredUntil };
 }
@@ -446,6 +522,147 @@ export async function grantJobFeature(
   input: FeatureGrantInput,
 ): Promise<FeatureGrantResult> {
   return applyFeatureGrant(id, actorUserId, { ...input, channel: 'whatsapp_manual', orderId: null });
+}
+
+// ---------------------------------------------------------------------------
+// The launch promotion (PLAN-GROWTH.md §4 Batch P, §7 D15)
+//
+// The first 100 approved listings get Destacado for 90 days, free. Three
+// things make that a promotion rather than a hole in the moderation gate:
+//
+//   - it is a CHANNEL on the existing grant, not a second way to open a
+//     window. Same applyFeatureGrant(), same computeFeaturedUntil(), same
+//     activity row — so `npm run featured:verify` still covers the arithmetic
+//     and "every Destacado in September" is still one query;
+//   - it happens INSIDE the admin transition to `published`, which is the
+//     moment a human approved the listing. Payment never publishes
+//     (PLAN-PAGOPAR.md §7) and neither does a promotion: the grant is a
+//     consequence of approval, never a route to it;
+//   - the quota is checked in the same transaction as the status write, so
+//     the counter the public copy renders cannot describe a world where the
+//     grant half-happened.
+// ---------------------------------------------------------------------------
+
+/** Matches the `channel` recorded in a grant's meta JSON. */
+function grantChannelIs(channel: string) {
+  return sql`JSON_UNQUOTE(JSON_EXTRACT(${activityLog.meta}, '$.channel')) = ${channel}`;
+}
+
+/**
+ * How many promo windows have been granted. One per job — the grant path below
+ * refuses a second promo grant on a job it already granted one for — so this
+ * is also "how many listings the promotion has covered".
+ */
+export async function countLaunchPromoGrants(executor?: Executor): Promise<number> {
+  const db = executor ?? (await getDb());
+  const [row] = await db
+    .select({ n: count() })
+    .from(activityLog)
+    .where(
+      and(
+        eq(activityLog.entityType, 'job'),
+        eq(activityLog.action, FEATURE_GRANT_ACTION),
+        grantChannelIs(LAUNCH_PROMO_CHANNEL),
+      ),
+    );
+  return row?.n ?? 0;
+}
+
+async function jobHasLaunchPromoGrant(id: number, executor?: Executor): Promise<boolean> {
+  const db = executor ?? (await getDb());
+  const rows = await db
+    .select({ id: activityLog.id })
+    .from(activityLog)
+    .where(
+      and(
+        eq(activityLog.entityType, 'job'),
+        eq(activityLog.entityId, id),
+        eq(activityLog.action, FEATURE_GRANT_ACTION),
+        grantChannelIs(LAUNCH_PROMO_CHANNEL),
+      ),
+    )
+    .limit(1);
+  return rows.length > 0;
+}
+
+/**
+ * Whether the checkbox may be offered for this job at all — asked by the admin
+ * page so the operator is not shown an option the handler would then decline.
+ * The handler re-asks all of it inside the transaction; this is UX.
+ */
+export async function launchPromoEligible(id: number, status: string): Promise<boolean> {
+  if (status === 'published') return false;
+  return !(await jobHasLaunchPromoGrant(id));
+}
+
+export type LaunchPromoOutcome =
+  | { granted: true; featuredUntil: Date }
+  | { granted: false; reason: 'not_requested' | 'not_a_publish' | 'quota_spent' | 'already_granted' };
+
+/**
+ * The job update, and — when this save is the approval that publishes it and
+ * the operator asked for the promotion — the promo grant, as one transaction.
+ *
+ * The quota check is INSIDE it. Two operators approving the 100th and 101st
+ * listing in the same second could still both read 99 (a plain SELECT in
+ * REPEATABLE READ is a snapshot, not a lock), so the true guarantee is "at
+ * most one grant over quota under concurrent approval by two humans", not
+ * "never". Locking activity_log to close that would make every approval wait
+ * on a table the whole admin panel writes; the cost of the residual case is
+ * one comped listing, which the operator can revoke.
+ *
+ * Returns why nothing was granted rather than throwing: a save that succeeded
+ * and a promotion that did not apply is a normal outcome the form reports, not
+ * an error that should roll the edit back.
+ */
+export async function updateJobWithLaunchPromo(
+  id: number,
+  input: JobInput,
+  actorUserId: number,
+  options: { applyLaunchPromo: boolean; promoEnabled: boolean },
+): Promise<LaunchPromoOutcome> {
+  const db = await getDb();
+  return db.transaction(async (tx) => {
+    const before = await getAdminJob(id, tx);
+    await updateJob(id, input, actorUserId, tx);
+
+    if (!options.applyLaunchPromo || !options.promoEnabled) {
+      return { granted: false, reason: 'not_requested' };
+    }
+
+    // Approval only: a transition INTO `published` from a status that was not
+    // published. Re-saving an already-published listing, archiving one, or
+    // rejecting one grants nothing.
+    const isApproval =
+      input.status === 'published' && before !== null && before.status !== 'published';
+    if (!isApproval) return { granted: false, reason: 'not_a_publish' };
+
+    if (await jobHasLaunchPromoGrant(id, tx)) {
+      return { granted: false, reason: 'already_granted' };
+    }
+    if ((await countLaunchPromoGrants(tx)) >= LAUNCH_PROMO.quota) {
+      return { granted: false, reason: 'quota_spent' };
+    }
+
+    const result = await applyFeatureGrant(
+      id,
+      actorUserId,
+      {
+        days: LAUNCH_PROMO.days,
+        // A fresh 90 days, never added to a window the listing already has:
+        // the promotion is an offer on a new listing, not a renewal.
+        extend: false,
+        amountGs: 0,
+        method: null,
+        note: 'Promoción de lanzamiento',
+        channel: LAUNCH_PROMO_CHANNEL,
+        orderId: null,
+      },
+      tx,
+    );
+    if (!result) return { granted: false, reason: 'not_requested' };
+    return { granted: true, featuredUntil: result.featuredUntil };
+  });
 }
 
 /**
