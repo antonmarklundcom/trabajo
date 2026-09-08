@@ -69,7 +69,7 @@ export default function EmployerForm({ categories, cities }: Props) {
         }),
       });
       if (!res.ok) throw new Error();
-      track('lead_submit', { lead_type: 'employer_post', channel: 'form' });
+      track('lead_submit', { lead_type: 'employer', channel: 'form' });
       setState('success');
 
       // Additive: creates the pending job admin approves later. The WhatsApp

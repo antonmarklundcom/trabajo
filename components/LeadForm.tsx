@@ -66,7 +66,7 @@ export default function LeadForm({ jobSlug, jobTitle, citySlug, categorySlug, co
         }),
       });
       if (!res.ok) throw new Error('Error del servidor');
-      track('lead_submit', { lead_type: 'application', channel: 'form', job_slug: jobSlug });
+      track('lead_submit', { lead_type: 'seeker', channel: 'form', job_slug: jobSlug });
       setState('success');
     } catch {
       setState('error');

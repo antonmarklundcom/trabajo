@@ -71,9 +71,7 @@ jobs:
         env:
           NEXT_PUBLIC_SITE_URL: https://trabajo.com.py
           NEXT_PUBLIC_WHATSAPP_LEADS: '595971000000'
-          NEXT_PUBLIC_BUSINESS_NAME: trabajo.com.py
           NEXT_PUBLIC_SHOW_PLANS: 'true'
-          NEXT_PUBLIC_FEATURED_BADGES: 'on'
 
       # No database and no bucket required: the disk driver runs against a temp
       # directory and the validation functions are pure. These are the CV
@@ -187,6 +185,13 @@ jobs:
       # reads the wiring from source — no database, no env, no network.
       - name: Verify SEO index control
         run: npm run seo:verify
+
+      # AGENTS.md's two Batch W non-negotiables: every wa.me link is built by
+      # lib/whatsapp.ts, and whatsapp_click/lead_submit are the only two
+      # analytics event names. Neither failure is visible in a browser — the
+      # link still opens WhatsApp from a second, drifting copy of the number.
+      - name: Verify WhatsApp module and event vocabulary
+        run: npm run whatsapp:verify
 
       # O1's promise is that no event leaving this app carries a credential or
       # a data subject, and a scrubber that misses a field looks exactly like

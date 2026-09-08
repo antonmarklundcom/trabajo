@@ -21,12 +21,13 @@ Managed GitHub integration — no SSH, PM2 or Nginx.
 | Var | Purpose |
 |---|---|
 | `NEXT_PUBLIC_SITE_URL` | Absolute URLs, canonicals, sitemap |
-| `NEXT_PUBLIC_WHATSAPP_LEADS` | WhatsApp destination for leads |
-| `NEXT_PUBLIC_BUSINESS_NAME` | Branding strings |
+| `NEXT_PUBLIC_WHATSAPP_LEADS` | WhatsApp destination for every `lib/whatsapp.ts` CTA |
+| `NEXT_PUBLIC_SHOW_PLANS` | `"false"` hides the `/planes` pricing grid; anything else shows it |
 | `DATA_SOURCE` | `seed` \| `db` — the source switch |
 | `DATABASE_URL` | `mysql://user:pass@localhost:3306/dbname` on the live app |
 | `SESSION_SECRET` | iron-session key, ≥32 random chars |
 | `NEXT_PUBLIC_GA_ID` | Optional — no analytics script loads without it |
+| `LAUNCH_PROMO_ENABLED` | Exact `"true"` to run the launch promotion (PLAN-GROWTH.md §4 Batch P); unset/anything else is off |
 | `GHL_WEBHOOK_URL` | Optional lead sink |
 | `GOOGLE_SHEETS_WEBHOOK_URL` | Optional lead sink |
 | `VENDERCRM_API_KEY` | Optional — only if VenderCRM is switched on |

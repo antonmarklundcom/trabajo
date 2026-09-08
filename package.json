@@ -36,6 +36,7 @@
     "jobs:verify": "tsx scripts/verify-jobs.ts",
     "sort:verify": "tsx scripts/verify-sort-parity.ts",
     "seo:verify": "tsx scripts/verify-seo.ts",
+    "whatsapp:verify": "tsx scripts/verify-whatsapp.ts",
     "sentry:verify": "tsx scripts/verify-sentry-scrub.ts"
   },
   "dependencies": {

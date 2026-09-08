@@ -103,7 +103,6 @@ Copiá `.env.example` a `.env.local` para desarrollo local.
 ```env
 NEXT_PUBLIC_SITE_URL=https://trabajo.com.py
 NEXT_PUBLIC_WHATSAPP_LEADS=595XXXXXXXXX
-NEXT_PUBLIC_BUSINESS_NAME=trabajo.com.py
 DATA_SOURCE=seed
 ```
 
@@ -151,6 +150,16 @@ NEXT_PUBLIC_GA_ID=G-XXXXXXXXXX
 Con `NEXT_PUBLIC_GA_ID` seteado se carga Google Analytics 4 (page views
 automáticos + eventos `lead_submit` y `whatsapp_click`). Sin la variable no se
 carga ningún script de analítica.
+
+Son los dos únicos eventos del sitio (`lib/analytics.ts` los tipa; ninguna
+CTA nueva puede inventar un tercero):
+
+| Evento | Cuándo | Parámetros |
+|---|---|---|
+| `whatsapp_click` | Se toca cualquier CTA de WhatsApp (`components/WhatsAppCta.tsx`, `components/WhatsAppButton.tsx`) | `audience` (`employer`\|`seeker`), `intent`, `job_slug?`, `category?`, `city?`, `source_page` |
+| `lead_submit` | Se envía el formulario de postulación, de publicación o de contacto | `lead_type` (`employer`\|`seeker`\|`contact`), `channel` (`form`), `job_slug?` |
+
+Marcalos como conversión en GA4 una vez configurado `NEXT_PUBLIC_GA_ID`.
 
 ### Loggers (opcionales — el sitio funciona sin ellos)
 

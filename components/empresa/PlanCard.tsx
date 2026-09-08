@@ -5,6 +5,7 @@
 // one would be a promise the site cannot keep. The action offered is the one
 // that actually works: a WhatsApp message to the team.
 import Link from 'next/link';
+import { waHref } from '@/lib/whatsapp';
 
 type Props = {
   activeFeaturedCount: number;
@@ -27,9 +28,7 @@ export default function PlanCard({
   const isFeatured = featuredUntil !== null;
 
   const renewHref = whatsapp
-    ? `https://wa.me/${whatsapp}?text=${encodeURIComponent(
-        `Hola, soy de ${companyName} y quiero renovar el plan Destacado.`,
-      )}`
+    ? waHref(whatsapp, `Hola, soy de ${companyName} y quiero renovar el plan Destacado.`)
     : null;
 
   return (
