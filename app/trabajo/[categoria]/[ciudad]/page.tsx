@@ -21,8 +21,8 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const hasJobs = total > 0;
 
   return {
-    title: `Trabajo de ${category.name.toLowerCase()} en ${city.name}`,
-    description: `Encontrá empleos de ${category.name.toLowerCase()} en ${city.name}, Paraguay. Postulate gratis en trabajo.com.py`,
+    title: `Trabajo de ${category.name} en ${city.name}`,
+    description: `Encontrá empleos de ${category.name} en ${city.name}, Paraguay. Postulate gratis en trabajo.com.py`,
     robots: hasJobs ? { index: true, follow: true } : { index: false, follow: true },
     // This URL is what /empleos?categoria=X&ciudad=Y canonicalises to
     // (lib/seo.ts), so it has to name itself — a target that does not declare
@@ -33,7 +33,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 
 export default async function CategoriaciudadPage({ params }: { params: Params }) {
   const { categoria, ciudad } = await params;
-  const [category, city, { jobs }] = await Promise.all([
+  const [category, city, { jobs, total }] = await Promise.all([
     getCategory(categoria),
     getCity(ciudad),
     getJobs({ categoria, ciudad, orden: 'recientes' }),
@@ -89,12 +89,12 @@ export default async function CategoriaciudadPage({ params }: { params: Params }
         {/* Hero */}
         <div className="mb-8">
           <h1 className="text-3xl sm:text-4xl font-bold text-ink">
-            Trabajo de {category.name.toLowerCase()} en {city.name}
+            Trabajo de {category.name} en {city.name}
           </h1>
           <p className="mt-3 text-base text-ink-secondary max-w-2xl">
-            {jobs.length > 0
-              ? `${jobs.length} ${jobs.length === 1 ? 'empleo disponible' : 'empleos disponibles'} en ${category.name.toLowerCase()} en ${city.name}. Postulate gratis y encontrá el trabajo ideal.`
-              : `Todavía no hay empleos de ${category.name.toLowerCase()} publicados en ${city.name}.`}
+            {total > 0
+              ? `${total} ${total === 1 ? 'empleo disponible' : 'empleos disponibles'} en ${category.name} en ${city.name}. Postulate gratis y encontrá el trabajo ideal.`
+              : `Todavía no hay empleos de ${category.name} publicados en ${city.name}.`}
           </p>
         </div>
 
@@ -109,7 +109,7 @@ export default async function CategoriaciudadPage({ params }: { params: Params }
                 href={`/trabajo/${categoria}`}
                 className="px-5 py-2.5 rounded-[10px] border-2 border-brand text-brand font-medium text-sm hover:bg-brand-tint transition-colors"
               >
-                Ver {category.name.toLowerCase()} en todo el país
+                Ver {category.name} en todo el país
               </Link>
               <Link
                 href="/empleos"

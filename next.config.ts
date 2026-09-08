@@ -61,6 +61,32 @@ const nextConfig: NextConfig = {
     // PR #84 and propia.node PR #81 for the same fix.
     cpus: 1,
   },
+  async redirects() {
+    // capiatá -> capiata (PLAN-GROWTH.md §4 S1): the accented slug produced
+    // percent-encoded URLs (/trabajo/x/capiat%C3%A1). Both the literal and
+    // the percent-encoded form are listed because next.config's `source`
+    // matcher runs before Next's own URL decoding — a request that arrives
+    // already percent-encoded on the wire (most browsers, a shared link)
+    // needs the second entry to match.
+    return [
+      {
+        source: '/trabajo/:categoria/capiatá',
+        destination: '/trabajo/:categoria/capiata',
+        permanent: true,
+      },
+      {
+        source: '/trabajo/:categoria/capiat%C3%A1',
+        destination: '/trabajo/:categoria/capiata',
+        permanent: true,
+      },
+      {
+        source: '/empleos',
+        has: [{ type: 'query', key: 'ciudad', value: 'capiatá' }],
+        destination: '/empleos?ciudad=capiata',
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {

@@ -54,9 +54,9 @@ export default function JobCard({ job }: Props) {
                   formatSalary(job.salaryMin, job.salaryMax)
                 )}
               </span>
-              <span className="text-xs text-ink-3">
+              <time dateTime={job.postedAt} className="text-xs text-ink-3">
                 {formatRelativeDate(job.postedAt)}
-              </span>
+              </time>
             </div>
           </div>
         </div>
