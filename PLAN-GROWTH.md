@@ -1269,3 +1269,66 @@ not rebuild it.
   `NEXT_PUBLIC_*` entries it already owes.
 - The promotion is dark in production until the owner sets
   `LAUNCH_PROMO_ENABLED=true` in hPanel and redeploys (§8).
+
+## 13. State after the Sonnet A+B session (2026-09-08, PRs #90–#100 on `main`)
+
+Verified against `main` at `3eba74c`. The session prompt in §10 asked this
+report to land as `§12.2 State after Sonnet A+B`; that number was already
+the Opus session's own hand-off (above), so this is `§13` instead, same
+content the prompt asked for. Later sessions rely on this and do not
+rebuild it.
+
+All eleven PRs in the §6 order landed, one at a time, each on a fresh
+`main`, no stacking: **W1 (#90), W2 (#91), W3 (#92), W4 (#93), W5 (#94),
+P2 (#95), S1 (#96), S5 (#97), S4 (#98), S6 (#99), C1 (#100)**. Batch W is
+now fully shipped; Batch P and Batch S are fully shipped (P1/S2/S3 were
+the Opus session, P2/S1/S4/S5/S6 this one). Batch C has only C1; Batch D
+has not started.
+
+### 13.1 What exists
+
+| Piece | Where | Notes |
+|---|---|---|
+| `lib/whatsapp.ts` — `waLink()`, `WHATSAPP_HOURS_COPY`, per-intent messages with `promoActive` variants | `lib/whatsapp.ts` | The only file that may write `https://wa.me/`; `whatsapp:verify` fails the build otherwise. `<FloatingWhatsApp>` is mounted per-page on `/`, `/publicar`, `/planes`, `/contacto` only — never in `app/layout.tsx`. |
+| `lib/analytics.ts` `track()` overloads | `lib/analytics.ts` | `whatsapp_click` and `lead_submit` are the only two event names a call site can type-check against; `whatsapp:verify` asserts no call routes around it with a cast. |
+| `lib/honeypot.ts` — `HONEYPOT_FIELD`, `isHoneypotFilled()` | `lib/honeypot.ts` | Split out of `lib/leads.ts` in S6 specifically so `HoneypotField.tsx` ('use client') does not drag `lib/leads.ts`'s module-scope zod schemas into the browser. `lib/leads.ts` re-exports both for the two server-side API routes. |
+| `lib/form-validation.ts` — `validateEmail()`, `validateMinLength()` | `lib/form-validation.ts` | The hand validator `LeadForm.tsx`/`EmployerForm.tsx`/`ContactForm.tsx` use instead of zod; mirrors the messages in `lib/leads.ts`'s schemas, which stay the server-side authority. Removing zod from these three forms' bundle needed this split, not just deleting their `import { z }` line — see S6's PR body for the measured delta (~64KB gzipped per page). |
+| `notifyTeamOfLead()` | `lib/notifications.ts` | Team-facing email for both employer and contact leads (W5); reuses the N3 email-sending path, does not add a second one. |
+| `getLaunchPromoStatus()`, `activeIsLaunchPromo` on `getEmployerPlanSummary()` | `lib/promo.ts`, `lib/db/employer.ts` | Every surface gates on `enabled && remaining > 0`; `'promo_launch'` still appears only in `lib/featured.ts` and `lib/db/admin.ts` (`moderation:verify`). |
+| `listingIndexRule()`'s `ciudad` branch | `lib/seo.ts` | **Changed from §12.1's note.** Now canonicalises to `/trabajo-en/{ciudad}`, not `/empleos` — S4 shipped the target `lib/seo.ts` used to defer. `scripts/verify-seo.ts` pins the new target. |
+| `getTaxonomyCounts({ categoria?, ciudad? })` | `lib/data.ts` (seam) → `lib/db/queries.ts` | New seam function (S5), seed + DB implementations + a `parity-check` case each, per AGENTS.md. Used by `/trabajo/[categoria]`, `/trabajo/[categoria]/[ciudad]` and `/trabajo-en/[ciudad]` instead of a second `getJobs()` call for counts. |
+| `app/trabajo/[categoria]/page.tsx`, `.../[ciudad]/page.tsx` | rewritten in S5 | `generateStaticParams`, pagination, "Otras ciudades"/"Categorías relacionadas" cross-links. Builds dynamic (`ƒ`) despite `generateStaticParams`, because both read `?page=`; noted as drift in the S5 PR body — this app does not enable `cacheComponents`/PPR. |
+| `app/trabajo-en/[ciudad]/page.tsx` | new in S4 | Same static/paginated shape as the taxonomy pages above; same `ƒ`-despite-`generateStaticParams` drift, same reason. Cross-links from `/empleos`'s `TaxonomyLinks`, the homepage, the footer (now all 7 cities / all 10 categories, not 4/6) and the job detail page's "Ciudad" field and category+city sidebar link. |
+| `lib/seo/category-copy.ts`, `lib/seo/city-copy.ts` | S5, S4 | Short Spanish intro copy per taxonomy landing. |
+| `capiatá` → `capiata` | `lib/seed/{cities,jobs}.json`, `next.config.ts` redirects, `scripts/migrate-capiata-slug.ts` | Shipped with its 301s in the same PR (S1), as required. The one-off migration script is separate from the Drizzle migrations in `drizzle/` because the slug rename needed to move a row in place, not upsert a duplicate. |
+| `lib/blog-categories.ts` — `BLOG_CATEGORIES`, `BLOG_CATEGORY_LABELS`, `BLOG_CATEGORY_COPY` | `lib/blog-categories.ts` | The single source C1 introduced. No `server-only` or DB import, so `lib/db/schema.ts` (the enum), `lib/blog.ts` (re-export, public read path) and `BlogPostForm.tsx` ('use client') all point at it instead of each carrying its own copy. `verify-blog.ts` asserts there is exactly one array literal of the category slugs left in the repo. |
+| `blog_posts.category` enum | `drizzle/0015_glossy_slipstream.sql` | 3 → 7 values (`noticias`, `analisis-laboral`, `consejos-cv`, `entrevistas`, `derechos-laborales`, `guias-por-sector`, `para-empresas`); `analisis-laboral` kept its stored value, only its label changed to "Mercado laboral" (§7 D4), so no published URL moved. Also adds `category_published_idx (status, category, published_at)`, the shape C2's per-category archive will query on. **Not yet applied to any real database** — this sandbox had no `DATABASE_URL`; run `npm run db:migrate` against production before C2 or C0 write a post in one of the four new categories. |
+| CI | `.github/workflows/ci.yml` | Still the one job, no new workflow. No new steps this session — every new verify assertion (S4's `seo:verify` update, C1's `blog:verify` additions) extended an existing script that was already a CI step. |
+
+### 13.2 What's next, and what's deliberately not done
+
+- **Next PR in the §6 order:** none — all eleven PRs assigned to this
+  session (`W1, W2, W3, W4, W5, P2, S1, S5, S4, S6, C1`) are merged. The
+  next work in the program is **Session 3 (Batch C content + C2, C3)**
+  and **Session 4 (Batch D, D1–D5)**, per §10's session prompts.
+- **C0** (the ~20-article content sprint) has not started. It is the gate
+  for C2 (≥5 published posts across ≥2 categories) — C1's four new
+  categories exist in the schema now specifically so C0 has somewhere to
+  put `entrevistas`/`derechos-laborales`/`guias-por-sector`/`para-empresas`
+  articles without a second schema PR first.
+- **C2** (archives, pagination, related posts) and **C3** (admin
+  ergonomics for the content cadence) are unstarted; both are Sonnet PRs
+  per §6.
+- **Batch D** (design tokens through D5, the public company pages) is
+  entirely unstarted.
+- **The C1 migration has not been run against any real database.** No
+  `DATABASE_URL` existed in this sandbox for any of the eleven PRs, so
+  `npm run db:parity` and `npm run db:migrate` could not be run for any of
+  them — each PR body says so individually. This is the one migration
+  among the eleven (S4, S5, S6 needed none), so it is the one item that
+  needs a human or a session with database access to actually apply
+  before C0/C2 can write or query the four new categories.
+- **Nothing in this session touched production env, the visibility
+  predicate, job status, or `featured_until`** beyond what P2's own
+  section specified — no rule in §1 or the session prompt required
+  stopping to ask.
