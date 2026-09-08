@@ -64,6 +64,8 @@ la base de datos MySQL directamente, sin pasar por este switch — ver
 | `description` | string | Descripción en markdown (`**negrita**`, `- listas`, `## subtítulos`) |
 | `whatsapp` | string \| null | Número E.164 sin `+` (ej: `595971234567`) para el botón de WhatsApp |
 | `featuredUntil` | string \| null | Fecha ISO hasta la que el empleo aparece como destacado |
+| `expiresAt` | string \| null | Opcional. Fecha ISO en la que el aviso deja de ser público. Pasada esa fecha la URL devuelve 200 con la página "esta oferta ya no está disponible", no un 404. `null` = sin vencimiento. Es lo que alimenta `validThrough` en el JSON-LD — nunca `featuredUntil` |
+| `companyWebsite` | string \| null | Opcional. Sitio propio de la empresa, usado en `hiringOrganization.sameAs` |
 | `postedAt` | string | Fecha ISO de publicación |
 | `updatedAt` | string | Fecha ISO de última actualización |
 

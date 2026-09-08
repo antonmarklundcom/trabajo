@@ -45,10 +45,17 @@ async function importTaxonomies() {
 }
 
 async function importCompanies(): Promise<Map<string, number>> {
-  const distinctNames = new Map<string, { name: string; logoUrl: string | null }>();
+  const distinctNames = new Map<
+    string,
+    { name: string; logoUrl: string | null; website: string | null }
+  >();
   for (const job of seedJobs) {
     if (!distinctNames.has(job.company)) {
-      distinctNames.set(job.company, { name: job.company, logoUrl: job.companyLogo });
+      distinctNames.set(job.company, {
+        name: job.company,
+        logoUrl: job.companyLogo,
+        website: job.companyWebsite ?? null,
+      });
     }
   }
 
@@ -65,7 +72,7 @@ async function importCompanies(): Promise<Map<string, number>> {
     nameToSlug.set(name, slug);
   }
 
-  for (const { name, logoUrl } of distinctNames.values()) {
+  for (const { name, logoUrl, website } of distinctNames.values()) {
     const slug = nameToSlug.get(name)!;
     await db
       .insert(schema.companies)
@@ -73,10 +80,11 @@ async function importCompanies(): Promise<Map<string, number>> {
         name,
         slug,
         logoUrl,
+        website,
         createdAt: new Date(),
         updatedAt: new Date(),
       })
-      .onDuplicateKeyUpdate({ set: { name, logoUrl, updatedAt: new Date() } });
+      .onDuplicateKeyUpdate({ set: { name, logoUrl, website, updatedAt: new Date() } });
   }
 
   const rows = await db
@@ -126,6 +134,11 @@ async function importJobs(nameToCompanyId: Map<string, number>) {
       whatsapp: job.whatsapp,
       status: 'published' as const,
       featuredUntil: job.featuredUntil ? new Date(job.featuredUntil) : null,
+      // Optional in lib/seed/jobs.json. Carried across so the two read paths
+      // agree about which listings are still visible — without it, a seed row
+      // with an expiry would be a tombstone on the seed side and a live page
+      // on the db side, and `npm run db:parity` would be right to say so.
+      expiresAt: job.expiresAt ? new Date(job.expiresAt) : null,
       publishedAt: new Date(job.postedAt),
       createdAt: new Date(job.postedAt),
       updatedAt: new Date(job.updatedAt),
@@ -150,6 +163,7 @@ async function importJobs(nameToCompanyId: Map<string, number>) {
           whatsapp: values.whatsapp,
           status: values.status,
           featuredUntil: values.featuredUntil,
+          expiresAt: values.expiresAt,
           publishedAt: values.publishedAt,
           updatedAt: values.updatedAt,
         },

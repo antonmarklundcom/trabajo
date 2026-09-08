@@ -1,5 +1,5 @@
 import type { MetadataRoute } from 'next';
-import { getJobs, getCategories, getCities } from '@/lib/data';
+import { getAllPublishedJobSummaries, getCategories, getCities } from '@/lib/data';
 import { getBlogPosts } from '@/lib/blog';
 
 // Left at an hour on purpose: a new listing reaches the sitemap immediately
@@ -7,27 +7,15 @@ import { getBlogPosts } from '@/lib/blog';
 // the timer only has to cover job expiry.
 export const revalidate = 3600;
 
-/**
- * getJobs() is paginated (PAGE_SIZE = 20 in both the seed and db seams) — the
- * sitemap needs every published job, not just the first page, so it walks
- * every page. Cheap: this route only runs on the 1h revalidate timer.
- */
-async function getAllJobs() {
-  const first = await getJobs({ orden: 'recientes', page: 1 });
-  const totalPages = Math.ceil(first.total / 20);
-  if (totalPages <= 1) return first.jobs;
-
-  const rest = await Promise.all(
-    Array.from({ length: totalPages - 1 }, (_, i) => getJobs({ orden: 'recientes', page: i + 2 })),
-  );
-  return [...first.jobs, ...rest.flatMap((page) => page.jobs)];
-}
+// The page walk that used to live here is now getAllPublishedJobSummaries() in
+// lib/data.ts: app/empleos/[slug] needs the same list for generateStaticParams,
+// and two copies of "every published job" is two things to keep in step.
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://trabajo.com.py';
 
   const [jobs, categories, cities, posts] = await Promise.all([
-    getAllJobs(),
+    getAllPublishedJobSummaries(),
     getCategories(),
     getCities(),
     getBlogPosts(),

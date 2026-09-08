@@ -327,6 +327,61 @@ for (const file of [...walk('app/api/empresa'), ...walk('app/api/publicar')]) {
 //    "lands pending" and "is not public" are the same statement.
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// 7. The tombstone reads OUTSIDE the visibility predicate, and may only ever
+//    find a listing that was once public (PLAN-GROWTH.md §4 S3, §7 D6).
+//
+//    getClosedJob() is the single deliberate exception to "public reads go
+//    through visiblePredicate()". What makes it safe is not the exception
+//    being small but the two statuses it names: `published` (whose expiry has
+//    passed) and `archived`. A tombstone for a draft, a pending submission or
+//    a rejected one would confirm to anyone guessing slugs that the listing
+//    exists, and name the company that submitted it — the moderation gate
+//    leaking through the 404 handler.
+// ---------------------------------------------------------------------------
+
+const closedBody = functionBody(queries, 'closedPredicate');
+
+check(
+  'closedPredicate() exists and is inspectable',
+  closedBody.length > 0,
+  'Could not find closedPredicate() in lib/db/queries.ts. If the tombstone read moved, ' +
+    'move this check with it.',
+);
+
+{
+  const statuses = (code(closedBody).match(/jobs\.status,\s*'(\w+)'/g) ?? []).map((m) =>
+    m.slice(m.indexOf("'") + 1, m.lastIndexOf("'")),
+  );
+  check(
+    "closedPredicate() names only 'published' and 'archived'",
+    statuses.length === 2 && statuses.includes('published') && statuses.includes('archived'),
+    `Found: ${statuses.join(', ') || 'no status literal at all'}. A third status here is a ` +
+      'listing that was never public getting a page.',
+  );
+}
+
+check(
+  "closedPredicate() requires an elapsed expiry alongside 'published'",
+  code(closedBody).includes('IS NOT NULL') && code(closedBody).includes('<= NOW()'),
+  'Without both halves, every published listing matches and the tombstone replaces the ' +
+    'live page.',
+);
+
+check(
+  'getClosedJob() is the only query built on closedPredicate()',
+  (code(queries).match(/closedPredicate\(\)/g) ?? []).length === 2,
+  'Expected two: the declaration and queryClosedJob()\'s WHERE. A third caller is a ' +
+    'second read outside the visibility predicate.',
+);
+
+check(
+  'the tombstone query selects no description, whatsapp or salary',
+  !/jobs\.description|jobs\.whatsapp|jobs\.salary/.test(functionBody(queries, 'queryClosedJob')),
+  'A closed listing may show its title and company. Handing back the description or the ' +
+    "employer's number would make the tombstone a working posting.",
+);
+
 check(
   "visiblePredicate() still requires status = 'published'",
   functionBody(queries, 'visiblePredicate').includes("eq(jobs.status, 'published')"),
