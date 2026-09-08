@@ -1,0 +1,2 @@
+ALTER TABLE `blog_posts` MODIFY COLUMN `category` enum('noticias','analisis-laboral','consejos-cv','entrevistas','derechos-laborales','guias-por-sector','para-empresas') NOT NULL;--> statement-breakpoint
+CREATE INDEX `category_published_idx` ON `blog_posts` (`status`,`category`,`published_at`);

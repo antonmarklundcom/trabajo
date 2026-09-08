@@ -10,6 +10,7 @@ import {
   type BlogPostRow,
 } from './db/blog';
 import { imagePublicUrl } from './image-storage';
+import { BLOG_CATEGORIES, BLOG_CATEGORY_LABELS, BLOG_CATEGORY_COPY, type BlogCategory } from './blog-categories';
 
 // The only read path for blog content, exactly as it was when the content was
 // Markdown files on disk (PLAN-PHASE3-DRAFT.md §7.2). No page, component or
@@ -139,14 +140,12 @@ export function renderMarkdown(body: string): string {
   return marked.parse(body, { async: false });
 }
 
-export const BLOG_CATEGORIES = ['noticias', 'analisis-laboral', 'consejos-cv'] as const;
-export type BlogCategory = (typeof BLOG_CATEGORIES)[number];
-
-export const BLOG_CATEGORY_LABELS: Record<BlogCategory, string> = {
-  noticias: 'Noticias',
-  'analisis-laboral': 'Análisis laboral',
-  'consejos-cv': 'Consejos de CV',
-};
+// Re-exported from the single source (C1) rather than defined here: this
+// file is the public read path, but BlogPostForm.tsx ('use client') and
+// lib/db/schema.ts (the enum) need the same tuple and cannot import this
+// module — it starts with `import 'server-only'`.
+export { BLOG_CATEGORIES, BLOG_CATEGORY_LABELS, BLOG_CATEGORY_COPY };
+export type { BlogCategory };
 
 export type BlogPostMeta = {
   slug: string;

@@ -11,6 +11,7 @@ import {
   index,
   uniqueIndex,
 } from 'drizzle-orm/mysql-core';
+import { BLOG_CATEGORIES } from '../blog-categories';
 
 // Convention note (unchanged from the original seven tables): relationships are
 // modelled as plain int columns plus indexes, not as MySQL FOREIGN KEY
@@ -708,9 +709,11 @@ export const candidateTokens = mysqlTable(
 // ===========================================================================
 
 // The same closed list Väg A validated in frontmatter, for the same reason
-// (§5.3): a wrong value must be impossible, not a quiet fifth category. It is
-// an enum here rather than a zod union so the database refuses one too.
-export const blogCategoryEnum = ['noticias', 'analisis-laboral', 'consejos-cv'] as const;
+// (§5.3): a wrong value must be impossible, not a quiet eighth category. It
+// is an enum here rather than a zod union so the database refuses one too.
+// The tuple itself lives in lib/blog-categories.ts (C1) — the single source
+// also used by the client-side post form and the public read path.
+export const blogCategoryEnum = BLOG_CATEGORIES;
 
 // Two states, not the five a job has. A blog post has no moderation queue —
 // the only person who can write one is the person who approves it — so
@@ -761,6 +764,10 @@ export const blogPosts = mysqlTable(
   (table) => [
     // The public list: published rows, newest first.
     index('status_published_idx').on(table.status, table.publishedAt),
+    // The per-category archive (C2): published rows in one category, newest
+    // first — the same shape as status_published_idx with category folded in,
+    // for the query queryPublishedPosts({ category }) will run once C2 ships.
+    index('category_published_idx').on(table.status, table.category, table.publishedAt),
   ],
 );
 
