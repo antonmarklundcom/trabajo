@@ -830,6 +830,11 @@ export type PublicJobSubmissionInput = {
   categorySlug: string;
   citySlug: string;
   description: string;
+  // Collected by the /publicar form but not columns on `jobs` — recorded in
+  // the submission's activity_log meta instead of growing the schema for a
+  // contact-person name (PLAN-GROWTH.md §4 W3 finding 7).
+  contactName?: string;
+  email?: string;
 };
 
 async function findOrCreateCompanyByName(name: string): Promise<number> {
@@ -889,6 +894,14 @@ export async function createPublicJobSubmission(
     createdAt: now,
     updatedAt: now,
   });
+
+  const contactMeta: Record<string, unknown> = {};
+  if (input.contactName) contactMeta.contactName = input.contactName;
+  if (input.email) contactMeta.email = input.email;
+  if (Object.keys(contactMeta).length > 0) {
+    await logActivity(null, 'job', result.insertId, 'public_submission', contactMeta);
+  }
+
   return result.insertId;
 }
 

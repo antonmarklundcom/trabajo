@@ -2,9 +2,13 @@
 
 import { useState } from 'react';
 import { z } from 'zod';
+import Link from 'next/link';
 import { track } from '@/lib/analytics';
+import { captureError } from '@/lib/observability';
 import { HONEYPOT_FIELD } from '@/lib/leads';
+import { WHATSAPP_HOURS_COPY } from '@/lib/whatsapp';
 import HoneypotField from '@/components/HoneypotField';
+import WhatsAppCta from '@/components/WhatsAppCta';
 import type { Category, City } from '@/lib/types';
 
 const schema = z.object({
@@ -74,20 +78,22 @@ export default function EmployerForm({ categories, cities }: Props) {
 
       // Additive: creates the pending job admin approves later. The WhatsApp
       // sales conversation above is the primary channel, so this never blocks
-      // or fails the employer's submission.
+      // or fails the employer's submission — a non-OK response is swallowed
+      // for the user but reported so a silent drop doesn't stay silent.
       fetch('/api/publicar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          companyName: parsed.data.companyName,
-          contactWhatsapp: parsed.data.contactWhatsapp,
-          jobTitle: parsed.data.jobTitle,
-          categorySlug: parsed.data.categorySlug,
-          citySlug: parsed.data.citySlug,
-          description: parsed.data.description,
+          ...parsed.data,
           [HONEYPOT_FIELD]: honeypot,
         }),
-      }).catch(() => {});
+      })
+        .then((res) => {
+          if (!res.ok) {
+            captureError('publicar:pending-job-create-client', new Error(`HTTP ${res.status}`));
+          }
+        })
+        .catch((err) => captureError('publicar:pending-job-create-client', err));
     } catch {
       setState('error');
     }
@@ -103,7 +109,21 @@ export default function EmployerForm({ categories, cities }: Props) {
         </div>
         <h2 className="text-xl font-bold text-ink mb-2">¡Recibimos tu solicitud!</h2>
         <p className="text-ink-secondary">
-          Nuestro equipo te contactará en menos de 24 horas para publicar tu empleo.
+          Te contactamos por WhatsApp al {values.contactWhatsapp}. {WHATSAPP_HOURS_COPY}
+        </p>
+        <div className="mt-6 max-w-xs mx-auto">
+          <WhatsAppCta
+            intent="publicar"
+            context={{ jobTitle: values.jobTitle, companyName: values.companyName }}
+            label="¿Querés acelerarlo? Escribinos ahora"
+            sourcePage="/publicar"
+          />
+        </div>
+        <p className="mt-4 text-sm text-ink-secondary">
+          Mientras tanto:{' '}
+          <Link href="/planes" className="text-brand hover:underline font-medium">
+            mirá cómo destacar tu aviso
+          </Link>
         </p>
       </div>
     );

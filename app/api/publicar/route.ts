@@ -10,7 +10,13 @@ import { captureError } from '@/lib/observability';
 // excludes from every public read (ARCHITECTURE.md §4/§6).
 const schema = z.object({
   companyName: z.string().min(2).max(150),
+  // Optional — the client sends the full /api/v1/leads payload here too
+  // (PLAN-GROWTH.md §4 W3 finding 7), so the pending job's activity_log
+  // meta carries the contact person's name and email instead of losing them
+  // to whichever endpoint won the race.
+  contactName: z.string().min(2).max(100).optional(),
   contactWhatsapp: z.string().min(6).max(30),
+  email: z.string().email().optional().or(z.literal('')),
   jobTitle: z.string().min(3).max(200),
   categorySlug: z.string().min(1),
   citySlug: z.string().min(1),
