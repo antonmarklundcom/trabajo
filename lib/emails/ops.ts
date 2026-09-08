@@ -10,6 +10,7 @@ import 'server-only';
 import { emailUrl, type EmailMessage } from '../email';
 import { waHref } from '../whatsapp';
 import type { LeadInput } from '../leads';
+import type { LaunchPromoStatus } from '../promo';
 
 const ADMIN_PENDING_QUEUE = () => emailUrl('/admin/empleos?status=pending');
 
@@ -17,8 +18,16 @@ const ADMIN_PENDING_QUEUE = () => emailUrl('/admin/empleos?status=pending');
  * "Nuevo pedido de publicación" — an employer_post or contact lead just came
  * in via /api/v1/leads. `null` for an application lead: seekers already have
  * their own N1/N2 emails (lib/notifications.ts) and this is not one of them.
+ *
+ * `promo` is only ever meaningful for `employer_post` (PLAN-GROWTH.md §4
+ * P2) — a contact message isn't about publishing a job, so the caller may
+ * omit it there.
  */
-export function employerLeadNotificationMessage(to: string, lead: LeadInput): EmailMessage | null {
+export function employerLeadNotificationMessage(
+  to: string,
+  lead: LeadInput,
+  promo?: LaunchPromoStatus,
+): EmailMessage | null {
   if (lead.type === 'employer_post') {
     const waLink = waHref(
       lead.contactWhatsapp,
@@ -42,6 +51,7 @@ export function employerLeadNotificationMessage(to: string, lead: LeadInput): Em
         '',
         `Abrir la conversación: ${waLink}`,
         `Cola de pendientes: ${ADMIN_PENDING_QUEUE()}`,
+        promo?.enabled ? `Promoción de lanzamiento: quedan ${promo.remaining}` : null,
       ]
         .filter((line): line is string => line !== null)
         .join('\n'),

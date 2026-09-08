@@ -12,6 +12,8 @@ type Props = {
   featuredUntil: Date | null;
   lastFeaturedUntil: Date | null;
   companyName: string;
+  /** Whether the active window's last grant came from the launch promotion. */
+  activeIsLaunchPromo?: boolean;
 };
 
 function formatDate(date: Date): string {
@@ -23,6 +25,7 @@ export default function PlanCard({
   featuredUntil,
   lastFeaturedUntil,
   companyName,
+  activeIsLaunchPromo,
 }: Props) {
   const isFeatured = featuredUntil !== null;
 
@@ -47,6 +50,7 @@ export default function PlanCard({
         <>
           <p className="text-base font-semibold text-ink mt-2">
             Destacado activo hasta {formatDate(featuredUntil)}
+            {activeIsLaunchPromo && ' · Promoción de lanzamiento'}
           </p>
           <p className="text-sm text-ink-secondary mt-1">
             {activeFeaturedCount === 1
