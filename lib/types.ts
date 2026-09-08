@@ -29,10 +29,42 @@ export type Job = {
   description: string;
   whatsapp: string | null;
   featuredUntil: string | null;
+  /**
+   * When the listing stops being public — `jobs.expires_at`, the other half of
+   * the visibility predicate (lib/db/queries.ts).
+   *
+   * NOT `featuredUntil`. The two were conflated in the JobPosting JSON-LD,
+   * which told Google that a listing's `validThrough` was the end of a paid
+   * promotion — wrong on every unfeatured listing, and wrong in a way Search
+   * Console reports as an error (PLAN-GROWTH.md §4 S3). Null means "no end
+   * date", which is what most listings are and what Google accepts.
+   */
+  expiresAt: string | null;
   postedAt: string;
   updatedAt: string;
+  /** The company's own site, for `hiringOrganization.sameAs`. Null when unset. */
+  companyWebsite: string | null;
   /** Public URLs, already resolved — 0 to 3 (PLAN-IMAGES.md §5). */
   images: string[];
+};
+
+/**
+ * What an expired or archived listing's URL still serves (PLAN-GROWTH.md §4
+ * S3, §7 D6): enough to tell the visitor what used to be here and send them
+ * somewhere useful, and deliberately nothing else — no description, no
+ * WhatsApp number, no apply form, no JobPosting markup.
+ *
+ * A separate type rather than a `Job` with fields blanked out, because the two
+ * come from different queries with different rules: a Job passes the
+ * visibility predicate, a ClosedJob deliberately steps outside it.
+ */
+export type ClosedJob = {
+  title: string;
+  company: string;
+  categorySlug: string;
+  citySlug: string;
+  /** ISO date the listing closed, or null when nothing recorded one. */
+  closedAt: string | null;
 };
 
 export type Category = {

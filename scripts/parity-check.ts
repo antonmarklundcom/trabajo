@@ -10,6 +10,10 @@ function normalizeJob(job: Job) {
   return {
     ...job,
     featuredUntil: job.featuredUntil ? new Date(job.featuredUntil).getTime() : null,
+    // Same reason as featuredUntil: lib/seed/jobs.json may write a bare date
+    // ("2026-12-31") where the db path returns a full ISO timestamp. Comparing
+    // the strings would report a difference that is only a serialization.
+    expiresAt: job.expiresAt ? new Date(job.expiresAt).getTime() : null,
     postedAt: job.postedAt ? new Date(job.postedAt).getTime() : null,
     updatedAt: new Date(job.updatedAt).getTime(),
   };
@@ -125,6 +129,16 @@ async function main() {
     const seedJob = await withSource('seed', () => data.getJob(job.slug));
     const dbJob = await withSource('db', () => data.getJob(job.slug));
     diff(`getJob(${job.slug})`, seedJob && normalizeJob(seedJob), dbJob && normalizeJob(dbJob));
+  }
+
+  // getClosedJob — the tombstone read (PLAN-GROWTH.md §4 S3). Both sides must
+  // agree on which slugs it answers for, including the far more common answer:
+  // a live listing must be null on BOTH sides, or one path serves a tombstone
+  // over a job that is still open.
+  for (const job of allSeed) {
+    const seedClosed = await withSource('seed', () => data.getClosedJob(job.slug));
+    const dbClosed = await withSource('db', () => data.getClosedJob(job.slug));
+    diff(`getClosedJob(${job.slug})`, seedClosed, dbClosed);
   }
 
   // getFeaturedJobs / getRecentJobs

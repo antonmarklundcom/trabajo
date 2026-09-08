@@ -7,7 +7,7 @@ import { JOBS_PAGE_SIZE as PAGE_SIZE } from '../pagination';
 import { cachedOrRaw } from '../cached-or-raw';
 import { imagePublicUrl } from '../image-storage';
 import { companyLogoSrc } from '../company-logo';
-import type { Job, Category, City, JobFilters } from '../types';
+import type { Job, Category, City, ClosedJob, JobFilters } from '../types';
 import { isCacheable } from './job-cache-key';
 
 
@@ -22,6 +22,40 @@ export function visiblePredicate() {
   return and(
     eq(jobs.status, 'published'),
     or(isNull(jobs.expiresAt), gt(jobs.expiresAt, sql`NOW()`)),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// The ONE read that steps outside visiblePredicate(), and why it is allowed to.
+//
+// An expired listing's URL is an indexed page with inbound links. Serving a 404
+// throws both away and dead-ends the visitor (PLAN-GROWTH.md §7 D6), so the URL
+// keeps returning 200 with a tombstone: the title, the company, and links onward.
+//
+// That means reading a row the public predicate excludes — so this predicate is
+// written HERE, next to the one it is the exception to, rather than inline in a
+// page where nobody would find it. Two statuses and no others:
+//
+//   - `published` whose expires_at has passed. The listing WAS public; time
+//     took it down. Note the `IS NOT NULL`: without it, a listing with no
+//     expiry would match `expires_at <= NOW()` as unknown in SQL but the
+//     intent would be unclear to the next reader.
+//   - `archived`. A human took it down after it had been published.
+//
+// NEVER draft, pending or rejected. Those were never public: a tombstone for
+// one would confirm to anyone guessing slugs that a listing exists and name
+// the company that submitted it. scripts/verify-moderation.ts asserts from
+// source that this function's WHERE names only the two statuses above.
+// ---------------------------------------------------------------------------
+
+function closedPredicate() {
+  return or(
+    and(
+      eq(jobs.status, 'published'),
+      sql`${jobs.expiresAt} IS NOT NULL`,
+      sql`${jobs.expiresAt} <= NOW()`,
+    ),
+    eq(jobs.status, 'archived'),
   );
 }
 
@@ -52,8 +86,10 @@ const jobSelection = {
   description: jobs.description,
   whatsapp: jobs.whatsapp,
   featuredUntil: jobs.featuredUntil,
+  expiresAt: jobs.expiresAt,
   postedAt: jobs.publishedAt,
   updatedAt: jobs.updatedAt,
+  companyWebsite: companies.website,
 };
 
 type JobRow = {
@@ -74,8 +110,10 @@ type JobRow = {
   description: string;
   whatsapp: string | null;
   featuredUntil: Date | null;
+  expiresAt: Date | null;
   postedAt: Date | null;
   updatedAt: Date;
+  companyWebsite: string | null;
 };
 
 function toJob(row: JobRow, images: string[]): Job {
@@ -95,8 +133,10 @@ function toJob(row: JobRow, images: string[]): Job {
     description: row.description,
     whatsapp: row.whatsapp,
     featuredUntil: row.featuredUntil ? row.featuredUntil.toISOString() : null,
+    expiresAt: row.expiresAt ? row.expiresAt.toISOString() : null,
     postedAt: row.postedAt ? row.postedAt.toISOString() : '',
     updatedAt: row.updatedAt.toISOString(),
+    companyWebsite: row.companyWebsite,
     images,
   };
 }
@@ -198,6 +238,36 @@ async function queryJob(slug: string): Promise<Job | null> {
   if (!row) return null;
   const [job] = await attachImages([row]);
   return job;
+}
+
+async function queryClosedJob(slug: string): Promise<ClosedJob | null> {
+  const [row] = await db
+    .select({
+      title: jobs.title,
+      company: companies.name,
+      categorySlug: categories.slug,
+      citySlug: cities.slug,
+      expiresAt: jobs.expiresAt,
+      updatedAt: jobs.updatedAt,
+    })
+    .from(jobs)
+    .innerJoin(companies, eq(jobs.companyId, companies.id))
+    .innerJoin(categories, eq(jobs.categoryId, categories.id))
+    .innerJoin(cities, eq(jobs.cityId, cities.id))
+    .where(and(closedPredicate(), eq(jobs.slug, slug)))
+    .limit(1);
+  if (!row) return null;
+
+  // An archived listing has no expiry date, so `updated_at` — the moment
+  // someone archived it — is the closest thing to when it closed.
+  const closedAt = row.expiresAt ?? row.updatedAt;
+  return {
+    title: row.title,
+    company: row.company,
+    categorySlug: row.categorySlug,
+    citySlug: row.citySlug,
+    closedAt: closedAt ? closedAt.toISOString() : null,
+  };
 }
 
 async function queryFeaturedJobs(limit = 6): Promise<Job[]> {
@@ -331,6 +401,15 @@ const cachedJobs = unstable_cache(
 
 const cachedJob = unstable_cache((slug: string) => queryJob(slug), ['db', 'jobs', 'detail'], cacheOptions([CACHE_TAGS.jobs]));
 
+// Same tag as every other job read: the transitions that open and close a
+// tombstone are an admin write (archive, unarchive) and expiry passing, which
+// are exactly what CACHE_TAGS.jobs and the 5-minute timer already cover.
+const cachedClosedJob = unstable_cache(
+  (slug: string) => queryClosedJob(slug),
+  ['db', 'jobs', 'closed'],
+  cacheOptions([CACHE_TAGS.jobs]),
+);
+
 const cachedFeaturedJobs = unstable_cache(
   (limit: number) => queryFeaturedJobs(limit),
   ['db', 'jobs', 'featured'],
@@ -390,6 +469,10 @@ export async function getJobs(filters: JobFilters): Promise<{ jobs: Job[]; total
 
 export async function getJob(slug: string): Promise<Job | null> {
   return cachedOrRaw(() => cachedJob(slug), () => queryJob(slug));
+}
+
+export async function getClosedJob(slug: string): Promise<ClosedJob | null> {
+  return cachedOrRaw(() => cachedClosedJob(slug), () => queryClosedJob(slug));
 }
 
 export async function getFeaturedJobs(limit = 6): Promise<Job[]> {

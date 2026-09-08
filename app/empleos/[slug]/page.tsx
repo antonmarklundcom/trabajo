@@ -1,18 +1,25 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getJob, getJobs, getCategory, getCity } from '@/lib/data';
+import {
+  getAllPublishedJobSummaries,
+  getCategory,
+  getCity,
+  getClosedJob,
+  getJob,
+  getJobs,
+} from '@/lib/data';
 import { formatSalary, formatRelativeDate, contractTypeLabel, seniorityLabel, modalityLabel, employmentTypeJsonLd } from '@/lib/formatters';
 import WhatsAppButton from '@/components/WhatsAppButton';
 import ShareLinks from '@/components/ShareLinks';
 import LeadForm from '@/components/LeadForm';
-import MarkdownContent from '@/components/MarkdownContent';
+import MarkdownContent, { parseMarkdown } from '@/components/MarkdownContent';
 import CompanyAvatar from '@/components/CompanyAvatar';
 import ApplySection from '@/components/postulante/ApplySection';
 import SaveJobSection from '@/components/postulante/SaveJobSection';
 import { candidateAccountsEnabled } from '@/lib/flags';
 import JobCard from '@/components/JobCard';
-import type { Job } from '@/lib/types';
+import type { ClosedJob, Job } from '@/lib/types';
 
 // Cached reads are invalidated on demand by every admin mutation
 // (lib/cache.ts), so this timer is only the safety net for job expiry and
@@ -21,15 +28,42 @@ export const revalidate = 300;
 
 type Params = Promise<{ slug: string }>;
 
+/**
+ * Every approved listing, prerendered at build.
+ *
+ * This used to be `getJobs({})` — the FIRST PAGE, twenty jobs — so listing 21
+ * onwards was rendered on demand on its first visit, which for a crawler is
+ * the visit that matters. The walk is the sitemap's, shared through
+ * lib/data.ts.
+ *
+ * Bounded by the catalogue's size, and the build already runs with one worker
+ * (PR #82), so the cost is one query per 20 listings plus a render each. If
+ * the catalogue grows to where that stops being cheap, the fix is to slice
+ * this to the most recent N and let the rest stay on-demand — `dynamicParams`
+ * is on, so nothing 404s either way.
+ */
 export async function generateStaticParams() {
-  const { jobs } = await getJobs({});
+  const jobs = await getAllPublishedJobSummaries();
   return jobs.map((j) => ({ slug: j.slug }));
 }
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { slug } = await params;
   const job = await getJob(slug);
-  if (!job) return { title: 'Empleo no encontrado' };
+  if (!job) {
+    // The tombstone is a real page with a 200, so it needs real metadata —
+    // `noindex, follow` so Google drops it from the index but still walks the
+    // links out of it, which is the whole reason the URL is not a 404 (§7 D6).
+    const closed = await getClosedJob(slug);
+    if (closed) {
+      return {
+        title: `${closed.title} — ${closed.company} (oferta cerrada)`,
+        description: `Esta oferta de ${closed.title} en ${closed.company} ya no está disponible. Mirá otros empleos en trabajo.com.py.`,
+        robots: { index: false, follow: true },
+      };
+    }
+    return { title: 'Empleo no encontrado' };
+  }
 
   return {
     title: `${job.title} — ${job.company}`,
@@ -45,7 +79,11 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 export default async function JobDetailPage({ params }: { params: Params }) {
   const { slug } = await params;
   const job = await getJob(slug);
-  if (!job) notFound();
+  if (!job) {
+    const closed = await getClosedJob(slug);
+    if (closed) return <ClosedJobPage slug={slug} closed={closed} />;
+    notFound();
+  }
 
   const [category, city] = await Promise.all([
     getCategory(job.categorySlug),
@@ -69,14 +107,38 @@ export default async function JobDetailPage({ params }: { params: Params }) {
     '@context': 'https://schema.org',
     '@type': 'JobPosting',
     title: job.title,
-    description: job.description.replace(/\*\*(.+?)\*\*/g, '$1').replace(/\*(.+?)\*/g, '$1'),
+    // The same HTML the visitor reads, produced by the same function the page
+    // body uses (components/MarkdownContent.tsx). Google accepts HTML here and
+    // the previous version — strip the asterisks, ship the raw text — lost the
+    // list and heading structure of every description.
+    //
+    // parseMarkdown() escapes raw HTML BEFORE it applies any transform, so what
+    // goes into the JSON-LD contains only the tags that function generates.
+    // Deliberately NOT lib/blog.ts's renderMarkdown(): the two implementations
+    // are separate on purpose (MarkdownContent.tsx's header states why), and a
+    // job description is employer-submitted text.
+    description: parseMarkdown(job.description),
     datePosted: job.postedAt.split('T')[0],
-    validThrough: job.featuredUntil ?? undefined,
+    // `expiresAt`, NOT `featuredUntil`. The old line told Google that a
+    // listing's validity ended when its paid promotion did — wrong on every
+    // unfeatured listing, and a Search Console error on every featured one
+    // whose window closed before the job did. Omitted when there is no expiry:
+    // Google accepts a missing validThrough; it does not accept a wrong one.
+    ...(job.expiresAt ? { validThrough: job.expiresAt } : {}),
+    // The page carries both the application form and the WhatsApp button, so
+    // an applicant never leaves the site to apply.
+    directApply: true,
+    identifier: {
+      '@type': 'PropertyValue',
+      name: 'trabajo.com.py',
+      value: job.slug,
+    },
     employmentType: employmentTypeJsonLd(job.contractType),
     hiringOrganization: {
       '@type': 'Organization',
       name: job.company,
       ...(job.companyLogo ? { logo: `${siteUrl}${job.companyLogo}` } : {}),
+      ...(job.companyWebsite ? { sameAs: job.companyWebsite } : {}),
     },
     jobLocation: {
       '@type': 'Place',
@@ -354,6 +416,94 @@ function ModalityIcon() {
   return <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/></svg>;
 }
 
+/**
+ * What an expired or archived listing's URL serves instead of a 404
+ * (PLAN-GROWTH.md §4 S3, §7 D6).
+ *
+ * HTTP 200 with `noindex, follow` (set in generateMetadata above), so Google
+ * drops the page from the index but still walks the links out of it, and the
+ * visitor who arrived from a bookmark or a shared link lands somewhere useful
+ * instead of on a dead end. That is the trade: the URL keeps its inbound
+ * links, and stops competing for a query it can no longer answer.
+ *
+ * Deliberately absent, all four for the same reason — the listing is closed
+ * and nothing here may suggest otherwise: no description, no apply form, no
+ * WhatsApp button, and NO JobPosting JSON-LD. Structured data announcing a job
+ * that cannot be applied to is the exact error the validThrough fix above
+ * exists to stop making.
+ */
+async function ClosedJobPage({ slug, closed }: { slug: string; closed: ClosedJob }) {
+  const [category, city, similar] = await Promise.all([
+    getCategory(closed.categorySlug),
+    getCity(closed.citySlug),
+    findSimilarJobs({ slug, categorySlug: closed.categorySlug, citySlug: closed.citySlug }),
+  ]);
+
+  return (
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <nav className="flex items-center gap-2 text-sm text-ink-secondary mb-6 flex-wrap" aria-label="Ruta">
+        <Link href="/" className="hover:text-brand transition-colors">Inicio</Link>
+        <span aria-hidden="true">›</span>
+        <Link href="/empleos" className="hover:text-brand transition-colors">Empleos</Link>
+        {category && (
+          <>
+            <span aria-hidden="true">›</span>
+            <Link href={`/trabajo/${category.slug}`} className="hover:text-brand transition-colors">
+              {category.name}
+            </Link>
+          </>
+        )}
+      </nav>
+
+      <div className="bg-white rounded-[10px] border border-border p-6 sm:p-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-ink">Esta oferta ya no está disponible</h1>
+        <p className="mt-3 text-[15px] leading-relaxed text-ink-secondary">
+          El aviso <span className="font-medium text-ink">{closed.title}</span> de{' '}
+          <span className="font-medium text-ink">{closed.company}</span> ya cerró
+          {closed.closedAt ? ` el ${formatClosedDate(closed.closedAt)}` : ''}. Abajo te dejamos
+          otros empleos parecidos que sí están abiertos.
+        </p>
+
+        <div className="mt-6 flex flex-col sm:flex-row gap-3">
+          {category && (
+            <Link
+              href={`/trabajo/${category.slug}`}
+              className="px-5 py-2.5 rounded-[10px] bg-brand hover:bg-brand-hover text-white font-semibold text-sm text-center transition-colors"
+            >
+              Ver empleos de {category.name}
+            </Link>
+          )}
+          <Link
+            href={city ? `/empleos?ciudad=${city.slug}` : '/empleos'}
+            className="px-5 py-2.5 rounded-[10px] border border-border text-ink-secondary font-medium text-sm text-center hover:border-brand hover:text-brand transition-colors"
+          >
+            {city ? `Ver empleos en ${city.name}` : 'Ver todos los empleos'}
+          </Link>
+        </div>
+      </div>
+
+      {similar.length > 0 && (
+        <div className="mt-10">
+          <h2 className="text-lg font-bold text-ink mb-4">Empleos similares</h2>
+          <div className="flex flex-col gap-4">
+            {similar.map((job) => (
+              <JobCard key={job.slug} job={job} />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function formatClosedDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('es-PY', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+}
+
 const SIMILAR_JOBS_LIMIT = 5;
 
 /**
@@ -367,7 +517,9 @@ const SIMILAR_JOBS_LIMIT = 5;
  * The city query only runs when the category produced nothing, so the common
  * case is one read, and both go through the cached seam.
  */
-async function findSimilarJobs(job: Job): Promise<Job[]> {
+async function findSimilarJobs(
+  job: Pick<Job, 'slug' | 'categorySlug' | 'citySlug'>,
+): Promise<Job[]> {
   const byCategory = await getJobs({ categoria: job.categorySlug, orden: 'recientes' });
   const fromCategory = byCategory.jobs.filter((j) => j.slug !== job.slug);
   if (fromCategory.length > 0) return fromCategory.slice(0, SIMILAR_JOBS_LIMIT);
