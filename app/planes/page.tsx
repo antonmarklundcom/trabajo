@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { canonicalFor } from '@/lib/seo';
 import { waHref } from '@/lib/whatsapp';
+import FloatingWhatsApp from '@/components/FloatingWhatsApp';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
@@ -83,6 +84,7 @@ export default function PlanesPage() {
   const showPlans = process.env.NEXT_PUBLIC_SHOW_PLANS !== 'false';
 
   return (
+    <>
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div className="text-center mb-12">
         <h1 className="text-3xl sm:text-4xl font-bold text-ink">Planes para empleadores</h1>
@@ -190,5 +192,7 @@ export default function PlanesPage() {
         </div>
       </div>
     </div>
+    <FloatingWhatsApp />
+    </>
   );
 }

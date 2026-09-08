@@ -1,9 +1,13 @@
 import type { Metadata } from 'next';
 import { getFeaturedJobs, getRecentJobs, getCategories, getCities } from '@/lib/data';
 import { canonicalFor } from '@/lib/seo';
+import { getLaunchPromoStatus } from '@/lib/promo';
+import { WHATSAPP_HOURS_COPY } from '@/lib/whatsapp';
 import SearchHero from '@/components/SearchHero';
 import CategoryGrid from '@/components/CategoryGrid';
 import JobCard from '@/components/JobCard';
+import WhatsAppCta from '@/components/WhatsAppCta';
+import FloatingWhatsApp from '@/components/FloatingWhatsApp';
 import Link from 'next/link';
 import { NandutiMotif } from '@/components/Logo';
 
@@ -21,12 +25,14 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const [featured, recent, categories, cities] = await Promise.all([
+  const [featured, recent, categories, cities, promo] = await Promise.all([
     getFeaturedJobs(6),
     getRecentJobs(8),
     getCategories(),
     getCities(),
+    getLaunchPromoStatus(),
   ]);
+  const promoActive = promo.enabled && promo.remaining > 0;
 
   return (
     <>
@@ -98,16 +104,38 @@ export default async function HomePage() {
             ¿Necesitás contratar?
           </h2>
           <p className="mt-3 text-white/70 text-base">
-            Publicá tu empleo y recibí postulantes por WhatsApp en minutos.
+            Publicá tu empleo gratis. Los postulantes te escriben directo a tu WhatsApp.
           </p>
-          <Link
-            href="/publicar"
-            className="mt-7 inline-flex items-center gap-2 px-8 py-3.5 rounded-[12px] bg-[#E6B25A] hover:bg-[#d8a548] text-ink font-bold text-base transition-colors"
-          >
-            Publicá tu empleo
-          </Link>
+          {promoActive && (
+            <p className="mt-2 text-[#E6B25A] text-sm font-semibold">
+              Promoción de lanzamiento: los primeros 100 avisos salen destacados 90 días, gratis.
+              Quedan {promo.remaining}.
+            </p>
+          )}
+          <div className="mt-7 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <WhatsAppCta
+              intent="publicar"
+              promoActive={promoActive}
+              sourcePage="/"
+              className="sm:w-auto sm:px-8"
+            />
+            <Link
+              href="/publicar"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-[12px] border-2 border-white/30 text-white font-semibold text-base hover:bg-white/10 transition-colors"
+            >
+              Publicar con el formulario
+            </Link>
+          </div>
+          <p className="mt-4">
+            <Link href="/planes" className="text-sm text-white/70 hover:text-white hover:underline">
+              Ver planes y precios
+            </Link>
+          </p>
+          <p className="mt-3 text-xs text-white/50">{WHATSAPP_HOURS_COPY}</p>
         </div>
       </section>
+
+      <FloatingWhatsApp />
     </>
   );
 }

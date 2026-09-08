@@ -31,6 +31,8 @@ type Props = {
   /** Overrides the click event's source_page; defaults to the current path. */
   sourcePage?: string;
   className?: string;
+  /** Fires after tracking — e.g. closing the mobile menu before the wa.me tab opens. */
+  onNavigate?: () => void;
 };
 
 const DEFAULT_LABEL: Record<EmployerIntent, string> = {
@@ -65,6 +67,7 @@ export default function WhatsAppCta({
   size = 'md',
   sourcePage,
   className = '',
+  onNavigate,
 }: Props) {
   const href = employerWhatsAppHref(intent, { context, promoActive });
   if (!href) return null;
@@ -75,6 +78,7 @@ export default function WhatsAppCta({
       intent,
       source_page: sourcePage ?? (typeof window !== 'undefined' ? window.location.pathname : ''),
     });
+    onNavigate?.();
   }
 
   return (

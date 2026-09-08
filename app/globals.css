@@ -69,3 +69,11 @@ button, a, input, select, textarea {
 *:focus:not(:focus-visible) {
   outline: none;
 }
+
+/* FloatingWhatsApp hides while NavMenu's full-screen mobile menu is open.
+   Z-index alone can't do it: the menu overlay lives inside Header's own
+   stacking context (Header is `sticky z-40`), so a plain z-index comparison
+   from a sibling outside that context never sees it. */
+body[data-mobile-menu-open='true'] .floating-whatsapp {
+  display: none;
+}

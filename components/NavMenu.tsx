@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Wordmark, NandutiMotif } from './Logo';
+import WhatsAppCta from './WhatsAppCta';
 
 const links = [
   { href: '/empleos', label: 'Empleos' },
@@ -16,13 +17,20 @@ export default function NavMenu() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
-  // Lock body scroll while the full-screen menu is open.
+  // Lock body scroll while the full-screen menu is open, and flag it on
+  // <body> so FloatingWhatsApp (rendered from the page, not from Header) can
+  // hide itself: the menu overlay lives inside Header's own stacking context
+  // (Header is `sticky z-40`), so its z-50 only wins against other elements
+  // INSIDE that context — a floating button outside it would otherwise paint
+  // over the open menu no matter how high its z-index goes.
   useEffect(() => {
     if (open) {
       const prev = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
+      document.body.setAttribute('data-mobile-menu-open', 'true');
       return () => {
         document.body.style.overflow = prev;
+        document.body.removeAttribute('data-mobile-menu-open');
       };
     }
   }, [open]);
@@ -102,19 +110,18 @@ export default function NavMenu() {
             ))}
 
             <div className="mt-auto pt-6 flex flex-col gap-3">
+              <WhatsAppCta
+                intent="publicar"
+                label="Publicá por WhatsApp"
+                sourcePage={pathname}
+                onNavigate={() => setOpen(false)}
+              />
               <Link
                 href="/publicar"
                 onClick={() => setOpen(false)}
                 className="w-full py-3.5 rounded-[12px] bg-[#E6B25A] text-ink font-bold text-center hover:bg-[#d8a548] transition-colors"
               >
                 Publicá tu empleo
-              </Link>
-              <Link
-                href="/contacto"
-                onClick={() => setOpen(false)}
-                className="w-full py-3.5 rounded-[12px] border border-white/30 text-white font-semibold text-center hover:bg-white/10 transition-colors"
-              >
-                Contacto
               </Link>
             </div>
           </nav>
