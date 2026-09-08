@@ -9,6 +9,7 @@ import {
   getJob,
   getJobs,
 } from '@/lib/data';
+import { canonicalFor } from '@/lib/seo';
 import { formatSalary, formatRelativeDate, contractTypeLabel, seniorityLabel, modalityLabel, employmentTypeJsonLd } from '@/lib/formatters';
 import WhatsAppButton from '@/components/WhatsAppButton';
 import ShareLinks from '@/components/ShareLinks';
@@ -60,6 +61,10 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
         title: `${closed.title} — ${closed.company} (oferta cerrada)`,
         description: `Esta oferta de ${closed.title} en ${closed.company} ya no está disponible. Mirá otros empleos en trabajo.com.py.`,
         robots: { index: false, follow: true },
+        // A tombstone is still one URL, and still the canonical address of the
+        // listing that used to live at it. `noindex` decides whether Google
+        // keeps it; the canonical decides which address it is.
+        alternates: { canonical: canonicalFor(`/empleos/${slug}`) },
       };
     }
     return { title: 'Empleo no encontrado' };
@@ -68,6 +73,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   return {
     title: `${job.title} — ${job.company}`,
     description: `${job.title} en ${job.company}. ${job.salaryHidden ? 'Salario a convenir.' : formatSalary(job.salaryMin, job.salaryMax) + '.'} Aplicá ahora en trabajo.com.py`,
+    alternates: { canonical: canonicalFor(`/empleos/${job.slug}`) },
     openGraph: {
       title: `${job.title} — ${job.company}`,
       description: `${job.title} en ${job.company}`,

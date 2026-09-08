@@ -58,7 +58,6 @@ const CACHEABLE_ORDERS: readonly string[] = [
   'recientes',
   'salario',
   'destacados',
-  'relevancia',
 ] satisfies readonly NonNullable<JobFilters['orden']>[];
 
 // Deep pagination is not a real browse pattern; past this the pages are empty

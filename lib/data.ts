@@ -106,9 +106,9 @@ function sortJobs(jobs: Job[], orden: JobFilters['orden']): Job[] {
     );
   }
 
-  // 'recientes', 'destacados' and 'relevancia' all land here, exactly as they
-  // all land in the DB path's else branch — `destacados` floats featured jobs
-  // to the top rather than filtering the rest out.
+  // Both 'recientes' and 'destacados' land here, exactly as they both land in
+  // the DB path's else branch — `destacados` floats featured jobs to the top
+  // rather than filtering the rest out.
   return [...jobs].sort(
     (a, b) =>
       featuredRank(a) - featuredRank(b) ||

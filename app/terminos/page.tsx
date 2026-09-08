@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
+import { canonicalFor } from '@/lib/seo';
 
 export const metadata: Metadata = {
   title: 'Términos y condiciones',
   description:
     'Términos y condiciones de uso del portal de empleos trabajo.com.py.',
+  alternates: { canonical: canonicalFor('/terminos') },
 };
 
 const sections = [

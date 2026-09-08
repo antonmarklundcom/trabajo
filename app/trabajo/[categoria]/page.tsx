@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { canonicalFor } from '@/lib/seo';
 import Link from 'next/link';
 import { getJobs, getCategory, getCities } from '@/lib/data';
 import JobCard from '@/components/JobCard';
@@ -19,7 +20,9 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   return {
     title: `Trabajo de ${category.name.toLowerCase()} en Paraguay`,
     description: `Encontrá los mejores empleos de ${category.name.toLowerCase()} en Paraguay. Postulate gratis en trabajo.com.py`,
-    robots: category.jobCount === 0 ? { index: false } : { index: true, follow: true },
+    robots:
+      category.jobCount === 0 ? { index: false, follow: true } : { index: true, follow: true },
+    alternates: { canonical: canonicalFor(`/trabajo/${categoria}`) },
   };
 }
 

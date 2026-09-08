@@ -86,7 +86,14 @@ export type JobFilters = {
   nivel?: string;
   modality?: string;
   salarioMin?: number;
-  orden?: 'recientes' | 'salario' | 'destacados' | 'relevancia';
+  /**
+   * `relevancia` was removed in PLAN-GROWTH.md §4 S2: it was a fourth label
+   * for the same ORDER BY `recientes` already produced, so it doubled the URL
+   * permutations of every listing page while changing nothing a visitor saw.
+   * `destacados` is kept because it IS the default order, not because it
+   * differs from one.
+   */
+  orden?: 'recientes' | 'salario' | 'destacados';
   q?: string;
   page?: number;
 };

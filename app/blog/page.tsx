@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { canonicalFor } from '@/lib/seo';
 import Link from 'next/link';
 import { getBlogPosts, BLOG_CATEGORY_LABELS } from '@/lib/blog';
 
@@ -17,6 +18,7 @@ export const metadata: Metadata = {
   description:
     'Consejos de carrera, análisis del mercado laboral y novedades del portal de empleos de Paraguay.',
   robots: { index: true, follow: true },
+  alternates: { canonical: canonicalFor('/blog') },
 };
 
 export default async function BlogIndexPage() {

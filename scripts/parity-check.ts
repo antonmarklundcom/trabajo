@@ -60,7 +60,7 @@ async function main() {
   const seedCategories = (await withSource('seed', () => data.getCategories())) as Category[];
   const seedCities = (await withSource('seed', () => data.getCities())) as City[];
 
-  const ordenes: JobFilters['orden'][] = ['recientes', 'destacados', 'salario', 'relevancia'];
+  const ordenes: JobFilters['orden'][] = ['recientes', 'destacados', 'salario'];
   const matrix: { filters: JobFilters; label: string }[] = [];
 
   for (const orden of ordenes) {
