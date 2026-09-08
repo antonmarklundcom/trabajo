@@ -62,9 +62,24 @@ export const employerPostSchema = z.object({
   sourcePage: z.string().max(300).optional(),
 });
 
+// A general question — "¿tenés dudas?" — not a job post. Kept separate from
+// employerPostSchema rather than laundered through it with placeholder job
+// fields (PLAN-GROWTH.md §2.2 finding 6): every /contacto message used to
+// arrive in the CRM as a fake "Consulta general" vacancy in Asunción
+// administración, which is both wrong data and a job nobody can moderate.
+export const contactSchema = z.object({
+  type: z.literal('contact'),
+  name: z.string().min(2).max(100),
+  phone: z.string().min(6).max(30),
+  email: z.string().email().optional().or(z.literal('')),
+  message: z.string().min(10).max(2000),
+  sourcePage: z.string().max(300).optional(),
+});
+
 export const leadSchema = z.discriminatedUnion('type', [
   applicationSchema,
   employerPostSchema,
+  contactSchema,
 ]);
 
 export type LeadInput = z.infer<typeof leadSchema>;
@@ -74,7 +89,7 @@ export type LeadInput = z.infer<typeof leadSchema>;
 // ---------------------------------------------------------------------------
 
 export type LeadPayload = {
-  lead_type: 'employer' | 'seeker';
+  lead_type: 'employer' | 'seeker' | 'contact';
   full_name: string;
   email: string;
   phone: string;
@@ -131,6 +146,17 @@ export function buildPayload(lead: LeadInput): LeadPayload {
       category: categoryLabel(lead.categorySlug),
       contract_type: lead.contractType ?? '',
       message: lead.description,
+    };
+  }
+
+  if (lead.type === 'contact') {
+    return {
+      ...base,
+      lead_type: 'contact',
+      full_name: lead.name,
+      email: lead.email ?? '',
+      phone: normalizePhone(lead.phone),
+      message: lead.message,
     };
   }
 

@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import { canonicalFor } from '@/lib/seo';
-import { waHref } from '@/lib/whatsapp';
+import { siteWhatsAppNumber, WHATSAPP_HOURS_COPY, type EmployerIntent } from '@/lib/whatsapp';
 import FloatingWhatsApp from '@/components/FloatingWhatsApp';
+import WhatsAppCta from '@/components/WhatsAppCta';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
@@ -11,22 +12,18 @@ export const metadata: Metadata = {
   alternates: { canonical: canonicalFor('/planes') },
 };
 
-// The Destacado CTA goes to WhatsApp, not to /contacto.
-//
-// This is the flow that actually closes a sale today: the team quotes a price,
-// the employer pays by transfer, and an operator opens the window from
-// /admin/empleos/[id] (lib/db/admin.ts grantJobFeature). A contact form adds a
-// step to a conversation that was always going to happen on WhatsApp anyway.
-// The prefilled message names the plan so the team knows what the message is
-// about before opening it. PLAN-PAGOPAR.md is where this becomes a checkout.
-const DESTACADO_MESSAGE = 'Hola, quiero destacar un empleo en trabajo.com.py. ¿Cuánto sale?';
-
-function whatsappHref(message: string): string | null {
-  const number = process.env.NEXT_PUBLIC_WHATSAPP_LEADS ?? '';
-  return number ? waHref(number, message) : null;
-}
-
-const plans = [
+const plans: Array<{
+  name: string;
+  price: string;
+  priceNote: string;
+  featured: boolean;
+  description: string;
+  features: string[];
+  cta: string;
+  ctaHref: string;
+  /** Set to route the CTA through WhatsAppCta instead of a plain Link. */
+  whatsappIntent?: EmployerIntent;
+}> = [
   {
     name: 'Básico',
     price: 'Gratis',
@@ -54,12 +51,16 @@ const plans = [
       'Posición destacada en resultados y portada',
       'Badge "Destacado" visible',
       'Borde de acento en la tarjeta',
-      'Activo por 30–60 días',
+      'Activo por el período que elijas: 15, 30, 60 o 90 días',
       'Soporte prioritario del equipo',
     ],
+    // This is the flow that actually closes a sale today: the team quotes a
+    // price, the employer pays by transfer, and an operator opens the window
+    // from /admin/empleos/[id] (lib/db/admin.ts grantJobFeature).
+    // PLAN-PAGOPAR.md is where this becomes a checkout.
     cta: 'Consultá precios por WhatsApp',
     ctaHref: '/contacto',
-    whatsappMessage: DESTACADO_MESSAGE,
+    whatsappIntent: 'destacado',
   },
   {
     name: 'Empresa',
@@ -77,11 +78,16 @@ const plans = [
     ],
     cta: 'Hablemos',
     ctaHref: '/contacto',
+    whatsappIntent: 'empresa',
   },
 ];
 
 export default function PlanesPage() {
   const showPlans = process.env.NEXT_PUBLIC_SHOW_PLANS !== 'false';
+  // Falls back to ctaHref when NEXT_PUBLIC_WHATSAPP_LEADS is unset, so a
+  // missing number is a working /contacto link rather than a wa.me/ that
+  // goes nowhere (WhatsAppCta itself renders null in that case).
+  const hasWhatsApp = Boolean(siteWhatsAppNumber());
 
   return (
     <>
@@ -95,70 +101,69 @@ export default function PlanesPage() {
 
       {showPlans && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {plans.map((plan) => (
-            <div
-              key={plan.name}
-              className={`bg-white rounded-[10px] border p-6 flex flex-col ${
-                plan.featured
-                  ? 'border-brand shadow-sm ring-2 ring-brand/20'
-                  : 'border-border'
-              }`}
-            >
-              {plan.featured && (
-                <div className="mb-4">
-                  <span className="text-xs font-semibold px-3 py-1 rounded-full bg-brand-tint text-brand">
-                    Más popular
-                  </span>
-                </div>
-              )}
-              <h2 className="text-xl font-bold text-ink">{plan.name}</h2>
-              <div className="mt-3 mb-4">
-                <span className="text-3xl font-bold text-ink">{plan.price}</span>
-                <span className="text-sm text-ink-secondary ml-1">{plan.priceNote}</span>
-              </div>
-              <p className="text-sm text-ink-secondary mb-6">{plan.description}</p>
-              <ul className="space-y-3 flex-1">
-                {plan.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2 text-sm text-[#44403A]">
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                      className="text-success flex-shrink-0 mt-0.5"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              {/* Falls back to ctaHref when NEXT_PUBLIC_WHATSAPP_LEADS is
-                  unset, so a missing number is a working /contacto link rather
-                  than a wa.me/ that goes nowhere. */}
-              {(() => {
-                const href = plan.whatsappMessage ? whatsappHref(plan.whatsappMessage) : null;
-                const className = `mt-8 w-full py-3 px-4 rounded-[10px] text-center font-semibold text-sm transition-colors ${
+          {plans.map((plan) => {
+            const ctaClassName = `mt-8 w-full py-3 px-4 rounded-[10px] text-center font-semibold text-sm transition-colors ${
+              plan.featured
+                ? 'bg-brand hover:bg-brand-hover text-white'
+                : 'border-2 border-brand text-brand hover:bg-brand-tint'
+            }`;
+            return (
+              <div
+                key={plan.name}
+                className={`bg-white rounded-[10px] border p-6 flex flex-col ${
                   plan.featured
-                    ? 'bg-brand hover:bg-brand-hover text-white'
-                    : 'border-2 border-brand text-brand hover:bg-brand-tint'
-                }`;
-                return href ? (
-                  <a href={href} target="_blank" rel="noopener noreferrer" className={className}>
-                    {plan.cta}
-                  </a>
+                    ? 'border-brand shadow-sm ring-2 ring-brand/20'
+                    : 'border-border'
+                }`}
+              >
+                {plan.featured && (
+                  <div className="mb-4">
+                    <span className="text-xs font-semibold px-3 py-1 rounded-full bg-brand-tint text-brand">
+                      Más popular
+                    </span>
+                  </div>
+                )}
+                <h2 className="text-xl font-bold text-ink">{plan.name}</h2>
+                <div className="mt-3 mb-4">
+                  <span className="text-3xl font-bold text-ink">{plan.price}</span>
+                  <span className="text-sm text-ink-secondary ml-1">{plan.priceNote}</span>
+                </div>
+                <p className="text-sm text-ink-secondary mb-6">{plan.description}</p>
+                <ul className="space-y-3 flex-1">
+                  {plan.features.map((f) => (
+                    <li key={f} className="flex items-start gap-2 text-sm text-[#44403A]">
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        className="text-success flex-shrink-0 mt-0.5"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                {plan.whatsappIntent && hasWhatsApp ? (
+                  <WhatsAppCta
+                    intent={plan.whatsappIntent}
+                    label={plan.cta}
+                    sourcePage="/planes"
+                    className="mt-8"
+                  />
                 ) : (
-                  <Link href={plan.ctaHref} className={className}>
-                    {plan.whatsappMessage ? 'Consultá precios' : plan.cta}
+                  <Link href={plan.ctaHref} className={ctaClassName}>
+                    {plan.cta}
                   </Link>
-                );
-              })()}
-            </div>
-          ))}
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -173,7 +178,7 @@ export default function PlanesPage() {
             },
             {
               q: '¿Quién publica los empleos?',
-              a: 'En esta etapa, nuestro equipo revisa y publica cada oferta para garantizar calidad. Completás el formulario, te contactamos y publicamos en menos de 24 horas.',
+              a: `Escribinos por WhatsApp con el puesto, la ciudad y un contacto — es la vía más rápida. También podés completar el formulario. En ambos casos, nuestro equipo revisa y publica el aviso una vez aprobado. ${WHATSAPP_HOURS_COPY}`,
             },
             {
               q: '¿Los candidatos pagan algo?',
