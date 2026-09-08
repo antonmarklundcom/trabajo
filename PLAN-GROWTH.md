@@ -964,9 +964,9 @@ applies everywhere, and S3 carries its own `expiresAt` plumbing.
 
 | Session | # | PR | Depends on | Size |
 |---|---|---|---|---|
-| **Opus** | 1 | P1 launch-promotion core (channel, quota, grant on approval, terms) | — | M |
-| **Opus** | 2 | S3 JobPosting fix + closed-job tombstone + full prerender (+ `Job.expiresAt`) | — | M |
-| **Opus** | 3 | S2 `/empleos` index control + `lib/seo.ts` canonical helper + `seo:verify` | — | M |
+| **Opus** ✅ | 1 | P1 launch-promotion core — **merged, PR #85** | — | M |
+| **Opus** ✅ | 2 | S3 JobPosting fix + closed-job tombstone + full prerender — **merged, PR #86** | — | M |
+| **Opus** ✅ | 3 | S2 `/empleos` index control + `lib/seo.ts` + `seo:verify` — **merged, PR #87** | — | M |
 | **Sonnet A** | 4 | W1 shared WhatsApp module + event vocabulary + `whatsapp:verify` | — | S |
 | Sonnet A | 5 | W2 homepage band, mobile menu, footer, floating button | W1 | S |
 | Sonnet A | 6 | W3 `/publicar` two paths + success screen + double-write fix | W1 | M |
@@ -987,9 +987,11 @@ applies everywhere, and S3 carries its own `expiresAt` plumbing.
 | Sonnet D | 20 | D4 listing page | D1, S2 | M |
 | Sonnet D | 21 | D5 company pages `/empresas/[slug]` | D2 | M |
 
-Sonnet A can start the moment the Opus session has merged P1 (W1–W5 touch
-none of the Opus files; P2 needs P1). Sonnet B starts after the Opus
-session is fully merged. Sonnet C starts after Sonnet B's C1 merges and
+**Update 2026-09-08, after the Opus session:** PRs 1–3 are merged (§12 is
+what they left behind). Sonnet A and Sonnet B run **back to back in one
+session** at Sonnet *high* effort — eleven PRs, unattended, each a
+production deploy, and every red CI run is billed; the extra reasoning per
+PR is cheaper than one re-push. Sonnet C starts after Sonnet B's C1 merges and
 after the owner has published at least five articles from the C0 drafts.
 Sonnet D starts after A, B and C2 are merged. Every session: PR → CI green
 → merge → pull `main` → next, never stacked; auto-merge on green with the
@@ -1090,43 +1092,66 @@ All five share a preamble. Paste the preamble, then the session's block.
 > When a PR section and the code disagree about a file:line, the code wins
 > and you note the drift in the PR body. Do not use Fable for anything.
 
-**Session 1 — Opus:**
+**Session 1 — Opus: done (PRs #85, #86, #87). Do not re-run.**
 
-> You are the Opus session (§6, PRs 1–3): **P1** launch-promotion core, then
-> **S3** JobPosting + closed-job tombstone + full prerender, then **S2**
-> `/empleos` index control with `lib/seo.ts` (`canonicalFor()` + the robots
-> rule table) and `scripts/verify-seo.ts`. Read `PLAN-PAGOPAR.md` §1 before
-> P1 — the grant goes through `applyFeatureGrant()` and nowhere else, with
-> the new channel, and happens only inside the admin status transition to
-> `published`. For S3, `getClosedJob()` reads only `published`-and-expired
-> or `archived` rows and `moderation:verify` asserts it. For S2, the
-> paginated bare `/empleos?page=N` stays indexable — assert that in
-> `verify-seo.ts` before anything else. Add both new verify scripts as
-> steps in the existing CI job. When all three are merged, post a short
-> summary of what Sonnet A and B may now rely on (helper names, the promo
-> status function, the `Job.expiresAt` field).
+**Session 2 — Sonnet, effort HIGH (Batches W + P2 + S1/S5/S4/S6 + C1, eleven PRs, one session):**
 
-**Session 2 — Sonnet A (WhatsApp + promotion surfaces):**
+> Read AGENTS.md, then PLAN-GROWTH.md in full — §1 (what binds you), §7
+> (every decision is taken; do not re-ask), **§12 (what the Opus session
+> left on `main` — rely on it, do not rebuild it)**, and your PRs in §4 as
+> ordered in §6. This repo runs Next.js 16: run `npm install` first and
+> consult `node_modules/next/dist/docs/` before writing metadata, caching,
+> `searchParams`, route or image code.
+>
+> You are running Sonnet A and Sonnet B back to back (§6, PRs 4–14):
+> **W1, W2, W3, W4, W5, P2, S1, S5, S4, S6, C1**, in that order. The owner
+> is asleep — do not stop to ask unless a rule below says stop. Work PR by
+> PR: branch from a fresh `main`, build exactly what the PR's §4 section
+> says, keep `npm run build`, `npm run lint`, `npm run typecheck` and every
+> `*:verify` script green locally before pushing, open the PR with a body
+> listing pages touched (screenshots for visual changes from `npm run build
+> && npm start`), wait for CI, merge on green, `git pull`, continue. Never
+> stack PRs. New verify scripts are new steps in the existing job in
+> `.github/workflows/ci.yml`, never a new workflow. UI copy is Spanish
+> (Paraguay), voseo; never promise applicant volume or speed — the only
+> time promise on the site is `WHATSAPP_HOURS_COPY`. Anything that would
+> touch production env, the visibility predicate, job status,
+> `featured_until` beyond what your PR section specifies, or a rollback
+> path: stop and ask. When a PR section and the code disagree about a
+> file:line, the code wins — note the drift in the PR body. Do not use Fable
+> for anything.
+>
+> Batch W specifics: every `wa.me` link is built by `lib/whatsapp.ts` and
+> nowhere else; `WHATSAPP_HOURS_COPY` and the intent messages (with their
+> `promoActive` variant) live there; the floating button is mounted per page
+> on `/`, `/publicar`, `/planes`, `/contacto` only, never in
+> `app/layout.tsx`; W1's `.env.example` pass also adds `LAUNCH_PROMO_ENABLED`
+> (§12, it is missing) and documents it in DEPLOY.md's env table; finish W
+> with `whatsapp:verify` green in CI and README's analytics section
+> documenting the two events. P2 gates every surface on
+> `enabled && remaining > 0` from `getLaunchPromoStatus()` and never writes
+> `'promo_launch'` anywhere (moderation:verify fails the build).
+>
+> Batch S specifics: S1 applies `canonicalFor()` from `lib/seo.ts` and owns
+> titles/descriptions, not canonicals (all twelve public pages already
+> declare one); keep `seo:verify` green. New seam functions in S5/S4
+> (`getTaxonomyCounts`, the city-landing reads) each get a seed
+> implementation, a DB implementation and a `parity-check` case; no page
+> reads `lib/db/queries.ts`. When S4 ships `/trabajo-en/[ciudad]`, change
+> the `ciudad` branch of `listingIndexRule()` and its expectation in
+> `scripts/verify-seo.ts` in the same PR (the failure message says so), and
+> switch the city chips in `/empleos`'s `TaxonomyLinks` from `?ciudad=` to
+> the new route. The `capiatá` → `capiata` rename ships with its 301s in the
+> same PR. Use `getAllPublishedJobSummaries()` rather than walking pages
+> again. C1 is a Drizzle migration that extends the blog-category enum
+> without renaming any value and makes `lib/blog-categories.ts` the single
+> source.
+>
+> When all eleven are merged, append a `§12.2 State after Sonnet A+B` to
+> PLAN-GROWTH.md in a final docs-only PR: helper names Sonnet C and D may
+> rely on, and anything you deferred and why.
 
-> You are Sonnet A (§6, PRs 4–9): **W1, W2, W3, W4, W5, P2** in that order.
-> P1 is merged: use `getLaunchPromoStatus()` from `lib/promo.ts` and the
-> `'promo_launch'` channel as they exist. Copy constants live in
-> `lib/whatsapp.ts` (`WHATSAPP_HOURS_COPY`, the intent messages with the
-> `promoActive` variant). The floating button is mounted per page (D2),
-> never in `app/layout.tsx`. Finish with `npm run whatsapp:verify` green in
-> CI and the README analytics section documenting the two events.
-
-**Session 3 — Sonnet B (SEO structure):**
-
-> You are Sonnet B (§6, PRs 10–14): **S1, S5, S4, S6, C1** in that order.
-> S2 and S3 are merged: apply `canonicalFor()` from `lib/seo.ts` in S1
-> rather than writing canonicals by hand, and keep `seo:verify` green. New
-> seam functions (`getTaxonomyCounts`, the city landing reads) get a seed
-> and a DB implementation and a `parity-check` case. The `capiatá` rename
-> ships with its 301s in the same PR. C1 is a Drizzle migration that extends
-> the enum without renaming any value.
-
-**Session 4 — Sonnet C (content + blog architecture):**
+**Session 3 — Sonnet C, effort high (content + blog architecture):**
 
 > You are Sonnet C (§6, C0, C2, C3). C1 is merged. First run **C0**: spawn
 > one Sonnet subagent per article from the §4 C0 table (the ten sector
@@ -1141,10 +1166,10 @@ All five share a preamble. Paste the preamble, then the session's block.
 > across two categories. Resume with **C2** and **C3** only after the owner
 > confirms that.
 
-**Session 5 — Sonnet D (redesign):**
+**Session 4 — Sonnet D, effort high (redesign):**
 
 > You are Sonnet D (§6, PRs 17–21): **D1, D2, D3, D4, D5** in that order.
-> A, B and C2 are merged. D1 is zero-visual-diff except the gold decision
+> Read §12 too. A, B and C2 are merged. D1 is zero-visual-diff except the gold decision
 > (D3 in §7); post before/after screenshots at 360 px and 1280 px for every
 > D PR. The sticky mobile apply bar uses `WhatsAppCta` and the shared
 > `whatsapp_click` event with `audience: 'seeker'`. D5 adds an `empresa`
@@ -1203,3 +1228,35 @@ the site already has.
    copy, no applicant counts on public pages (`AGENTS.md`), no bulk import
    from other boards. The promotion's copy says what it is — a launch offer
    with a counter — and nothing more.
+
+---
+
+## 12. State after the Opus session (2026-09-08, PRs #85–#87 on `main`)
+
+Verified against `main` at `9e6213d`. Later sessions rely on this and do
+not rebuild it.
+
+### 12.1 What exists
+
+| Piece | Where | Notes |
+|---|---|---|
+| `launchPromoEnabled()`, `getLaunchPromoStatus()` | `lib/promo.ts` (server-only, async) | Returns `{ enabled, quota, granted, remaining }`; `remaining` clamped at 0, so surfaces gate on `enabled && remaining > 0` alone. Seed mode: `granted: 0`. |
+| `LAUNCH_PROMO` (`{ quota: 100, days: 90 }`), `LAUNCH_PROMO_CHANNEL`, `FEATURE_GRANT_CHANNEL_LABELS` | `lib/featured.ts` (not server-only) | Client components may render the quota and the channel label from here. |
+| `getJobFeatureState(id)` → `{ featuredUntil, active, channel }` | `lib/db/admin.ts` | `channel` is the last grant's channel from `activity_log`; the employer `PlanCard` promo line (P2) reads it through `lib/db/employer.ts`. |
+| `invalidateLaunchPromo()` | `lib/cache.ts` | Already called by the grant path. |
+| The grant | `applyFeatureGrant()` in `lib/db/admin.ts`, inside the admin PATCH transition to `published` | `'promo_launch'` may appear only in `lib/featured.ts` and `lib/db/admin.ts`; `moderation:verify` fails the build otherwise. No second grant path, ever. |
+| `Job.expiresAt`, `Job.companyWebsite` | `lib/types.ts`, both readers, `parity-check` | `expiresAt` is the only source of `validThrough`; `seo:verify` fails if `featuredUntil` reappears in the JobPosting block. |
+| `getClosedJob(slug)`, `ClosedJob` | `lib/data.ts` | The tombstone read. Do not add callers: `moderation:verify` asserts exactly two references to `closedPredicate()`. |
+| `getAllPublishedJobSummaries()` | `lib/data.ts` | The whole catalogue in one page-walk; used by the sitemap and `/empleos/[slug]`'s `generateStaticParams`. |
+| `siteUrl()`, `canonicalFor(path)`, `listingIndexRule(params)` | `lib/seo.ts` | All twelve public pages declare `alternates.canonical`. The `ciudad` branch canonicalises to `/empleos` until S4 ships `/trabajo-en/[ciudad]`; `scripts/verify-seo.ts` pins that and names the hand-off. |
+| `TaxonomyLinks` | `app/empleos/page.tsx` | Category chips → `/trabajo/*`; city chips → `/empleos?ciudad=` until S4. |
+| `JobFilters['orden']` | `lib/types.ts` | `'recientes' \| 'salario' \| 'destacados'`; `relevancia` is gone and `seo:verify` keeps it gone. |
+| CI | `.github/workflows/ci.yml` | One new step, `seo:verify`; `moderation:verify` grew the promo and tombstone assertions in place. |
+
+### 12.2 Gaps the next session closes
+
+- `LAUNCH_PROMO_ENABLED` is read by `lib/promo.ts` but absent from
+  `.env.example` and DEPLOY.md's env table — W1 adds it alongside the
+  `NEXT_PUBLIC_*` entries it already owes.
+- The promotion is dark in production until the owner sets
+  `LAUNCH_PROMO_ENABLED=true` in hPanel and redeploys (§8).
