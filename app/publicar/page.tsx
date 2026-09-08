@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { getCategories, getCities } from '@/lib/data';
 import { employerDashboardEnabled, employerSignupEnabled } from '@/lib/flags';
 import EmployerForm from '@/components/EmployerForm';
+import FloatingWhatsApp from '@/components/FloatingWhatsApp';
 
 export const metadata: Metadata = {
   title: 'Publicá tu empleo gratis en Paraguay',
@@ -19,6 +20,7 @@ export default async function PublicarPage() {
   const selfServeEnabled = employerDashboardEnabled() && employerSignupEnabled();
 
   return (
+    <>
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div className="text-center mb-10">
         <h1 className="text-3xl sm:text-4xl font-bold text-ink">
@@ -62,5 +64,7 @@ export default async function PublicarPage() {
         No publicamos datos de contacto de empleadores sin su consentimiento.
       </p>
     </div>
+    <FloatingWhatsApp />
+    </>
   );
 }

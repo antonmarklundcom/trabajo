@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { Wordmark } from './Logo';
+import WhatsAppCta from './WhatsAppCta';
+import { WHATSAPP_HOURS_COPY } from '@/lib/whatsapp';
 
 const categoryLinks = [
   { href: '/trabajo/tecnologia', label: 'Tecnología' },
@@ -30,15 +32,23 @@ export default function Footer() {
             <p className="mt-3 text-sm text-ink-secondary leading-relaxed">
               El portal de empleos de Paraguay. Gratis para candidatos, siempre.
             </p>
-            <p className="mt-4 text-sm text-ink-secondary">
-              <span className="font-medium">¿Tenés dudas?</span>{' '}
-              <Link
-                href="/contacto"
-                className="text-brand hover:underline"
-              >
-                Contactanos
-              </Link>
-            </p>
+            <div className="mt-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-ink-secondary mb-2">
+                Contacto
+              </p>
+              <WhatsAppCta
+                intent="contacto"
+                variant="pill"
+                size="sm"
+                sourcePage="/"
+              />
+              <p className="mt-2 text-xs text-ink-secondary">{WHATSAPP_HOURS_COPY}</p>
+              <p className="mt-1 text-sm">
+                <Link href="/contacto" className="text-brand hover:underline">
+                  Ver formulario de contacto
+                </Link>
+              </p>
+            </div>
           </div>
 
           {/* Categorías */}

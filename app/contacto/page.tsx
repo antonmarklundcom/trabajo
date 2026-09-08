@@ -3,6 +3,7 @@ import { canonicalFor } from '@/lib/seo';
 import { waHref } from '@/lib/whatsapp';
 import ContactForm from '@/components/ContactForm';
 import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
+import FloatingWhatsApp from '@/components/FloatingWhatsApp';
 
 export const metadata: Metadata = {
   title: 'Contacto',
@@ -14,6 +15,7 @@ export default function ContactoPage() {
   const whatsapp = process.env.NEXT_PUBLIC_WHATSAPP_LEADS ?? '';
 
   return (
+    <>
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div className="text-center mb-10">
         <h1 className="text-3xl sm:text-4xl font-bold text-ink">Contacto</h1>
@@ -63,5 +65,7 @@ export default function ContactoPage() {
         <ContactForm />
       </div>
     </div>
+    <FloatingWhatsApp />
+    </>
   );
 }
