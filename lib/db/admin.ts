@@ -81,7 +81,7 @@ export async function listCompanyOptions() {
 
 export async function getDashboardStats() {
   const db = await getDb();
-  const [[pending], [published], [totalCompanies], recent] = await Promise.all([
+  const [[pending], [published], [totalCompanies], recent, [lastSubmission]] = await Promise.all([
     db.select({ n: count() }).from(jobs).where(eq(jobs.status, 'pending')),
     db.select({ n: count() }).from(jobs).where(eq(jobs.status, 'published')),
     db.select({ n: count() }).from(companies),
@@ -98,6 +98,15 @@ export async function getDashboardStats() {
       .leftJoin(users, eq(activityLog.actorUserId, users.id))
       .orderBy(desc(activityLog.createdAt))
       .limit(10),
+    // "Último pedido de publicación" (PLAN-GROWTH.md §4 W5) — a missed W5
+    // notification email is invisible in a browser, same reasoning as
+    // PurgeStatus's stale-purge warning: the panel says so out loud.
+    db
+      .select({ createdAt: activityLog.createdAt })
+      .from(activityLog)
+      .where(and(eq(activityLog.entityType, 'job'), eq(activityLog.action, PUBLIC_SUBMISSION_ACTION)))
+      .orderBy(desc(activityLog.createdAt))
+      .limit(1),
   ]);
 
   return {
@@ -105,6 +114,7 @@ export async function getDashboardStats() {
     publishedCount: published.n,
     companyCount: totalCompanies.n,
     recentActivity: recent,
+    lastPublicSubmissionAt: lastSubmission?.createdAt ?? null,
   };
 }
 
@@ -823,6 +833,9 @@ export async function deleteAdminJobImage(
 // supplied field can make this create anything visible.
 // ---------------------------------------------------------------------------
 
+/** Also read by getDashboardStats() for "Último pedido de publicación". */
+const PUBLIC_SUBMISSION_ACTION = 'public_submission';
+
 export type PublicJobSubmissionInput = {
   companyName: string;
   contactWhatsapp: string;
@@ -895,12 +908,19 @@ export async function createPublicJobSubmission(
     updatedAt: now,
   });
 
+  // Always logged (even with an empty meta) so "Último pedido de
+  // publicación" on the admin dashboard tracks every submission through this
+  // path, not only the ones where a contact name happened to be recorded.
   const contactMeta: Record<string, unknown> = {};
   if (input.contactName) contactMeta.contactName = input.contactName;
   if (input.email) contactMeta.email = input.email;
-  if (Object.keys(contactMeta).length > 0) {
-    await logActivity(null, 'job', result.insertId, 'public_submission', contactMeta);
-  }
+  await logActivity(
+    null,
+    'job',
+    result.insertId,
+    PUBLIC_SUBMISSION_ACTION,
+    Object.keys(contactMeta).length > 0 ? contactMeta : undefined,
+  );
 
   return result.insertId;
 }

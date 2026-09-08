@@ -12,6 +12,7 @@ import { createApplication } from '@/lib/db/admin';
 import {
   notifyApplicantOfApplication,
   notifyEmployerOfApplication,
+  notifyTeamOfLead,
 } from '@/lib/notifications';
 import { captureError } from '@/lib/observability';
 
@@ -83,6 +84,10 @@ export async function POST(req: NextRequest) {
   // sent. Logger failures can never block or fail the user's request.
   after(async () => {
     await processLead(lead);
+
+    // W5, after the webhook fan-out, same non-blocking position and reason.
+    // A no-op for `application` leads — seekers get N1/N2 below instead.
+    await notifyTeamOfLead(lead);
 
     // N1, after the insert and the webhook fan-out, in the same non-blocking
     // position and for the same reason. Only real applications that left an

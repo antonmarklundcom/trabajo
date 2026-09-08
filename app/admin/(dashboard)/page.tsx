@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getDashboardStats } from '@/lib/db/admin';
 import { daysSince, getLastPurgeRun, PURGE_STALE_AFTER_DAYS } from '@/lib/db/ops-state';
+import { formatLastSubmission } from '@/lib/formatters';
 import { getLaunchPromoStatus } from '@/lib/promo';
 import { LAUNCH_PROMO } from '@/lib/featured';
 
@@ -51,6 +52,7 @@ export default async function AdminDashboardPage() {
           value={stats.pendingCount}
           href="/admin/empleos?status=pending"
           highlight={stats.pendingCount > 0}
+          footer={`Último pedido de publicación: ${formatLastSubmission(stats.lastPublicSubmissionAt)}`}
         />
         <StatCard
           label="Empleos publicados"
@@ -163,11 +165,13 @@ function StatCard({
   value,
   href,
   highlight,
+  footer,
 }: {
   label: string;
   value: number;
   href: string;
   highlight?: boolean;
+  footer?: string;
 }) {
   return (
     <Link
@@ -180,6 +184,7 @@ function StatCard({
     >
       <p className="text-sm text-ink-secondary">{label}</p>
       <p className="text-3xl font-bold text-ink mt-1">{value}</p>
+      {footer && <p className="text-xs text-ink-3 mt-2">{footer}</p>}
     </Link>
   );
 }

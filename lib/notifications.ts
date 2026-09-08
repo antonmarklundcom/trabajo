@@ -19,6 +19,7 @@ import 'server-only';
 
 import { getJob } from './data';
 import { sendEmail } from './email';
+import type { LeadInput } from './leads';
 import {
   getStatusChangeNotificationTarget,
   listEmployerNotificationRecipients,
@@ -28,6 +29,7 @@ import {
   applicationReceivedMessage,
 } from './emails/candidate';
 import { newApplicationMessage } from './emails/employer';
+import { employerLeadNotificationMessage } from './emails/ops';
 
 /**
  * "Recibimos tu postulación" to the applicant (N1).
@@ -116,6 +118,36 @@ export async function notifyEmployerOfApplication(params: {
  * candidate-linked applications have an account behind them, and today there
  * are none.
  */
+/**
+ * "Nuevo pedido de publicación" / "Nueva consulta" to the team's own inbox
+ * (N/A number — PLAN-GROWTH.md §4 W5, closes finding 4: the 24-hour response
+ * promise had no mechanism behind it).
+ *
+ * `LEADS_NOTIFY_EMAIL` unset = log-and-skip, the same degrade every optional
+ * sink in this app already has (GHL_WEBHOOK_URL, RESEND_API_KEY) — a missing
+ * ops inbox must never fail the employer's or visitor's submission.
+ * `employerLeadNotificationMessage()` returns null for an `application` lead:
+ * seekers already have N1/N2 above.
+ */
+export async function notifyTeamOfLead(lead: LeadInput): Promise<void> {
+  try {
+    const to = process.env.LEADS_NOTIFY_EMAIL;
+    if (!to) {
+      console.warn('[notify] team lead notification skipped — LEADS_NOTIFY_EMAIL unset');
+      return;
+    }
+
+    const message = employerLeadNotificationMessage(to, lead);
+    if (!message) return;
+
+    await sendEmail(message);
+  } catch (err) {
+    console.error('[notify] team lead notification failed', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
 export async function notifyCandidateOfContact(params: {
   companyId: number;
   applicationId: number;
