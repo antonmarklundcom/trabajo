@@ -1147,9 +1147,18 @@ All five share a preamble. Paste the preamble, then the session's block.
 > without renaming any value and makes `lib/blog-categories.ts` the single
 > source.
 >
-> When all eleven are merged, append a `§12.2 State after Sonnet A+B` to
-> PLAN-GROWTH.md in a final docs-only PR: helper names Sonnet C and D may
-> rely on, and anything you deferred and why.
+> Progress and usage rule: after every merge, append one line to a running
+> `PROGRESS` block in your final message draft — PR number, what it shipped,
+> what is next. If at any point you receive a usage-limit or rate-limit
+> message, or you are about to open a PR and the harness reports the
+> session is near its usage limit: do not start a new PR. Finish or close
+> out the current one cleanly (a pushed branch with green CI is fine to
+> leave open; a half-built branch is deleted, never left as a PR), then
+> open one docs-only PR that appends `§12.2 State after Sonnet A+B` to
+> PLAN-GROWTH.md — PRs merged, the exact next PR from the §6 order, helper
+> names later sessions may rely on, anything deferred and why — merge it,
+> and stop with that same report as your final message. The same §12.2
+> section is what you write when all eleven are merged.
 
 **Session 3 — Sonnet C, effort high (content + blog architecture):**
 
