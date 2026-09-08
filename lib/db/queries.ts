@@ -354,6 +354,82 @@ async function queryCity(slug: string): Promise<City | null> {
   return rows[0] ?? null;
 }
 
+/**
+ * Per-city and per-category counts, each optionally narrowed by the OTHER
+ * dimension (PLAN-GROWTH.md §4 S5). Replaces the page-1-derived chips a
+ * taxonomy landing used to build from its own `getJobs()` result — that
+ * only ever saw the first PAGE_SIZE jobs, so a city or category whose jobs
+ * sat on page 2 got no chip and no inbound link at all.
+ *
+ * The `categoriaId`/`ciudadId` filter lives in the LEFT JOIN's ON clause,
+ * never in a WHERE: a WHERE on the joined table would silently turn the
+ * LEFT JOIN into an INNER JOIN, dropping every city/category with zero
+ * matching jobs instead of reporting it with jobCount 0.
+ */
+async function queryTaxonomyCities(categoriaId?: number): Promise<City[]> {
+  const rows = await db
+    .select({
+      slug: cities.slug,
+      name: cities.name,
+      jobCount: count(jobs.id),
+    })
+    .from(cities)
+    .leftJoin(
+      jobs,
+      and(
+        eq(jobs.cityId, cities.id),
+        visiblePredicate(),
+        categoriaId !== undefined ? eq(jobs.categoryId, categoriaId) : undefined,
+      ),
+    )
+    .groupBy(cities.id)
+    .orderBy(asc(cities.sortOrder));
+  return rows;
+}
+
+async function queryTaxonomyCategories(ciudadId?: number): Promise<Category[]> {
+  const rows = await db
+    .select({
+      slug: categories.slug,
+      name: categories.name,
+      jobCount: count(jobs.id),
+    })
+    .from(categories)
+    .leftJoin(
+      jobs,
+      and(
+        eq(jobs.categoryId, categories.id),
+        visiblePredicate(),
+        ciudadId !== undefined ? eq(jobs.cityId, ciudadId) : undefined,
+      ),
+    )
+    .groupBy(categories.id)
+    .orderBy(asc(categories.sortOrder));
+  return rows;
+}
+
+export type TaxonomyCounts = { cities: City[]; categories: Category[] };
+
+async function queryTaxonomyCounts(filter: {
+  categoria?: string;
+  ciudad?: string;
+}): Promise<TaxonomyCounts> {
+  const [categoriaRows, ciudadRows] = await Promise.all([
+    filter.categoria
+      ? db.select({ id: categories.id }).from(categories).where(eq(categories.slug, filter.categoria)).limit(1)
+      : Promise.resolve([]),
+    filter.ciudad
+      ? db.select({ id: cities.id }).from(cities).where(eq(cities.slug, filter.ciudad)).limit(1)
+      : Promise.resolve([]),
+  ]);
+
+  const [cityCounts, categoryCounts] = await Promise.all([
+    queryTaxonomyCities(categoriaRows[0]?.id),
+    queryTaxonomyCategories(ciudadRows[0]?.id),
+  ]);
+  return { cities: cityCounts, categories: categoryCounts };
+}
+
 // ---------------------------------------------------------------------------
 // The cached read path (ARCHITECTURE.md §8)
 //
@@ -449,6 +525,15 @@ const cachedCity = unstable_cache(
   cacheOptions([CACHE_TAGS.taxonomies, CACHE_TAGS.jobs]),
 );
 
+// unstable_cache keys on its arguments, so the empty-filter case ('', '')
+// gets its own cache entry distinct from every categoria/ciudad combination.
+const cachedTaxonomyCounts = unstable_cache(
+  (categoria: string, ciudad: string) =>
+    queryTaxonomyCounts({ categoria: categoria || undefined, ciudad: ciudad || undefined }),
+  ['db', 'taxonomy', 'counts'],
+  cacheOptions([CACHE_TAGS.taxonomies, CACHE_TAGS.jobs]),
+);
+
 // The eight seam functions (ARCHITECTURE.md §3). Signatures and semantics are
 // unchanged — only the caching is new — so lib/data.ts needs no edit.
 
@@ -497,4 +582,13 @@ export async function getCategory(slug: string): Promise<Category | null> {
 
 export async function getCity(slug: string): Promise<City | null> {
   return cachedOrRaw(() => cachedCity(slug), () => queryCity(slug));
+}
+
+export async function getTaxonomyCounts(
+  filter: { categoria?: string; ciudad?: string } = {},
+): Promise<TaxonomyCounts> {
+  return cachedOrRaw(
+    () => cachedTaxonomyCounts(filter.categoria ?? '', filter.ciudad ?? ''),
+    () => queryTaxonomyCounts(filter),
+  );
 }
