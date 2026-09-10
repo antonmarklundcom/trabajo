@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { getAdminJobs, type AdminJobFilters } from '@/lib/db/admin';
+import { getAdminJobs, ADMIN_JOB_PAGE_SIZES, type AdminJobFilters } from '@/lib/db/admin';
 import { jobStatusEnum } from '@/lib/db/schema';
 import EmpleosFilterBar from '@/components/admin/EmpleosFilterBar';
 import StatusBadge from '@/components/admin/StatusBadge';
@@ -26,8 +26,18 @@ export default async function AdminEmpleosPage({
   const featuredParam = param(sp, 'featured');
   const featured = featuredParam === 'activo' || featuredParam === 'vencido' ? featuredParam : undefined;
   const page = param(sp, 'page') ? Number(param(sp, 'page')) : 1;
+  const pageSizeParam = Number(param(sp, 'pageSize'));
+  const requestedPageSize = (ADMIN_JOB_PAGE_SIZES as readonly number[]).includes(pageSizeParam)
+    ? pageSizeParam
+    : undefined;
 
-  const filters: AdminJobFilters = { status, q: q || undefined, featured, page };
+  const filters: AdminJobFilters = {
+    status,
+    q: q || undefined,
+    featured,
+    page,
+    pageSize: requestedPageSize,
+  };
   const { jobs, total, pageSize } = await getAdminJobs(filters);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -46,7 +56,12 @@ export default async function AdminEmpleosPage({
         </Link>
       </div>
 
-      <EmpleosFilterBar status={statusParam ?? ''} q={q} featured={featured ?? ''} />
+      <EmpleosFilterBar
+        status={statusParam ?? ''}
+        q={q}
+        featured={featured ?? ''}
+        pageSize={pageSize}
+      />
 
       <div className="bg-white rounded-[10px] border border-border overflow-x-auto">
         <table className="w-full text-sm">
@@ -132,6 +147,8 @@ export default async function AdminEmpleosPage({
             const params = new URLSearchParams();
             if (statusParam) params.set('status', statusParam);
             if (q) params.set('q', q);
+            if (featured) params.set('featured', featured);
+            if (requestedPageSize) params.set('pageSize', String(requestedPageSize));
             params.set('page', String(p));
             return (
               <Link

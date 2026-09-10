@@ -158,13 +158,19 @@ export type AdminJobFilters = {
    * the whole point of being able to ask.
    */
   featured?: 'activo' | 'vencido';
+  pageSize?: number;
 };
 
-const ADMIN_PAGE_SIZE = 20;
+/** Choices offered by the page-size menu on /admin/empleos. */
+export const ADMIN_JOB_PAGE_SIZES = [10, 25, 100, 500] as const;
+const DEFAULT_ADMIN_PAGE_SIZE = 25;
 
 export async function getAdminJobs(filters: AdminJobFilters) {
   const db = await getDb();
   const page = filters.page ?? 1;
+  const pageSize = (ADMIN_JOB_PAGE_SIZES as readonly number[]).includes(filters.pageSize ?? -1)
+    ? (filters.pageSize as number)
+    : DEFAULT_ADMIN_PAGE_SIZE;
   const conditions = [];
   if (filters.status) conditions.push(eq(jobs.status, filters.status));
   if (filters.q) {
@@ -211,8 +217,8 @@ export async function getAdminJobs(filters: AdminJobFilters) {
       .where(where)
       .groupBy(jobs.id)
       .orderBy(desc(jobs.createdAt))
-      .limit(ADMIN_PAGE_SIZE)
-      .offset((page - 1) * ADMIN_PAGE_SIZE),
+      .limit(pageSize)
+      .offset((page - 1) * pageSize),
     db
       .select({ total: count() })
       .from(jobs)
@@ -222,7 +228,7 @@ export async function getAdminJobs(filters: AdminJobFilters) {
       .where(where),
   ]);
 
-  return { jobs: rows, total, pageSize: ADMIN_PAGE_SIZE };
+  return { jobs: rows, total, pageSize };
 }
 
 export async function getAdminJob(id: number, executor?: Executor) {
