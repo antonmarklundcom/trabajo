@@ -18,14 +18,18 @@ const FEATURED_OPTIONS = [
   { value: 'vencido', label: 'Destacado vencido' },
 ];
 
+const PAGE_SIZE_OPTIONS = [10, 25, 100, 500];
+
 export default function EmpleosFilterBar({
   status,
   q,
   featured,
+  pageSize,
 }: {
   status: string;
   q: string;
   featured: string;
+  pageSize: number;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -85,6 +89,17 @@ export default function EmpleosFilterBar({
         {FEATURED_OPTIONS.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
+          </option>
+        ))}
+      </select>
+      <select
+        value={String(pageSize)}
+        onChange={(e) => updateParam('pageSize', e.target.value)}
+        className="px-3 py-2 rounded-[10px] border border-border text-sm text-ink bg-white focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+      >
+        {PAGE_SIZE_OPTIONS.map((n) => (
+          <option key={n} value={n}>
+            {n} por página
           </option>
         ))}
       </select>
