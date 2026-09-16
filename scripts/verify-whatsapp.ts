@@ -69,10 +69,38 @@ check(
 
 // ---------------------------------------------------------------------------
 // 2. Every track(...) call site uses one of the two typed event names.
+//
+// tsc already rejects a literal outside the two overloads, so the practical
+// bypass is an alias this script does not recognise as "track" at all
+// (`import { track as t }`, `import * as analytics from '.../analytics'`
+// then `analytics.track(...)`) or a non-literal first argument, which could
+// be a variable already widened past the literal union by a cast made
+// somewhere else in the file. Both used to pass through unnoticed: an aliased
+// call was never matched by the `track(` regex, so it added zero to
+// trackCallCount and was never inspected at all.
 // ---------------------------------------------------------------------------
 
 const ALLOWED_EVENTS = ['whatsapp_click', 'lead_submit'];
-const trackCallRe = /\btrack\(\s*(['"`])([^'"`]*)\1/g;
+
+/** Every local name that can call the real track(): the export itself, any
+ *  `{ track as x }` alias, and `x.track(` for any `import * as x` from the
+ *  same module. */
+function trackCallableNames(source: string): string[] {
+  const names = new Set<string>(['track']);
+  const namedRe = /import\s*\{([^}]*)\}\s*from\s*['"][^'"]*\/analytics['"]/g;
+  let m: RegExpExecArray | null;
+  while ((m = namedRe.exec(source)) !== null) {
+    for (const part of m[1]!.split(',')) {
+      const alias = part.trim().match(/^track\s+as\s+(\w+)$/);
+      if (alias) names.add(alias[1]!);
+    }
+  }
+  const namespaceRe = /import\s*\*\s*as\s+(\w+)\s*from\s*['"][^'"]*\/analytics['"]/g;
+  while ((m = namespaceRe.exec(source)) !== null) {
+    names.add(`${m[1]}.track`);
+  }
+  return [...names];
+}
 
 let trackCallCount = 0;
 let untypedCallFound = false;
@@ -80,20 +108,39 @@ let untypedCallFound = false;
 for (const file of files) {
   if (file === 'lib/analytics.ts') continue; // the overload declarations themselves
   const source = code(read(file));
-  let match: RegExpExecArray | null;
-  trackCallRe.lastIndex = 0;
-  while ((match = trackCallRe.exec(source)) !== null) {
-    trackCallCount += 1;
-    const eventName = match[2];
-    if (!ALLOWED_EVENTS.includes(eventName)) {
-      untypedCallFound = true;
-      console.log(`        ${file}: track('${eventName}', ...) is not in {${ALLOWED_EVENTS.join(', ')}}`);
+
+  for (const name of trackCallableNames(source)) {
+    const escaped = name.replace(/\./g, '\\.');
+    // Literal call: `<name>('event', ...)`. Anything else after `<name>(` —
+    // a variable, a template literal, a function call — is a non-literal
+    // argument this script cannot verify statically, and is flagged rather
+    // than silently skipped.
+    const callRe = new RegExp(`\\b${escaped}\\(\\s*(?:(['"\`])([^'"\`]*)\\1)?`, 'g');
+    let match: RegExpExecArray | null;
+    while ((match = callRe.exec(source)) !== null) {
+      trackCallCount += 1;
+      if (match[1] === undefined) {
+        untypedCallFound = true;
+        console.log(
+          `        ${file}: ${name}(...) called with a non-literal first argument — ` +
+            'the event name cannot be verified statically, review by hand',
+        );
+        continue;
+      }
+      const eventName = match[2];
+      if (!ALLOWED_EVENTS.includes(eventName!)) {
+        untypedCallFound = true;
+        console.log(`        ${file}: ${name}('${eventName}', ...) is not in {${ALLOWED_EVENTS.join(', ')}}`);
+      }
     }
-  }
-  // A cast around the overloads would defeat the whole point.
-  if (/track\([^)]*as\s+(any|never|typeof)/.test(source)) {
-    untypedCallFound = true;
-    console.log(`        ${file}: track(...) call routes around the typed overloads with a cast`);
+
+    // A cast around the overloads would defeat the whole point. Broadened to
+    // the alias/namespace form too, and to `string` — the widest cast that
+    // would let an arbitrary literal through.
+    if (new RegExp(`${escaped}\\([^)]*as\\s+(any|never|typeof|string)\\b`).test(source)) {
+      untypedCallFound = true;
+      console.log(`        ${file}: ${name}(...) call routes around the typed overloads with a cast`);
+    }
   }
 }
 
