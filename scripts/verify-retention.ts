@@ -121,23 +121,26 @@ check('monthsAgo does not mutate its input', iso(original), '2026-08-09T12:00:00
 // alternative needs a database.
 {
   const purgeSource = readFileSync(join(process.cwd(), 'scripts/db-purge.ts'), 'utf8');
+  // `finder` alone only proves the due rows are LISTED — a dry run does that
+  // for everything by design. `executor` is the call that actually deletes or
+  // redacts them, which only happens inside an `if (apply)` branch. Checking
+  // both is what makes this "swept", not just "reported".
   const swept = [
-    ['candidates', 'findCandidatesInactiveSince'],
-    ['applications', 'findApplicationsToRedact'],
-    ['consents', 'findConsentsToDelete'],
-    ['data_access_logs', 'findAccessLogsToDelete'],
-    ['auth_events', 'findAuthEventsToDelete'],
+    { table: 'candidates', finder: 'findCandidatesInactiveSince', executor: 'deleteCandidateAccount(' },
+    { table: 'applications', finder: 'findApplicationsToRedact', executor: 'retention.redactApplications(' },
+    { table: 'consents', finder: 'findConsentsToDelete', executor: 'retention.deleteConsents(' },
+    { table: 'data_access_logs', finder: 'findAccessLogsToDelete', executor: 'retention.deleteAccessLogs(' },
+    { table: 'auth_events', finder: 'findAuthEventsToDelete', executor: 'retention.deleteAuthEvents(' },
   ] as const;
 
-  for (const [table, fn] of swept) {
-    check(`${table} is swept by db-purge (${fn})`, purgeSource.includes(fn), true);
+  for (const { table, finder, executor } of swept) {
+    check(`${table} is swept by db-purge (${finder})`, purgeSource.includes(finder), true);
+    check(
+      `${table} deletions are actually executed, not only listed (${executor.replace(/\($/, '')})`,
+      purgeSource.includes(executor),
+      true,
+    );
   }
-
-  check(
-    'auth_events deletions are actually executed, not only listed',
-    purgeSource.includes('retention.deleteAuthEvents('),
-    true,
-  );
 }
 
 console.log('');

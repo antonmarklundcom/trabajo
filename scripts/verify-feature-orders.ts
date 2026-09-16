@@ -36,7 +36,7 @@
 // scripts/verify-cascades.ts — the property is about what the file may contain.
 //
 // No database, no env, no network.
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
@@ -511,13 +511,48 @@ check(
 
 const adminSource = readFileSync(join(process.cwd(), 'lib/db/admin.ts'), 'utf8');
 
-check(
-  'the window is computed in exactly one place outside lib/featured.ts',
-  (withoutComments(adminSource).match(/computeFeaturedUntil\(/g) ?? []).length === 1 &&
-    !/computeFeaturedUntil\(/.test(fulfilCode),
-  'Two call sites are two arithmetics, and only one of them stays covered by ' +
-    'npm run featured:verify.',
-);
+// checkCallSites() below previously looked only at admin.ts and
+// feature-fulfilment.ts — a third call site anywhere else in the app (a new
+// API route, a script, a component) would have gone unnoticed. Scan the whole
+// tree instead: the only two files allowed to say computeFeaturedUntil( are
+// its declaration (lib/featured.ts) and its test fixture (verify-featured.ts,
+// which calls it directly to test the arithmetic, not to grant anything).
+function walkTs(dir: string): string[] {
+  const root = process.cwd();
+  const out: string[] = [];
+  for (const entry of readdirSync(join(root, dir))) {
+    const rel = `${dir}/${entry}`;
+    const full = join(root, rel);
+    if (statSync(full).isDirectory()) out.push(...walkTs(rel));
+    else if (rel.endsWith('.ts') || rel.endsWith('.tsx')) out.push(rel);
+  }
+  return out;
+}
+
+{
+  const ALLOWED = new Set([
+    'lib/featured.ts',
+    'scripts/verify-featured.ts',
+    // This file's own check messages name the function in prose.
+    'scripts/verify-feature-orders.ts',
+  ]);
+  const callSites: string[] = [];
+  for (const root of ['app', 'components', 'lib', 'scripts']) {
+    for (const file of walkTs(root)) {
+      if (ALLOWED.has(file)) continue;
+      const text = withoutComments(readFileSync(join(process.cwd(), file), 'utf8'));
+      if (/computeFeaturedUntil\(/.test(text)) callSites.push(file);
+    }
+  }
+
+  check(
+    'the window is computed in exactly one place outside lib/featured.ts',
+    callSites.length === 1 && callSites[0] === 'lib/db/admin.ts',
+    `Found call site(s): ${callSites.join(', ') || 'none'}. Expected exactly lib/db/admin.ts. ` +
+      'A second call site is a second arithmetic, and only one of them stays covered by ' +
+      'npm run featured:verify.',
+  );
+}
 
 check(
   'grantJobFeature() still exists and still records the manual channel',
