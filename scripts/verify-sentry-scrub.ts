@@ -102,8 +102,10 @@ check('an unrelated crumb is untouched', crumbs[3].message, 'button#enviar');
 console.log('\n— no token survives anywhere —');
 
 // The blunt version of every check above: serialise the whole scrubbed event
-// and assert the secrets are simply not in it. This is the assertion that
-// catches the next field Sentry adds, which no hand-written list can.
+// and assert the secrets are simply not in it. New fields are covered inside
+// wholesale-deleted user/extra objects, or breadcrumb data named url/from/to.
+// Other breadcrumb data names and anything under event.contexts have no rule
+// in lib/sentry-options.ts: that is a known limit, not a promise made here.
 const everything = JSON.stringify(
   scrub({
     user: { id: '7' },
@@ -117,6 +119,84 @@ const everything = JSON.stringify(
 
 check('no reset token anywhere in the event', everything.includes('live-reset-token'), false);
 check('no verification token anywhere in the event', everything.includes('live-verify-token'), false);
+
+console.log('\n— the rules generalise past the fixture —');
+
+// These fields never appear in the fixture above. Their removal is evidence
+// that the rules apply wholesale, not just to the handful of keys written down.
+const sensitiveHeaders: Record<string, string> = {
+  Authorization: 'secret-authorization',
+  'Proxy-Authorization': 'secret-proxy-authorization',
+  COOKIE: 'secret-cookie',
+  'Set-Cookie': 'secret-set-cookie',
+  REFERER: 'secret-referer',
+  Referrer: 'secret-referrer',
+  FORWARDED: 'secret-forwarded',
+  'X-FORWARDED-FOR': 'secret-forwarded-for',
+  'X-Real-IP': 'secret-real-ip',
+  'X-Api-Key': 'secret-api-key',
+  'x-CSRF-Token': 'secret-csrf-token',
+};
+const headers = scrub({
+  request: { headers: { ...sensitiveHeaders, 'accept-language': 'es-PY' } },
+});
+for (const name of Object.keys(sensitiveHeaders)) {
+  check(`the sensitive header ${name} is gone despite its casing`, headers.request?.headers?.[name], undefined);
+}
+check('accept-language survives', headers.request?.headers?.['accept-language'], 'es-PY');
+const serializedHeaders = JSON.stringify(headers);
+for (const secret of Object.values(sensitiveHeaders)) {
+  check(`no ${secret} survives anywhere in the event`, serializedHeaders.includes(secret), false);
+}
+
+const nestedUser = scrub({
+  user: {
+    username: 'private-username',
+    segment: 'private-segment',
+    geo: { city: 'Asunción', region: 'Central', country_code: 'PY' },
+  },
+});
+check('unknown and nested user fields disappear with the whole user', nestedUser.user, undefined);
+
+const nestedExtra = scrub({
+  extra: {
+    context: { candidate: { cv: { filename: 'private-cv.pdf', token: 'nested-cv-secret' } } },
+    ids: [1, 2],
+  },
+});
+check('deeply nested extra disappears whole', nestedExtra.extra, undefined);
+check('no nested CV secret survives anywhere in the event', JSON.stringify(nestedExtra).includes('nested-cv-secret'), false);
+
+for (const category of ['redirect', 'ui.click', 'sentry.transaction']) {
+  const event = scrub({
+    breadcrumbs: [{ category, data: { url: RESET_URL, from: VERIFY_URL, to: RESET_URL } }],
+  });
+  check(
+    `a ${category} crumb keeps only the url path`,
+    event.breadcrumbs?.[0].data?.url,
+    'https://trabajo.com.py/postulante/recuperar/confirmar',
+  );
+  check(
+    `a ${category} crumb keeps only the from path`,
+    event.breadcrumbs?.[0].data?.from,
+    'https://trabajo.com.py/postulante/verificar',
+  );
+  check(
+    `a ${category} crumb keeps only the to path`,
+    event.breadcrumbs?.[0].data?.to,
+    'https://trabajo.com.py/postulante/recuperar/confirmar',
+  );
+}
+
+const messageCrumb = scrub({
+  breadcrumbs: [{ category: 'redirect', message: `redirecting to ${RESET_URL}` }],
+});
+check('a non-console crumb carrying a token survives', messageCrumb.breadcrumbs?.length, 1);
+check(
+  'a non-console message keeps its text and loses the token',
+  messageCrumb.breadcrumbs?.[0].message,
+  'redirecting to https://trabajo.com.py/postulante/recuperar/confirmar',
+);
 
 console.log('\n— the event is still worth having —');
 

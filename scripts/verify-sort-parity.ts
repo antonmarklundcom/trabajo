@@ -20,6 +20,7 @@
 // than passed over in silence: an assertion nothing exercises is not evidence.
 import { readFileSync } from 'node:fs';
 import rawJobs from '../lib/seed/jobs.json';
+import { JOBS_PAGE_SIZE } from '../lib/pagination';
 import type { Job, JobFilters } from '../lib/types';
 
 let failures = 0;
@@ -119,16 +120,24 @@ function firstViolation(jobs: Job[], keys: Key[]): string | null {
   return null;
 }
 
-/** How many adjacent pairs this key actually had to break a tie for. */
-function tiesResolvedBy(jobs: Job[], keys: Key[], keyName: string): number {
-  let count = 0;
-  for (let i = 1; i < jobs.length; i += 1) {
-    for (const key of keys) {
-      if (key.of(jobs[i - 1]) !== key.of(jobs[i])) break;
-      if (key.name === keyName) count += 1;
-    }
+/** The key that actually decides this pair's order: the first one that differs. */
+function decidedBy(prev: Job, next: Job, keys: Key[]): Key | null {
+  for (const key of keys) {
+    if (key.of(prev) !== key.of(next)) return key;
   }
-  return count;
+  return null;
+}
+
+/** How many adjacent pairs each key actually decided. */
+function decisionsPerKey(jobs: Job[], keys: Key[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  // Counting equal values reported a tiebreaker as exercised precisely when
+  // it was tied, so the NOT EXERCISED list named the wrong keys.
+  for (let i = 1; i < jobs.length; i += 1) {
+    const key = decidedBy(jobs[i - 1], jobs[i], keys);
+    if (key) counts.set(key.name, (counts.get(key.name) ?? 0) + 1);
+  }
+  return counts;
 }
 
 async function main() {
@@ -145,30 +154,45 @@ async function main() {
   const notExercised: string[] = [];
 
   for (const { orden, keys } of cases) {
-    const { jobs } = await data.getJobs({ orden, page: 1 });
+    const { jobs, total } = await data.getJobs({ orden, page: 1 });
+    // Seed pages slice one globally sorted array: concatenating them is safe
+    // and needs no DB. A tie across a page boundary is drift db:parity also misses.
+    const pages = Math.ceil(total / JOBS_PAGE_SIZE);
+    for (let page = 2; page <= pages; page += 1) {
+      const next = await data.getJobs({ orden, page });
+      jobs.push(...next.jobs);
+    }
+    check(`orden=${orden}: all pages contain the total number of jobs`, jobs.length === total);
     const violation = firstViolation(jobs, keys);
     check(
       `orden=${orden}: ${keys.map((k) => `${k.direction}(${k.name})`).join(', ')}`,
       violation === null,
       violation ?? '',
     );
+    const decisions = decisionsPerKey(jobs, keys);
     for (const key of keys.slice(1)) {
-      if (tiesResolvedBy(jobs, keys, key.name) === 0) {
+      if ((decisions.get(key.name) ?? 0) === 0) {
         notExercised.push(`orden=${orden}: no pair is decided by ${key.name}`);
+      }
+    }
+    for (let i = 1; i < jobs.length; i += 1) {
+      if (decidedBy(jobs[i - 1], jobs[i], keys) === null) {
+        notExercised.push(`orden=${orden}: ${jobs[i - 1].slug} and ${jobs[i].slug} have ambiguous ordering — no key decides the pair`);
       }
     }
   }
 
   console.log('\n— featured and recent lists —');
 
-  const featured = await data.getFeaturedJobs(6);
+  // The fixture size covers everything either path can return, not just its first handful.
+  const featured = await data.getFeaturedJobs(rawJobs.length);
   check('getFeaturedJobs: asc(id)', firstViolation(featured, [ID_KEY]) === null);
   check(
     'getFeaturedJobs returns only live featured jobs',
     featured.every((job) => featuredRank(job) === 0),
   );
 
-  const recent = await data.getRecentJobs(8);
+  const recent = await data.getRecentJobs(rawJobs.length);
   check('getRecentJobs: desc(postedAt), asc(id)', firstViolation(recent, RECENT_KEYS) === null);
 
   if (notExercised.length > 0) {
