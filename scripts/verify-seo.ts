@@ -202,13 +202,37 @@ check(
     'landings can be reached without running client-side JavaScript.',
 );
 
-check(
-  "the 'relevancia' sort is gone from the whole codebase",
-  ['components/SortControl.tsx', 'lib/types.ts', 'lib/db/job-cache-key.ts', 'app/empleos/page.tsx']
-    .every((file) => !code(read(file)).includes('relevancia')),
-  'It was a fourth label for the ORDER BY `recientes` already produced, so every URL it ' +
-    'appeared in was a duplicate of one that already existed.',
-);
+{
+  // A hardcoded 4-file list only proves those 4 files are clean — a stray
+  // reference left in a fifth file (a new component, a migration script, a
+  // blog draft) would not be "gone from the whole codebase" at all and this
+  // check would not notice. Scan the real source tree instead.
+  const SEARCH_DIRS = ['app', 'components', 'lib'];
+  const SKIP_DIRS = new Set(['node_modules', '.next']);
+
+  function walkSource(dir: string): string[] {
+    const out: string[] = [];
+    for (const entry of readdirSync(join(ROOT, dir))) {
+      if (SKIP_DIRS.has(entry)) continue;
+      const rel = `${dir}/${entry}`;
+      if (statSync(join(ROOT, rel)).isDirectory()) out.push(...walkSource(rel));
+      else if (rel.endsWith('.ts') || rel.endsWith('.tsx')) out.push(rel);
+    }
+    return out;
+  }
+
+  const offenders = SEARCH_DIRS.flatMap(walkSource).filter((file) =>
+    code(read(file)).includes('relevancia'),
+  );
+
+  check(
+    "the 'relevancia' sort is gone from the whole codebase",
+    offenders.length === 0,
+    `Found in: ${offenders.join(', ') || 'nowhere'}. It was a fourth label for the ORDER BY ` +
+      '`recientes` already produced, so every URL it appeared in was a duplicate of one that ' +
+      'already existed.',
+  );
+}
 
 // ---------------------------------------------------------------------------
 // 5. Every public page declares a canonical.

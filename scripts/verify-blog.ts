@@ -173,13 +173,46 @@ async function main() {
     'A public read keyed on the numeric id would make /blog enumerable by row number.',
   );
 
-  const pageSource = readFileSync(join(process.cwd(), 'app/blog/[slug]/page.tsx'), 'utf8');
-  check(
-    'the article page reads through lib/blog, not lib/db/blog',
-    !/from '@\/lib\/db\/blog'/.test(pageSource),
-    'AGENTS.md: blog content is read through lib/blog.ts, which is where the ' +
-      'published rule and the markdown escaping both live.',
-  );
+  // Checking only app/blog/[slug]/page.tsx proves that one file is clean, not
+  // that every public consumer is — app/blog/page.tsx (the listing),
+  // app/blog/[slug]/opengraph-image.tsx and app/sitemap.ts all read blog
+  // content too, and any of them importing lib/db/blog directly would bypass
+  // publishedPredicate() the same way. Admin routes are exempt: they are
+  // meant to read unpublished posts, which is the whole point of the admin
+  // reads existing as a separate section of lib/db/blog.ts.
+  {
+    const SKIP_DIRS = new Set(['node_modules', '.next']);
+    const EXEMPT_PREFIXES = ['app/admin/', 'app/api/admin/'];
+    const EXEMPT_FILES = new Set(['lib/blog.ts']); // the seam itself
+
+    function walkPublic(dir: string): string[] {
+      const out: string[] = [];
+      for (const entry of readdirSync(join(process.cwd(), dir))) {
+        if (SKIP_DIRS.has(entry)) continue;
+        const rel = `${dir}/${entry}`;
+        if (statSync(join(process.cwd(), rel)).isDirectory()) out.push(...walkPublic(rel));
+        else if (rel.endsWith('.ts') || rel.endsWith('.tsx')) out.push(rel);
+      }
+      return out;
+    }
+
+    const candidates = ['app', 'components']
+      .flatMap(walkPublic)
+      .filter(
+        (f) => !EXEMPT_PREFIXES.some((prefix) => f.startsWith(prefix)) && !EXEMPT_FILES.has(f),
+      );
+
+    const offenders = candidates.filter((f) =>
+      /from '@\/lib\/db\/blog'/.test(readFileSync(join(process.cwd(), f), 'utf8')),
+    );
+
+    check(
+      'every public consumer reads through lib/blog, not lib/db/blog',
+      offenders.length === 0,
+      `Found: ${offenders.join(', ') || 'none'}. AGENTS.md: blog content is read through ` +
+        'lib/blog.ts, which is where the published rule and the markdown escaping both live.',
+    );
+  }
 
   // -------------------------------------------------------------------------
   // 3b. Categories have exactly one source (C1, PLAN-GROWTH.md §4).
