@@ -31,9 +31,6 @@ const SENSITIVE_HEADERS = new Set([
   'x-csrf-token',
 ]);
 
-/** Breadcrumb fields that hold a URL, whichever integration produced them. */
-const BREADCRUMB_URL_FIELDS = ['url', 'from', 'to'] as const;
-
 /** Everything before the first `?` or `#`. */
 function pathOnly(url: string): string {
   return url.split(/[?#]/)[0];
@@ -56,12 +53,20 @@ function pathOnly(url: string): string {
  * deletion over recognition: a scrubber that tries to spot a token inside a log
  * line will miss one. The exception and its stack are what debug an error; the
  * console trail is a convenience, and not one worth an ARCO incident.
+ *
+ * Every string field in `crumb.data` is stripped, not just the `url`/`from`/
+ * `to` names the browser SDK's own navigation/fetch/xhr integrations happen to
+ * use today. A fixed field-name list is exactly the kind of thing an SDK
+ * update or an unrelated integration changes under this file: the next
+ * integration that names its field `href` or `referrer` instead would have
+ * shipped tokens unscrubbed until someone noticed. Deletion over recognition,
+ * same reasoning as the console crumbs above.
  */
 function scrubBreadcrumb(crumb: Breadcrumb): Breadcrumb | null {
   if (crumb.category === 'console') return null;
 
   if (crumb.data) {
-    for (const field of BREADCRUMB_URL_FIELDS) {
+    for (const field of Object.keys(crumb.data)) {
       const value = crumb.data[field];
       if (typeof value === 'string') crumb.data[field] = pathOnly(value);
     }
@@ -97,10 +102,16 @@ function scrubBreadcrumb(crumb: Breadcrumb): Breadcrumb | null {
  *     carry the query string the line above just removed.
  *   - **`extra`**, an untyped bag that any future `captureException` call can
  *     put anything into. Structured context belongs in tags.
+ *   - **`contexts`**, the same untyped-bag risk as `extra`: nothing in this
+ *     app calls `Sentry.setContext()` today, but an SDK default integration or
+ *     a future call is a diff this file will not see, and `contexts` was
+ *     never covered by anything below it. Deleted rather than allowed through
+ *     on the assumption that nothing sensitive lives there yet.
  */
 export const scrubEvent: (event: ErrorEvent, hint: EventHint) => ErrorEvent | null = (event) => {
   delete event.user;
   delete event.extra;
+  delete event.contexts;
 
   if (event.request) {
     delete event.request.data;

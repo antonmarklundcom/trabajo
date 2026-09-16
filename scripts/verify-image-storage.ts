@@ -35,6 +35,7 @@ import {
   createImageR2Driver,
   detectImageFileType,
   IMAGE_NAMESPACE_MAX_DIMENSION,
+  IMAGE_NAMESPACES,
   IMAGE_STORAGE_KEY_PATTERN,
   imageKeyFromSegments,
   MAX_IMAGE_INPUT_PIXELS,
@@ -63,6 +64,26 @@ async function throws(label: string, fn: () => Promise<unknown> | unknown): Prom
     check(label, false);
   } catch {
     check(label, true);
+  }
+}
+
+/**
+ * Like `throws`, but proves the refusal came from the key guard rather than from
+ * something further in.
+ *
+ * `throws` alone is not evidence here: with the key assertion removed, the disk
+ * driver still throws when the resolved path escapes the root, and the R2 driver
+ * still throws because it went on to attempt a request. Both would be counted as
+ * "the driver refused a malformed key" while the guard they exist to check was
+ * gone — and in the R2 case the check would be making a real network call, which
+ * this suite must never do.
+ */
+async function refusesKey(label: string, fn: () => Promise<unknown> | unknown): Promise<void> {
+  try {
+    await fn();
+    check(label, false);
+  } catch (err) {
+    check(label, err instanceof Error && err.message.includes('malformed key'));
   }
 }
 
@@ -110,6 +131,25 @@ function pngHeaderOnly(width: number, height: number): Uint8Array {
   return new Uint8Array(
     Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk]),
   );
+}
+
+/**
+ * A real, decodable PNG with nothing changed but the dimensions its IHDR
+ * declares (and the CRC that covers them).
+ *
+ * This is what makes the bomb check evidence rather than a coincidence. A
+ * header-only PNG is refused at any size, so refusing one at 43000×43000
+ * proves nothing; these bytes decode fine as themselves, and the only
+ * difference between the accepted control and the refused bomb is the number
+ * in the header — which is the number the pixel cap is about.
+ */
+function withDeclaredSize(png: Uint8Array, width: number, height: number): Uint8Array {
+  const out = Buffer.from(png);
+  const ihdr = out.indexOf('IHDR', 8, 'ascii');
+  out.writeUInt32BE(width, ihdr + 4);
+  out.writeUInt32BE(height, ihdr + 8);
+  out.writeUInt32BE(crc32(out.subarray(ihdr, ihdr + 17)) >>> 0, ihdr + 17);
+  return new Uint8Array(out);
 }
 
 function riffChunk(fourcc: string, payload: Buffer): Buffer {
@@ -259,7 +299,7 @@ async function main(): Promise<void> {
     'img/logos/00000000-0000-0000-0000-000000000000.webp.html',
     key.toUpperCase(),
   ]) {
-    await throws(`assertImageKey rejects ${JSON.stringify(bad)}`, () => assertImageKey(bad));
+    await refusesKey(`assertImageKey rejects ${JSON.stringify(bad)}`, () => assertImageKey(bad));
   }
 
   // What the public route actually receives: the segments under /img/, with the
@@ -339,6 +379,24 @@ async function main(): Promise<void> {
     `the same image is capped at ${IMAGE_NAMESPACE_MAX_DIMENSION.logos} in the logos namespace`,
     asLogo.ok && asLogo.width === IMAGE_NAMESPACE_MAX_DIMENSION.logos,
   );
+  const asJob = await processImage('jobs', wide);
+  check(
+    `the same image is capped at ${IMAGE_NAMESPACE_MAX_DIMENSION.jobs} in the jobs namespace`,
+    asJob.ok && asJob.width === IMAGE_NAMESPACE_MAX_DIMENSION.jobs,
+  );
+  // A fourth namespace must exercise its own cap too, without another hand-written check.
+  for (const ns of IMAGE_NAMESPACES) {
+    const capped = await processImage(ns, wide);
+    check(
+      `the ${ns} namespace processes and caps the image at ${IMAGE_NAMESPACE_MAX_DIMENSION[ns]}`,
+      capped.ok && capped.width === IMAGE_NAMESPACE_MAX_DIMENSION[ns],
+    );
+  }
+  // The loop proves every namespace is covered; this proves the namespace is read.
+  check(
+    'the same image is narrower in the logos namespace than in the jobs namespace',
+    asLogo.ok && asJob.ok && asLogo.width !== asJob.width && asLogo.width < asJob.width,
+  );
   const small40 = await processImage('blog', PNG);
   check('an image under the cap is not upscaled', small40.ok && small40.width === 40);
 
@@ -385,6 +443,24 @@ async function main(): Promise<void> {
     'a 400 MP header is refused too',
     !justOver.ok && (justOver.reason === 'too_many_pixels' || justOver.reason === 'decode_failed'),
   );
+
+  // A header-only PNG fails even at a harmless size; its refusal alone proves no pixel cap.
+  const headerControl = await processImage('blog', pngHeaderOnly(40, 30));
+  check(
+    'a harmless header-only PNG also fails, so the bomb needs a decodable control',
+    !headerControl.ok && headerControl.reason === 'decode_failed',
+  );
+  const controlBytes = withDeclaredSize(PNG, 40, 30);
+  const bombBytes = withDeclaredSize(PNG, 43000, 43000);
+  const controlResult = await processImage('blog', controlBytes);
+  check(
+    'rewriting the true dimensions leaves a decodable 40×30 PNG',
+    controlResult.ok && controlResult.width === 40 && controlResult.height === 30,
+  );
+  // Only the declared dimensions and their CRC changed, so the refusal is attributable to size.
+  const declaredBomb = await processImage('blog', bombBytes);
+  check('a decodable PNG declaring 43000×43000 is refused', !declaredBomb.ok);
+  check('the control and bomb have the same byte length', controlBytes.byteLength === bombBytes.byteLength);
 
   const stillFrame = new Uint8Array(
     await sharp({
@@ -435,13 +511,19 @@ async function main(): Promise<void> {
   await disk.delete(key); // ENOENT is success: the bytes are gone either way.
   check('deleting an already-deleted object is not an error', true);
 
-  await throws('the disk driver refuses a traversal key', () =>
+  // All four ImageStorageDriver methods: the key is the only boundary between
+  // a request and an arbitrary path.
+  await refusesKey('the disk driver refuses to put a traversal key', () =>
+    disk.put('img/logos/../../../etc/passwd', new Uint8Array([1])),
+  );
+  await refusesKey('the disk driver refuses to delete an absolute path', () => disk.delete('/etc/passwd'));
+  await refusesKey('the disk driver refuses a traversal key', () =>
     disk.getStream('img/logos/../../../etc/passwd'),
   );
-  await throws('the disk driver refuses an absolute path', () => disk.getStream('/etc/passwd'));
+  await refusesKey('the disk driver refuses an absolute path', () => disk.getStream('/etc/passwd'));
   await writeFile(join(dir, 'secret.txt'), 'nope');
   await throws('a file planted in the root is unreachable', () => disk.getStream('secret.txt'));
-  await throws('publicUrl refuses a malformed key', () => disk.publicUrl('img/logos/../x.webp'));
+  await refusesKey('publicUrl refuses a malformed key', () => disk.publicUrl('img/logos/../x.webp'));
 
   process.env.IMAGE_STORAGE_DIR = 'relative/path';
   const relative = createImageDiskDriver();
@@ -463,8 +545,14 @@ async function main(): Promise<void> {
   );
   check('the trailing slash on the base URL is not doubled', !r2.publicUrl(key).includes('//img/'));
   check('the secret never appears in a public URL', !r2.publicUrl(key).includes('secretexample'));
-  await throws('the R2 driver refuses a malformed key', () => r2.publicUrl('img/../x.webp'));
-  await throws('the R2 driver refuses to delete a malformed key', () => r2.delete('img/../x.webp'));
+  // assertImageKey() runs before signedS3Fetch() on every R2 method, so even
+  // these write and read paths make no network request and need no bucket.
+  await refusesKey('the R2 driver refuses to put a malformed key', () =>
+    r2.put('img/../x.webp', new Uint8Array([1])),
+  );
+  await refusesKey('the R2 driver refuses to read a malformed key', () => r2.getStream('img/../x.webp'));
+  await refusesKey('the R2 driver refuses a malformed key', () => r2.publicUrl('img/../x.webp'));
+  await refusesKey('the R2 driver refuses to delete a malformed key', () => r2.delete('img/../x.webp'));
 
   process.env.IMAGE_R2_PUBLIC_BASE_URL = 'http://img.trabajo.com.py';
   await throws('a non-https public base URL is refused', () => createImageR2Driver());

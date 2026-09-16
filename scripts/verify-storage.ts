@@ -13,7 +13,8 @@
 //      though they share a container signature with .docx and .doc.
 //   2. The 5 MB limit trips on the streamed body, and on a lying Content-Length.
 //   3. Storage keys are cv/{candidateId}/{uuid}.{ext} and every driver method
-//      refuses anything else — including traversal attempts.
+//      refuses anything else — including traversal attempts — except disk
+//      getSignedUrl(), which ignores the key and always returns null.
 //   4. Disk driver round-trips put → getStream → delete, delete is idempotent,
 //      and getSignedUrl() returns null so callers stream.
 //   5. The R2 presigner produces a URL whose expiry and signature are present
@@ -60,6 +61,26 @@ async function throws(label: string, fn: () => Promise<unknown> | unknown): Prom
     check(label, false);
   } catch {
     check(label, true);
+  }
+}
+
+/**
+ * Like `throws`, but proves the refusal came from the key guard rather than from
+ * something further in.
+ *
+ * `throws` alone is not evidence here: with the key assertion removed, the disk
+ * driver still throws when the resolved path escapes the root, and the R2 driver
+ * still throws because it went on to attempt a request. Both would be counted as
+ * "the driver refused a malformed key" while the guard they exist to check was
+ * gone — and in the R2 case the check would be making a real network call, which
+ * this suite must never do.
+ */
+async function refusesKey(label: string, fn: () => Promise<unknown> | unknown): Promise<void> {
+  try {
+    await fn();
+    check(label, false);
+  } catch (err) {
+    check(label, err instanceof Error && err.message.includes('malformed key'));
   }
 }
 
@@ -141,7 +162,7 @@ async function main(): Promise<void> {
     'cv/42/00000000-0000-0000-0000-000000000000.exe',
     key.toUpperCase(),
   ]) {
-    await throws(`assertStorageKey rejects ${JSON.stringify(bad)}`, () => assertStorageKey(bad));
+    await refusesKey(`assertStorageKey rejects ${JSON.stringify(bad)}`, () => assertStorageKey(bad));
   }
 
   console.log('\n4. Disk driver round trip');
@@ -164,14 +185,24 @@ async function main(): Promise<void> {
   await disk.delete(key); // ENOENT is success: the bytes are gone either way.
   check('deleting an already-deleted object is not an error', true);
 
-  await throws('the disk driver refuses a traversal key', () =>
+  await refusesKey('the disk driver refuses to put a traversal key', () =>
+    disk.put('cv/42/../../../etc/passwd', PDF, 'application/pdf'),
+  );
+  await refusesKey('the disk driver refuses to delete an absolute path', () => disk.delete('/etc/passwd'));
+  // The one deliberate exception: disk getSignedUrl never looks at the key,
+  // because there is no URL to mint and therefore nothing to refuse.
+  check(
+    'disk getSignedUrl is the deliberate exception, returning null even for a malformed key',
+    (await disk.getSignedUrl('cv/../x.pdf', { expiresInSeconds: 60 })) === null,
+  );
+  await refusesKey('the disk driver refuses a traversal key', () =>
     disk.getStream('cv/42/../../../etc/passwd'),
   );
 
   // A file planted outside the key namespace must stay unreachable even by an
   // absolute path, because the key pattern is checked before anything resolves.
   await writeFile(join(dir, 'secret.txt'), 'nope');
-  await throws('the disk driver refuses an absolute path', () => disk.getStream('/etc/passwd'));
+  await refusesKey('the disk driver refuses an absolute path', () => disk.getStream('/etc/passwd'));
 
   await rm(dir, { recursive: true, force: true });
 
@@ -199,7 +230,14 @@ async function main(): Promise<void> {
     'the download filename is signed into the URL',
     (url.searchParams.get('response-content-disposition') ?? '').includes('attachment'),
   );
-  await throws('the R2 driver refuses a malformed key', () =>
+  // assertStorageKey() refuses these before signedS3Fetch(), so no request
+  // leaves the process and the suite still needs no bucket.
+  await refusesKey('the R2 driver refuses to put a malformed key', () =>
+    r2.put('cv/../x.pdf', PDF, 'application/pdf'),
+  );
+  await refusesKey('the R2 driver refuses to read a malformed key', () => r2.getStream('cv/../x.pdf'));
+  await refusesKey('the R2 driver refuses to delete a malformed key', () => r2.delete('cv/../x.pdf'));
+  await refusesKey('the R2 driver refuses a malformed key', () =>
     r2.getSignedUrl('cv/../x.pdf', { expiresInSeconds: 60 }),
   );
 

@@ -102,8 +102,9 @@ check('an unrelated crumb is untouched', crumbs[3].message, 'button#enviar');
 console.log('\n— no token survives anywhere —');
 
 // The blunt version of every check above: serialise the whole scrubbed event
-// and assert the secrets are simply not in it. This is the assertion that
-// catches the next field Sentry adds, which no hand-written list can.
+// and assert the secrets are simply not in it. New fields are covered inside
+// wholesale-deleted user/extra/contexts objects, or breadcrumb data — every
+// string field of it, not just url/from/to (see the next section).
 const everything = JSON.stringify(
   scrub({
     user: { id: '7' },
@@ -117,6 +118,121 @@ const everything = JSON.stringify(
 
 check('no reset token anywhere in the event', everything.includes('live-reset-token'), false);
 check('no verification token anywhere in the event', everything.includes('live-verify-token'), false);
+
+console.log('\n— contexts is deleted whole, same as extra —');
+
+// Nothing in this app calls Sentry.setContext() today, but a default
+// integration or a future call is a diff this file will not see — contexts
+// was never covered by anything else, so it is deleted like extra.
+const nestedContexts = scrub({
+  contexts: {
+    candidate: { email: 'postulante@example.com', cvToken: 'nested-context-secret' },
+    device: { model: 'iPhone' },
+  },
+});
+check('contexts is gone whole', nestedContexts.contexts, undefined);
+check(
+  'no nested context secret survives anywhere in the event',
+  JSON.stringify(nestedContexts).includes('nested-context-secret'),
+  false,
+);
+
+console.log('\n— every breadcrumb data field is scrubbed, not just url/from/to —');
+
+// The original miss (see the header comment) was a field name this file did
+// not yet know to strip. Proving the fix generalises means picking field
+// names the browser SDK's own integrations do NOT use, not repeating url/
+// from/to — those already passed before this fix existed.
+const unnamedFields = scrub({
+  breadcrumbs: [
+    { category: 'fetch', data: { href: RESET_URL, referrer: VERIFY_URL, method: 'GET' } },
+    { category: 'ui.click', data: { targetUrl: RESET_URL, label: 'submit' } },
+  ],
+}).breadcrumbs!;
+
+check('an unnamed URL-bearing field (href) loses its token', unnamedFields[0].data?.href, 'https://trabajo.com.py/postulante/recuperar/confirmar');
+check('an unnamed URL-bearing field (referrer) loses its token', unnamedFields[0].data?.referrer, 'https://trabajo.com.py/postulante/verificar');
+check('a non-URL sibling field survives', unnamedFields[0].data?.method, 'GET');
+check('a second unnamed field name (targetUrl) also loses its token', unnamedFields[1].data?.targetUrl, 'https://trabajo.com.py/postulante/recuperar/confirmar');
+check('a non-URL sibling field on the second crumb survives', unnamedFields[1].data?.label, 'submit');
+
+console.log('\n— the rules generalise past the fixture —');
+
+// These fields never appear in the fixture above. Their removal is evidence
+// that the rules apply wholesale, not just to the handful of keys written down.
+const sensitiveHeaders: Record<string, string> = {
+  Authorization: 'secret-authorization',
+  'Proxy-Authorization': 'secret-proxy-authorization',
+  COOKIE: 'secret-cookie',
+  'Set-Cookie': 'secret-set-cookie',
+  REFERER: 'secret-referer',
+  Referrer: 'secret-referrer',
+  FORWARDED: 'secret-forwarded',
+  'X-FORWARDED-FOR': 'secret-forwarded-for',
+  'X-Real-IP': 'secret-real-ip',
+  'X-Api-Key': 'secret-api-key',
+  'x-CSRF-Token': 'secret-csrf-token',
+};
+const headers = scrub({
+  request: { headers: { ...sensitiveHeaders, 'accept-language': 'es-PY' } },
+});
+for (const name of Object.keys(sensitiveHeaders)) {
+  check(`the sensitive header ${name} is gone despite its casing`, headers.request?.headers?.[name], undefined);
+}
+check('accept-language survives', headers.request?.headers?.['accept-language'], 'es-PY');
+const serializedHeaders = JSON.stringify(headers);
+for (const secret of Object.values(sensitiveHeaders)) {
+  check(`no ${secret} survives anywhere in the event`, serializedHeaders.includes(secret), false);
+}
+
+const nestedUser = scrub({
+  user: {
+    username: 'private-username',
+    segment: 'private-segment',
+    geo: { city: 'Asunción', region: 'Central', country_code: 'PY' },
+  },
+});
+check('unknown and nested user fields disappear with the whole user', nestedUser.user, undefined);
+
+const nestedExtra = scrub({
+  extra: {
+    context: { candidate: { cv: { filename: 'private-cv.pdf', token: 'nested-cv-secret' } } },
+    ids: [1, 2],
+  },
+});
+check('deeply nested extra disappears whole', nestedExtra.extra, undefined);
+check('no nested CV secret survives anywhere in the event', JSON.stringify(nestedExtra).includes('nested-cv-secret'), false);
+
+for (const category of ['redirect', 'ui.click', 'sentry.transaction']) {
+  const event = scrub({
+    breadcrumbs: [{ category, data: { url: RESET_URL, from: VERIFY_URL, to: RESET_URL } }],
+  });
+  check(
+    `a ${category} crumb keeps only the url path`,
+    event.breadcrumbs?.[0].data?.url,
+    'https://trabajo.com.py/postulante/recuperar/confirmar',
+  );
+  check(
+    `a ${category} crumb keeps only the from path`,
+    event.breadcrumbs?.[0].data?.from,
+    'https://trabajo.com.py/postulante/verificar',
+  );
+  check(
+    `a ${category} crumb keeps only the to path`,
+    event.breadcrumbs?.[0].data?.to,
+    'https://trabajo.com.py/postulante/recuperar/confirmar',
+  );
+}
+
+const messageCrumb = scrub({
+  breadcrumbs: [{ category: 'redirect', message: `redirecting to ${RESET_URL}` }],
+});
+check('a non-console crumb carrying a token survives', messageCrumb.breadcrumbs?.length, 1);
+check(
+  'a non-console message keeps its text and loses the token',
+  messageCrumb.breadcrumbs?.[0].message,
+  'redirecting to https://trabajo.com.py/postulante/recuperar/confirmar',
+);
 
 console.log('\n— the event is still worth having —');
 
