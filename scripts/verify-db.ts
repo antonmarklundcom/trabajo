@@ -17,16 +17,20 @@ async function main() {
   // so the output reads top-down as the dependency chain.
   const tables = [
     ['users', schema.users],
+    ['user_tokens', schema.userTokens],
+    ['auth_events', schema.authEvents],
     ['companies', schema.companies],
     ['categories', schema.categories],
     ['cities', schema.cities],
     ['jobs', schema.jobs],
+    ['job_images', schema.jobImages],
     ['applications', schema.applications],
     ['activity_log', schema.activityLog],
     // Phase 2 (PLAN-PHASE2.md §1.2). A migration that ran is a migration whose
     // tables are countable — a missing table here throws rather than reporting
     // zero, which is the point of listing them.
     ['candidates', schema.candidates],
+    ['candidate_tokens', schema.candidateTokens],
     ['candidate_cvs', schema.candidateCvs],
     ['candidate_experiences', schema.candidateExperiences],
     ['consents', schema.consents],
@@ -37,6 +41,9 @@ async function main() {
     // Phase 3 blog (PLAN-PHASE3-DRAFT.md §11), same reasoning as above.
     ['blog_posts', schema.blogPosts],
     ['blog_post_redirects', schema.blogPostRedirects],
+    ['ops_state', schema.opsState],
+    ['feature_orders', schema.featureOrders],
+    ['payment_events', schema.paymentEvents],
   ] as const;
 
   const width = Math.max(...tables.map(([name]) => name.length));
