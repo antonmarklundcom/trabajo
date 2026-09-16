@@ -389,6 +389,44 @@ check(
     'is only worth asserting because this line is what makes `pending` mean invisible.',
 );
 
+// ---------------------------------------------------------------------------
+// 8. Every private query function that reads the jobs table applies
+//    visiblePredicate(), not just the predicate itself. The checks above prove
+//    the gate is well-formed; this proves every caller actually walks through
+//    it — otherwise a new query added straight to the jobs table with no
+//    visiblePredicate() call would render pending/draft/rejected listings on
+//    the public site and nothing here would notice.
+// ---------------------------------------------------------------------------
+
+{
+  // The two deliberate exceptions, and why each is allowed to skip the
+  // predicate — both are proven safe by other checks in this file.
+  const EXEMPT: Record<string, string> = {
+    queryClosedJob: 'reads through closedPredicate() instead — asserted in section 7 above',
+    queryTaxonomyCounts: 'delegates to queryTaxonomyCities/queryTaxonomyCategories, queries no table itself',
+  };
+
+  const names = [...code(queries).matchAll(/^async function (query\w+)\(/gm)].map((m) => m[1]);
+  check(
+    'every private query* function in queries.ts was enumerated',
+    names.length >= 10,
+    `Found only ${names.length}: ${names.join(', ')}. This script's own query function list ` +
+      'may be stale — re-derive it from lib/db/queries.ts.',
+  );
+
+  for (const name of names) {
+    if (name in EXEMPT) continue;
+    const body = functionBody(queries, name);
+    check(
+      `${name}() applies visiblePredicate()`,
+      body.includes('visiblePredicate()'),
+      `${name}() reads the jobs table without visiblePredicate() in its WHERE/JOIN condition. ` +
+        'That is a pending/draft/rejected job rendering on the public site. If this function ' +
+        'genuinely does not need the gate, add it to EXEMPT above with the reason why.',
+    );
+  }
+}
+
 if (failures > 0) {
   console.error(`\n${failures} assertion(s) FAILED.`);
   process.exit(1);

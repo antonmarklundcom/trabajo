@@ -53,6 +53,11 @@ const DEPENDENCIES: Dependency[] = [
   // candidate who made it (PLAN-PHASE3-DRAFT.md §1, §4 point 2).
   { child: 'savedJobs', parents: ['jobs', 'candidates'] },
   { child: 'candidateTokens', parents: ['candidates'] },
+  // A stored CV or experience row is meaningless without the candidate it
+  // belongs to; deleteCandidateAccount() in candidate-arco.ts purges both
+  // before the candidate row goes.
+  { child: 'candidateCvs', parents: ['candidates'] },
+  { child: 'candidateExperiences', parents: ['candidates'] },
   // A job-posting photo with no job is an orphaned WebP nobody can reach —
   // deleting the job must delete its images first (PLAN-IMAGES.md §5).
   { child: 'jobImages', parents: ['jobs'] },
@@ -140,6 +145,47 @@ function deleteOffsets(source: string, table: string): number[] {
   return offsets;
 }
 
+/**
+ * Every top-level `(export )?async function name` in a file, as a byte-offset
+ * span running to the next such declaration (or EOF). Every delete site in
+ * lib/db follows this convention (no nested/anonymous transaction helpers
+ * split across functions), so this is enough to scope a check to "the same
+ * function" without a real parser.
+ */
+type FnSlice = { name: string; start: number; end: number };
+
+function topLevelFunctions(source: string): FnSlice[] {
+  const re = /^(?:export\s+)?async function\s+(\w+)/gm;
+  const starts: { name: string; start: number }[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(source)) !== null) {
+    starts.push({ name: m[1], start: m.index });
+  }
+  return starts.map((s, i) => ({
+    name: s.name,
+    start: s.start,
+    end: i + 1 < starts.length ? starts[i + 1].start : source.length,
+  }));
+}
+
+const functionsByFile = new Map<string, FnSlice[]>();
+function functionsOf(file: { path: string; source: string }): FnSlice[] {
+  let fns = functionsByFile.get(file.path);
+  if (!fns) {
+    fns = topLevelFunctions(file.source);
+    functionsByFile.set(file.path, fns);
+  }
+  return fns;
+}
+
+/** The top-level function an offset falls in, or undefined if it is above the first one. */
+function enclosingFunction(
+  file: { path: string; source: string },
+  offset: number,
+): FnSlice | undefined {
+  return functionsOf(file).find((f) => offset >= f.start && offset < f.end);
+}
+
 const files = sourceFiles();
 
 // ---------------------------------------------------------------------------
@@ -165,31 +211,43 @@ check(
 
 for (const { child, parents } of DEPENDENCIES) {
   for (const parent of parents) {
-    const sites = files.filter((f) => f.name !== 'schema.ts' && deleteOffsets(f.source, parent).length > 0);
+    const parentSites = files
+      .filter((f) => f.name !== 'schema.ts')
+      .flatMap((f) => deleteOffsets(f.source, parent).map((offset) => ({ file: f, offset })));
 
     check(
       `${parent} is hard-deleted in at least one module (registry is not stale)`,
-      sites.length > 0,
+      parentSites.length > 0,
       `No .delete(${parent}) found in lib/db. If that path moved, update DEPENDENCIES.`,
     );
 
-    for (const file of sites) {
-      const parentAt = Math.min(...deleteOffsets(file.source, parent));
-      const childOffsets = deleteOffsets(file.source, child);
+    // Scoped per top-level function, not per file: two unrelated functions in
+    // the same file must not be able to satisfy each other's cleanup check —
+    // see deleteAdminJobImage() vs deleteJob() in admin.ts, which both delete
+    // job_images but only one of them also deletes jobs.
+    for (const { file, offset: parentOffset } of parentSites) {
+      const fn = enclosingFunction(file, parentOffset);
+      const scopeStart = fn ? fn.start : 0;
+      const scopeEnd = fn ? fn.end : file.source.length;
+      const scopeLabel = fn ? `${file.name} (${fn.name})` : file.name;
+
+      const childOffsetsInScope = deleteOffsets(file.source, child).filter(
+        (o) => o >= scopeStart && o < scopeEnd,
+      );
 
       check(
-        `${file.name} deletes ${child} where it deletes ${parent}`,
-        childOffsets.length > 0,
-        `.delete(${parent}) in ${file.name} leaves ${child} rows pointing at a row that is gone. ` +
+        `${scopeLabel} deletes ${child} where it deletes ${parent}`,
+        childOffsetsInScope.length > 0,
+        `.delete(${parent}) in ${scopeLabel} leaves ${child} rows pointing at a row that is gone. ` +
           `There is no FK to clean them up.`,
       );
 
-      if (childOffsets.length > 0) {
+      if (childOffsetsInScope.length > 0) {
         check(
-          `${file.name} deletes ${child} before ${parent}`,
-          Math.min(...childOffsets) < parentAt,
+          `${scopeLabel} deletes ${child} before ${parent}`,
+          Math.min(...childOffsetsInScope) < parentOffset,
           `A crash between the two statements should lose the dependent row, not orphan it. ` +
-            `Move the .delete(${child}) above the .delete(${parent}).`,
+            `Move the .delete(${child}) above the .delete(${parent}) within ${fn ? fn.name : 'the same function'}.`,
         );
       }
     }

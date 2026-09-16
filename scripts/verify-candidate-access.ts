@@ -51,39 +51,80 @@ const NON_DISCLOSING: Record<string, string> = {
   listAccessLogs: 'reads data_access_logs, which holds no candidate data',
 };
 
+/**
+ * Exported functions that need neither requireAdmin() nor a log row, because
+ * they never touch the database or a candidate's data — pure computation only.
+ * Checked below anyway: if one of these ever calls getDb()/logAccess(), that is
+ * exactly the kind of quiet scope-creep this whole script exists to catch, so
+ * it fails rather than silently starting to count as compliant.
+ */
+const HELPERS: Record<string, string> = {
+  resolveAccessReason: 'pure string formatting for the UI reason gate — its own doc comment says ' +
+    'it is never the gate itself',
+};
+
 // ---------------------------------------------------------------------------
-// Crude but sufficient body extraction: from one top-level `export ` to the
-// next. The module is one flat file of top-level declarations, which is exactly
-// the shape this handles correctly.
+// Crude but sufficient body extraction: from one top-level export to the next.
+// The module is one flat file of top-level declarations, which is exactly the
+// shape this handles correctly.
+//
+// Three export shapes are recognised as functions — `export async function`,
+// `export function`, and `export const name = (async )?(` — because all three
+// exist somewhere in this codebase's lib/db modules. `export type`, `export
+// const X = <literal>` and `export class` are exports too, but not functions,
+// so they are deliberately not matched here; they still count as body-boundary
+// markers via the `^export ` scan below, same as before.
 // ---------------------------------------------------------------------------
 
 type Fn = { name: string; body: string };
 
 function exportedFunctions(src: string): Fn[] {
+  const patterns = [
+    /^export async function (\w+)\(/gm,
+    /^export function (\w+)\(/gm,
+    /^export const (\w+)\s*(?::[^=\n]+)?=\s*(?:async\s*)?\(/gm,
+  ];
+  const starts: { name: string; start: number }[] = [];
+  for (const re of patterns) {
+    let match: RegExpExecArray | null;
+    while ((match = re.exec(src)) !== null) {
+      starts.push({ name: match[1]!, start: match.index });
+    }
+  }
+  starts.sort((a, b) => a.start - b.start);
+
   const out: Fn[] = [];
-  const re = /^export async function (\w+)\(/gm;
-  let match: RegExpExecArray | null;
-  while ((match = re.exec(src)) !== null) {
-    const start = match.index;
+  for (const { name, start } of starts) {
     const nextExport = src.slice(start + 1).search(/^export /m);
     const end = nextExport === -1 ? src.length : start + 1 + nextExport;
-    out.push({ name: match[1]!, body: src.slice(start, end) });
+    out.push({ name, body: src.slice(start, end) });
   }
   return out;
 }
 
 const functions = exportedFunctions(source);
 
-console.log(`lib/db/candidates-admin.ts — ${functions.length} exported async function(s)\n`);
+console.log(`lib/db/candidates-admin.ts — ${functions.length} exported function(s)\n`);
 check('the module exports at least the four PR 7 + PR 12 functions', functions.length >= 4);
 
 for (const fn of functions) {
-  const known = DISCLOSING.has(fn.name) || fn.name in NON_DISCLOSING;
+  const known = DISCLOSING.has(fn.name) || fn.name in NON_DISCLOSING || fn.name in HELPERS;
   check(
     `${fn.name}: is a known export`,
     known,
-    'New exports must be classified in scripts/verify-candidate-access.ts as disclosing or not.',
+    'New exports must be classified in scripts/verify-candidate-access.ts as disclosing, ' +
+      'non-disclosing, or a helper.',
   );
+
+  if (fn.name in HELPERS) {
+    check(
+      `${fn.name}: a helper, touches neither the database nor the access log`,
+      !/\bgetDb\s*\(|\blogAccess\s*\(/.test(fn.body),
+      `Classified as a pure helper (${HELPERS[fn.name]}), but its body now calls getDb() or ` +
+        'logAccess(). Reclassify it as disclosing or non-disclosing instead.',
+    );
+    continue;
+  }
 
   // §2.4: role is checked as exactly `admin`, inside the function.
   check(`${fn.name}: calls requireAdmin(actor)`, fn.body.includes('requireAdmin(actor)'));
@@ -93,14 +134,25 @@ for (const fn of functions) {
     check(`${fn.name}: validates the reason`, fn.body.includes('requireReason(reason)'));
     check(`${fn.name}: writes a data_access_logs row`, fn.body.includes('await logAccess('));
 
-    // The log must come BEFORE the value is handed back. Comparing positions is
-    // what makes this an ordering check rather than a presence check.
+    // Every return that hands back actual data — not the `return null;` early
+    // exit for "nothing was found, nothing was disclosed" — must come AFTER
+    // the log call. Checking only the last return would miss an earlier data
+    // return slipped in above the log; this checks all of them.
     const logAt = fn.body.indexOf('await logAccess(');
-    const lastReturn = fn.body.lastIndexOf('return');
+    const dataReturns = [...fn.body.matchAll(/\breturn\s+([^;]+);/g)]
+      .filter((m) => m[1]!.trim() !== 'null')
+      .map((m) => m.index!);
     check(
-      `${fn.name}: logs before it returns the data`,
-      logAt !== -1 && logAt < lastReturn,
-      'The logAccess() call must precede the final return.',
+      `${fn.name}: has at least one data return to check`,
+      dataReturns.length > 0,
+      'Expected a `return <value>;` other than the null early-exit. If the shape changed, ' +
+        're-derive this check.',
+    );
+    check(
+      `${fn.name}: logs before every data return`,
+      logAt !== -1 && dataReturns.every((idx) => logAt < idx),
+      'A `return null;` early exit is fine unlogged (nothing was disclosed), but every other ' +
+        'return must come after the logAccess() call.',
     );
   }
 }
