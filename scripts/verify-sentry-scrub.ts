@@ -103,9 +103,8 @@ console.log('\n— no token survives anywhere —');
 
 // The blunt version of every check above: serialise the whole scrubbed event
 // and assert the secrets are simply not in it. New fields are covered inside
-// wholesale-deleted user/extra objects, or breadcrumb data named url/from/to.
-// Other breadcrumb data names and anything under event.contexts have no rule
-// in lib/sentry-options.ts: that is a known limit, not a promise made here.
+// wholesale-deleted user/extra/contexts objects, or breadcrumb data — every
+// string field of it, not just url/from/to (see the next section).
 const everything = JSON.stringify(
   scrub({
     user: { id: '7' },
@@ -119,6 +118,43 @@ const everything = JSON.stringify(
 
 check('no reset token anywhere in the event', everything.includes('live-reset-token'), false);
 check('no verification token anywhere in the event', everything.includes('live-verify-token'), false);
+
+console.log('\n— contexts is deleted whole, same as extra —');
+
+// Nothing in this app calls Sentry.setContext() today, but a default
+// integration or a future call is a diff this file will not see — contexts
+// was never covered by anything else, so it is deleted like extra.
+const nestedContexts = scrub({
+  contexts: {
+    candidate: { email: 'postulante@example.com', cvToken: 'nested-context-secret' },
+    device: { model: 'iPhone' },
+  },
+});
+check('contexts is gone whole', nestedContexts.contexts, undefined);
+check(
+  'no nested context secret survives anywhere in the event',
+  JSON.stringify(nestedContexts).includes('nested-context-secret'),
+  false,
+);
+
+console.log('\n— every breadcrumb data field is scrubbed, not just url/from/to —');
+
+// The original miss (see the header comment) was a field name this file did
+// not yet know to strip. Proving the fix generalises means picking field
+// names the browser SDK's own integrations do NOT use, not repeating url/
+// from/to — those already passed before this fix existed.
+const unnamedFields = scrub({
+  breadcrumbs: [
+    { category: 'fetch', data: { href: RESET_URL, referrer: VERIFY_URL, method: 'GET' } },
+    { category: 'ui.click', data: { targetUrl: RESET_URL, label: 'submit' } },
+  ],
+}).breadcrumbs!;
+
+check('an unnamed URL-bearing field (href) loses its token', unnamedFields[0].data?.href, 'https://trabajo.com.py/postulante/recuperar/confirmar');
+check('an unnamed URL-bearing field (referrer) loses its token', unnamedFields[0].data?.referrer, 'https://trabajo.com.py/postulante/verificar');
+check('a non-URL sibling field survives', unnamedFields[0].data?.method, 'GET');
+check('a second unnamed field name (targetUrl) also loses its token', unnamedFields[1].data?.targetUrl, 'https://trabajo.com.py/postulante/recuperar/confirmar');
+check('a non-URL sibling field on the second crumb survives', unnamedFields[1].data?.label, 'submit');
 
 console.log('\n— the rules generalise past the fixture —');
 
