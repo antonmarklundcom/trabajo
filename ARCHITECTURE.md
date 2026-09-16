@@ -13,8 +13,8 @@ Docs are in English (agent-facing). **All user-visible UI copy stays Spanish
 ## 1. Why custom, and what stays
 
 WordPress at `panel.trabajo.com.py` was only ever a headless data source behind
-a switch, and that switch has never been on in production: `.env.example` ships
-`USE_WP_BACKEND=false`, so the live site serves `lib/seed/jobs.json`. The jobs
+a switch. The current catalog supports `DATA_SOURCE=seed` (default) or
+`DATA_SOURCE=db`; `USE_WP_BACKEND` is no longer read. The jobs
 in the WP panel are placeholders. **There is no data to migrate**, which is why
 this swap is cheap now and gets more expensive with every real listing.
 
@@ -30,7 +30,7 @@ What does *not* change:
   no redirects and no SEO loss.
 - `lib/leads.ts` and its GHL / Sheets fan-out (see §7).
 
-What gets deleted at cutover: `lib/wp.ts`, `WP_API_URL`, `USE_WP_BACKEND`.
+The WordPress path (`lib/wp.ts`, `WP_API_URL`, `USE_WP_BACKEND`) has been removed.
 
 ---
 
@@ -49,12 +49,10 @@ What gets deleted at cutover: `lib/wp.ts`, `WP_API_URL`, `USE_WP_BACKEND`.
 
 ## 3. The seam, extended
 
-`lib/data.ts` currently branches seed ↔ WP on one boolean. Replace that with a
-three-valued source switch so the DB path can be built and verified *before*
-anything is cut over:
+`lib/data.ts` selects between the seed fixtures and MySQL:
 
 ```
-DATA_SOURCE = seed | db        (wp accepted until cutover, then removed)
+DATA_SOURCE = seed | db
 ```
 
 ```
@@ -64,12 +62,10 @@ pages / components / API routes
          ↓
   seed → lib/seed/*.json
   db   → lib/db/queries.ts → Drizzle → MySQL
-  wp   → lib/wp.ts (deleted at cutover)
 ```
 
-Compatibility rule for the transition: if `DATA_SOURCE` is unset, fall back to
-the old `USE_WP_BACKEND` behaviour, so a half-finished deploy can never
-accidentally serve an empty database.
+Only `DATA_SOURCE=db` selects MySQL. An unset or other value selects seed;
+there is no WordPress mode or `USE_WP_BACKEND` fallback.
 
 `lib/db/queries.ts` must implement exactly these eight functions with identical
 signatures and semantics to the seed implementations in `lib/data.ts`:
@@ -79,7 +75,8 @@ signatures and semantics to the seed implementations in `lib/data.ts`:
 
 Semantics that are easy to get wrong and must be preserved:
 
-- Page size is **20** (`PAGE_SIZE` in both `lib/data.ts` and `lib/wp.ts`).
+- Page size is **20** (`JOBS_PAGE_SIZE` in `lib/pagination.ts`, shared by the
+  seed and DB read paths).
 - Featured = `featured_until > NOW()`, and featured jobs float to the top of
   every sort order except `salario`.
 - `salarioMin` filter excludes jobs with `salary_hidden = true` or a null

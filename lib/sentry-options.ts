@@ -98,7 +98,7 @@ function scrubBreadcrumb(crumb: Breadcrumb): Breadcrumb | null {
  *   - **`extra`**, an untyped bag that any future `captureException` call can
  *     put anything into. Structured context belongs in tags.
  */
-export function scrubEvent(event: ErrorEvent, _hint: EventHint): ErrorEvent | null {
+export const scrubEvent: (event: ErrorEvent, hint: EventHint) => ErrorEvent | null = (event) => {
   delete event.user;
   delete event.extra;
 
@@ -128,7 +128,7 @@ export function scrubEvent(event: ErrorEvent, _hint: EventHint): ErrorEvent | nu
   }
 
   return event;
-}
+};
 
 /**
  * Shared init options. The DSN is read by each runtime's own entry point.
