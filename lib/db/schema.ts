@@ -414,7 +414,10 @@ export const consents = mysqlTable(
     granted: boolean('granted').notNull(),
     // Meaningless unless POLICY_VERSION is bumped whenever the Spanish consent
     // and privacy copy changes materially (PLAN-PHASE2.md §7 item 13).
-    policyVersion: varchar('policy_version', { length: 20 }).notNull(),
+    // 64, not the original 20: POLICY_VERSION is 28 characters, and strict
+    // MySQL rejected every consent INSERT (drizzle/0016). scripts/verify-
+    // retention.ts now asserts the constant fits the column.
+    policyVersion: varchar('policy_version', { length: 64 }).notNull(),
     relatedCompanyId: int('related_company_id'),
     relatedJobId: int('related_job_id'),
     ip: varchar('ip', { length: 45 }),
@@ -486,7 +489,7 @@ export const deletionRequests = mysqlTable('deletion_requests', {
   candidateId: int('candidate_id').notNull(),
   // sha256(lowercased email). Lets a re-signup be correlated with a prior
   // deletion without keeping the address around to do it.
-  emailHash: varchar('email_hash', { length: 64 }).notNull(),
+  emailHash: varchar('email_hash', { length: 20 }).notNull(),
   requestedBy: mysqlEnum('requested_by', deletionRequestActorEnum).notNull(),
   actorUserId: int('actor_user_id'),
   // Written BEFORE anything is destroyed, so an interrupted purge is still
