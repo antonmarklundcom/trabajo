@@ -81,7 +81,7 @@ function ownedJobIds(companyId: number) {
 export async function getEmployerDashboardStats(companyId: number) {
   const db = await getDb();
 
-  const [[published], [pending], [totalApplications], [newApplications]] = await Promise.all([
+  const [[published], [pending], [totalApplications], [newApplications], [views]] = await Promise.all([
     db
       .select({ n: count() })
       .from(jobs)
@@ -100,6 +100,10 @@ export async function getEmployerDashboardStats(companyId: number) {
       .from(applications)
       .innerJoin(jobs, eq(applications.jobId, jobs.id))
       .where(and(ownedByCompany(companyId), eq(applications.status, 'new'))),
+    db
+      .select({ n: sql<number>`COALESCE(SUM(${jobs.viewCount}), 0)` })
+      .from(jobs)
+      .where(ownedByCompany(companyId)),
   ]);
 
   return {
@@ -107,6 +111,8 @@ export async function getEmployerDashboardStats(companyId: number) {
     pendingCount: pending.n,
     applicationCount: totalApplications.n,
     newApplicationCount: newApplications.n,
+    // SUM over DECIMAL comes back as a string from mysql2.
+    viewCount: Number(views?.n ?? 0),
   };
 }
 
@@ -219,6 +225,7 @@ export async function listEmployerJobs(companyId: number, filters: EmployerJobFi
         expiresAt: jobs.expiresAt,
         createdAt: jobs.createdAt,
         rejectionReason: jobs.rejectionReason,
+        viewCount: jobs.viewCount,
         applicantCount: count(applications.id),
       })
       .from(jobs)

@@ -324,6 +324,14 @@ export async function getAllPublishedJobSummaries(): Promise<Job[]> {
   return [...first.jobs, ...rest.flatMap((page) => page.jobs)];
 }
 
+/**
+ * Counts one view of a public listing. A no-op in seed mode — the seed has no
+ * counter to write — and for any slug the public site would not show.
+ */
+export async function recordJobView(slug: string): Promise<void> {
+  if (getSource() === 'db') return (await getDbModule()).recordJobView(slug);
+}
+
 export async function getCategories(): Promise<Category[]> {
   if (getSource() === 'db') return (await getDbModule()).getCategories();
   return seedGetCategories();

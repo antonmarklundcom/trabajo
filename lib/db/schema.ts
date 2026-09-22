@@ -159,6 +159,12 @@ export const jobs = mysqlTable(
     publishedAt: datetime('published_at'),
     expiresAt: datetime('expires_at'),
     rejectionReason: text('rejection_reason'),
+    // Page views of the public listing, counted by a same-origin beacon from
+    // /empleos/[slug] (lib/db/queries.ts recordJobView). An aggregate with no
+    // visitor attached: no IP, no cookie, no row per view. Shown to the
+    // company on its own dashboard — the number that tells an employer with no
+    // applications yet whether the listing is being seen at all.
+    viewCount: int('view_count').notNull().default(0),
     createdBy: int('created_by'),
     updatedBy: int('updated_by'),
     createdAt: datetime('created_at').notNull(),
@@ -579,7 +585,9 @@ export const employerInvitations = mysqlTable(
 // outstanding tokens of that purpose.
 // ---------------------------------------------------------------------------
 
-export const userTokenPurposeEnum = ['email_verification'] as const;
+// 'password_reset' added for the employer "¿Olvidaste tu contraseña?" flow —
+// the users-side twin of candidate_tokens' own password_reset purpose.
+export const userTokenPurposeEnum = ['email_verification', 'password_reset'] as const;
 
 export const userTokens = mysqlTable(
   'user_tokens',

@@ -1,14 +1,23 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 const INPUT =
   'w-full px-4 py-2.5 rounded-[10px] border border-border text-base text-ink bg-white focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20';
 
-export default function ResetConfirmForm({ token }: { token: string }) {
+/** `basePath`: '/postulante' (default) or '/empresa' — see ResetRequestForm. */
+export default function ResetConfirmForm({
+  token,
+  basePath = '/postulante',
+}: {
+  token: string;
+  basePath?: '/postulante' | '/empresa';
+}) {
   const router = useRouter();
+  const passwordId = useId();
+  const confirmId = useId();
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
@@ -23,7 +32,7 @@ export default function ResetConfirmForm({ token }: { token: string }) {
     setSubmitting(true);
     setError('');
     try {
-      const res = await fetch('/api/postulante/recuperar/confirmar', {
+      const res = await fetch(`/api${basePath}/recuperar/confirmar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, password }),
@@ -34,7 +43,7 @@ export default function ResetConfirmForm({ token }: { token: string }) {
         setSubmitting(false);
         return;
       }
-      router.push(typeof data.redirectTo === 'string' ? data.redirectTo : '/postulante/perfil');
+      router.push(typeof data.redirectTo === 'string' ? data.redirectTo : basePath === '/postulante' ? '/postulante/perfil' : '/empresa');
       router.refresh();
     } catch {
       setError('Error de conexión. Intentá de nuevo.');
@@ -45,8 +54,9 @@ export default function ResetConfirmForm({ token }: { token: string }) {
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-ink mb-1.5">Nueva contraseña</label>
+        <label htmlFor={passwordId} className="block text-sm font-medium text-ink mb-1.5">Nueva contraseña</label>
         <input
+          id={passwordId}
           type="password"
           required
           minLength={8}
@@ -58,8 +68,9 @@ export default function ResetConfirmForm({ token }: { token: string }) {
         <p className="text-xs text-ink-secondary mt-1">Mínimo 8 caracteres.</p>
       </div>
       <div>
-        <label className="block text-sm font-medium text-ink mb-1.5">Repetir contraseña</label>
+        <label htmlFor={confirmId} className="block text-sm font-medium text-ink mb-1.5">Repetir contraseña</label>
         <input
+          id={confirmId}
           type="password"
           required
           minLength={8}
@@ -72,7 +83,7 @@ export default function ResetConfirmForm({ token }: { token: string }) {
       {error && (
         <div className="space-y-2">
           <p className="text-sm text-brand">{error}</p>
-          <Link href="/postulante/recuperar" className="block text-sm text-brand hover:underline">
+          <Link href={`${basePath}/recuperar`} className="block text-sm text-brand hover:underline">
             Pedir un enlace nuevo
           </Link>
         </div>

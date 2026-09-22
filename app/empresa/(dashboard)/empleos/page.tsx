@@ -62,6 +62,7 @@ export default async function EmpresaEmpleosPage({
               <th className="px-4 py-3 font-medium">Título</th>
               <th className="px-4 py-3 font-medium">Categoría / Ciudad</th>
               <th className="px-4 py-3 font-medium">Estado</th>
+              <th className="px-4 py-3 font-medium">Visitas</th>
               <th className="px-4 py-3 font-medium">Postulantes</th>
               <th className="px-4 py-3 font-medium">Actualizado</th>
             </tr>
@@ -69,7 +70,7 @@ export default async function EmpresaEmpleosPage({
           <tbody className="divide-y divide-border">
             {jobs.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-ink-secondary">
+                <td colSpan={6} className="px-4 py-10 text-center text-ink-secondary">
                   Todavía no publicaste ningún empleo.
                 </td>
               </tr>
@@ -108,6 +109,9 @@ export default async function EmpresaEmpleosPage({
                           />
                         </div>
                       )}
+                  </td>
+                  <td className="px-4 py-3 text-ink-secondary tabular-nums">
+                    {job.viewCount.toLocaleString('es-PY')}
                   </td>
                   <td className="px-4 py-3 text-ink-secondary">
                     {job.applicantCount > 0 ? (
