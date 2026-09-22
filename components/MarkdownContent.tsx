@@ -55,7 +55,9 @@ function escapeHtml(value: string): string {
  * match across one.
  */
 export function parseMarkdown(text: string): string {
-  return escapeHtml(text)
+  // Windows line endings (pasted from Word, or a form on Windows) would leave a
+  // stray \r inside every list item and heading.
+  return escapeHtml(text.replace(/\r\n?/g, '\n'))
     // Bold
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     // Italic
@@ -70,10 +72,27 @@ export function parseMarkdown(text: string): string {
     .replace(/(<li>.*<\/li>\n?)+/g, (match) => `<ul>${match}</ul>`)
     // Paragraphs: blank lines → <p> breaks
     .split(/\n\n+/)
-    .map((block) => {
-      // Don't wrap headings or lists in <p>
-      if (block.startsWith('<h') || block.startsWith('<ul')) return block;
-      return `<p>${block.replace(/\n/g, '<br/>')}</p>`;
-    })
+    .map(renderBlock)
     .join('\n');
+}
+
+/**
+ * One blank-line-separated block. A list is never put inside a <p>, and the
+ * newlines between list items never become <br/>: the common employer shape
+ * "**Tareas:**" on one line with the bullets straight under it used to come
+ * out as `<p><strong>Tareas:</strong><br/><ul><li>…</li><br/><li>…` — invalid
+ * HTML that browsers repair into a paragraph, an empty gap and a list with a
+ * blank line between every item. A heading is split out the same way, so the
+ * lines under it become a paragraph rather than bare text.
+ */
+function renderBlock(block: string): string {
+  return block
+    .split(/(<ul>[\s\S]*?<\/ul>|<h[23]>.*?<\/h[23]>)/)
+    .map((part) => {
+      if (part.startsWith('<ul>')) return part.replace(/\n/g, '');
+      if (part.startsWith('<h')) return part;
+      const trimmed = part.replace(/^\n+|\n+$/g, '');
+      return trimmed ? `<p>${trimmed.replace(/\n/g, '<br/>')}</p>` : '';
+    })
+    .join('');
 }

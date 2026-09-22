@@ -21,7 +21,7 @@ import { clientIp } from '@/lib/client-ip';
 import { listCandidates, type LabeledCount } from '@/lib/db/candidates-admin';
 
 export const metadata: Metadata = {
-  title: 'Postulantes — trabajo.com.py',
+  title: 'Postulantes',
   robots: { index: false, follow: false },
 };
 

@@ -5,7 +5,7 @@ import { candidateAccountsEnabled } from '@/lib/flags';
 import ResetConfirmForm from '@/components/postulante/ResetConfirmForm';
 
 export const metadata: Metadata = {
-  title: 'Nueva contraseña — Postulantes — trabajo.com.py',
+  title: 'Nueva contraseña — Postulantes',
   robots: { index: false, follow: false },
 };
 

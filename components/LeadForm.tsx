@@ -5,6 +5,7 @@ import { track } from '@/lib/analytics';
 import { HONEYPOT_FIELD } from '@/lib/honeypot';
 import { validateEmail, validateMinLength } from '@/lib/form-validation';
 import HoneypotField from '@/components/HoneypotField';
+import FormField from '@/components/FormField';
 
 function validate(values: { name: string; phone: string; email: string }) {
   const errors: Record<string, string> = {};
@@ -81,7 +82,10 @@ export default function LeadForm({ jobSlug, jobTitle, citySlug, categorySlug, co
           </svg>
         </div>
         <p className="font-semibold text-success">¡Postulación enviada!</p>
-        <p className="text-sm text-ink-secondary mt-1">Te contactaremos pronto.</p>
+        <p className="text-sm text-ink-secondary mt-1">
+          La empresa revisa las postulaciones y se comunica directamente con las personas que
+          selecciona.
+        </p>
       </div>
     );
   }
@@ -90,7 +94,7 @@ export default function LeadForm({ jobSlug, jobTitle, citySlug, categorySlug, co
     <form onSubmit={handleSubmit} noValidate className="space-y-4">
       <HoneypotField value={honeypot} onChange={setHoneypot} />
 
-      <Field
+      <FormField
         label="Nombre completo"
         required
         error={errors.name}
@@ -103,9 +107,9 @@ export default function LeadForm({ jobSlug, jobTitle, citySlug, categorySlug, co
           className={inputClass(!!errors.name)}
           autoComplete="name"
         />
-      </Field>
+      </FormField>
 
-      <Field label="Teléfono / WhatsApp" required error={errors.phone}>
+      <FormField label="Teléfono / WhatsApp" required error={errors.phone}>
         <input
           type="tel"
           value={values.phone}
@@ -114,9 +118,9 @@ export default function LeadForm({ jobSlug, jobTitle, citySlug, categorySlug, co
           className={inputClass(!!errors.phone)}
           autoComplete="tel"
         />
-      </Field>
+      </FormField>
 
-      <Field label="Email" error={errors.email}>
+      <FormField label="Email" error={errors.email}>
         <input
           type="email"
           value={values.email}
@@ -125,9 +129,9 @@ export default function LeadForm({ jobSlug, jobTitle, citySlug, categorySlug, co
           className={inputClass(!!errors.email)}
           autoComplete="email"
         />
-      </Field>
+      </FormField>
 
-      <Field label="Mensaje" error={errors.message}>
+      <FormField label="Mensaje" error={errors.message}>
         <textarea
           value={values.message}
           onChange={(e) => setField('message', e.target.value)}
@@ -136,7 +140,7 @@ export default function LeadForm({ jobSlug, jobTitle, citySlug, categorySlug, co
           maxLength={1000}
           className={`${inputClass(false)} resize-none`}
         />
-      </Field>
+      </FormField>
 
       {state === 'error' && (
         <p className="text-sm text-error bg-error-tint rounded-[10px] px-4 py-3">
@@ -161,27 +165,4 @@ function inputClass(hasError: boolean) {
       ? 'border-error focus:ring-error/20'
       : 'border-border focus:border-brand focus:ring-brand/20'
   }`;
-}
-
-function Field({
-  label,
-  required,
-  error,
-  children,
-}: {
-  label: string;
-  required?: boolean;
-  error?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <label className="block text-sm font-medium text-ink mb-1.5">
-        {label}
-        {required && <span className="text-error ml-0.5">*</span>}
-      </label>
-      {children}
-      {error && <p className="mt-1 text-xs text-error">{error}</p>}
-    </div>
-  );
 }

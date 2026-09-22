@@ -8,6 +8,7 @@ import { HONEYPOT_FIELD } from '@/lib/honeypot';
 import { WHATSAPP_HOURS_COPY } from '@/lib/whatsapp';
 import { validateEmail, validateMinLength } from '@/lib/form-validation';
 import HoneypotField from '@/components/HoneypotField';
+import FormField from '@/components/FormField';
 import WhatsAppCta from '@/components/WhatsAppCta';
 import type { Category, City } from '@/lib/types';
 
@@ -161,7 +162,7 @@ export default function EmployerForm({ categories, cities }: Props) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field label="Empresa" required error={errors.companyName}>
+        <FormField label="Empresa" required error={errors.companyName}>
           <input
             type="text"
             value={values.companyName}
@@ -169,8 +170,8 @@ export default function EmployerForm({ categories, cities }: Props) {
             placeholder="Nombre de tu empresa"
             className={inputCls(!!errors.companyName)}
           />
-        </Field>
-        <Field label="Tu nombre" required error={errors.contactName}>
+        </FormField>
+        <FormField label="Tu nombre" required error={errors.contactName}>
           <input
             type="text"
             value={values.contactName}
@@ -178,11 +179,11 @@ export default function EmployerForm({ categories, cities }: Props) {
             placeholder="Nombre completo"
             className={inputCls(!!errors.contactName)}
           />
-        </Field>
+        </FormField>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field label="WhatsApp de contacto" required error={errors.contactWhatsapp}>
+        <FormField label="WhatsApp de contacto" required error={errors.contactWhatsapp}>
           <input
             type="tel"
             value={values.contactWhatsapp}
@@ -190,8 +191,8 @@ export default function EmployerForm({ categories, cities }: Props) {
             placeholder="09X XXX XXXX"
             className={inputCls(!!errors.contactWhatsapp)}
           />
-        </Field>
-        <Field label="Email (opcional)" error={errors.email}>
+        </FormField>
+        <FormField label="Email (opcional)" error={errors.email}>
           <input
             type="email"
             value={values.email}
@@ -199,7 +200,7 @@ export default function EmployerForm({ categories, cities }: Props) {
             placeholder="email@empresa.com"
             className={inputCls(!!errors.email)}
           />
-        </Field>
+        </FormField>
       </div>
 
       <div className="pt-4 pb-4 border-b border-t border-border">
@@ -208,7 +209,7 @@ export default function EmployerForm({ categories, cities }: Props) {
         </h2>
       </div>
 
-      <Field label="Título del puesto" required error={errors.jobTitle}>
+      <FormField label="Título del puesto" required error={errors.jobTitle}>
         <input
           type="text"
           value={values.jobTitle}
@@ -216,10 +217,10 @@ export default function EmployerForm({ categories, cities }: Props) {
           placeholder="Ej: Contador Senior, Vendedor/a de campo..."
           className={inputCls(!!errors.jobTitle)}
         />
-      </Field>
+      </FormField>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field label="Categoría" required error={errors.categorySlug}>
+        <FormField label="Categoría" required error={errors.categorySlug}>
           <select
             value={values.categorySlug}
             onChange={(e) => setField('categorySlug', e.target.value)}
@@ -230,8 +231,8 @@ export default function EmployerForm({ categories, cities }: Props) {
               <option key={c.slug} value={c.slug}>{c.name}</option>
             ))}
           </select>
-        </Field>
-        <Field label="Ciudad" required error={errors.citySlug}>
+        </FormField>
+        <FormField label="Ciudad" required error={errors.citySlug}>
           <select
             value={values.citySlug}
             onChange={(e) => setField('citySlug', e.target.value)}
@@ -242,10 +243,10 @@ export default function EmployerForm({ categories, cities }: Props) {
               <option key={c.slug} value={c.slug}>{c.name}</option>
             ))}
           </select>
-        </Field>
+        </FormField>
       </div>
 
-      <Field label="Descripción del puesto" required error={errors.description}>
+      <FormField label="Descripción del puesto" required error={errors.description}>
         <textarea
           value={values.description}
           onChange={(e) => setField('description', e.target.value)}
@@ -257,7 +258,7 @@ export default function EmployerForm({ categories, cities }: Props) {
         <span className="text-xs text-ink-secondary mt-1 block">
           {values.description.length}/3000 caracteres
         </span>
-      </Field>
+      </FormField>
 
       {state === 'error' && (
         <p className="text-sm text-error bg-error-tint rounded-[10px] px-4 py-3">
@@ -282,27 +283,4 @@ function inputCls(hasError: boolean) {
       ? 'border-error focus:ring-error/20'
       : 'border-border focus:border-brand focus:ring-brand/20'
   }`;
-}
-
-function Field({
-  label,
-  required,
-  error,
-  children,
-}: {
-  label: string;
-  required?: boolean;
-  error?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <label className="block text-sm font-medium text-ink mb-1.5">
-        {label}
-        {required && <span className="text-error ml-0.5">*</span>}
-      </label>
-      {children}
-      {error && <p className="mt-1 text-xs text-error">{error}</p>}
-    </div>
-  );
 }

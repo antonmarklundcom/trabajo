@@ -6,7 +6,7 @@ import { employerSignupEnabled } from '@/lib/flags';
 import SignupForm from '@/components/empresa/SignupForm';
 
 export const metadata: Metadata = {
-  title: 'Crear cuenta — Panel de empresas — trabajo.com.py',
+  title: 'Crear cuenta — Panel de empresas',
   robots: { index: false, follow: false },
 };
 

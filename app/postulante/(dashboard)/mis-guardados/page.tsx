@@ -5,7 +5,7 @@ import { listSavedJobs } from '@/lib/db/candidate-saved-jobs';
 import UnsaveJobButton from '@/components/postulante/UnsaveJobButton';
 
 export const metadata: Metadata = {
-  title: 'Mis guardados — trabajo.com.py',
+  title: 'Mis guardados',
   robots: { index: false, follow: false },
 };
 

@@ -4,7 +4,7 @@ import { listAdminBlogPosts } from '@/lib/db/blog';
 import { BLOG_CATEGORY_LABELS, type BlogCategory } from '@/lib/blog';
 import { blogStatusEnum } from '@/lib/db/schema';
 
-export const metadata: Metadata = { title: 'Blog — trabajo.com.py' };
+export const metadata: Metadata = { title: 'Blog' };
 
 type SearchParams = { [key: string]: string | string[] | undefined };
 

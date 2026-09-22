@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { requireSessionWithRole } from '@/lib/auth';
 import { getAdminUsers } from '@/lib/db/admin';
 
-export const metadata: Metadata = { title: 'Usuarios — trabajo.com.py' };
+export const metadata: Metadata = { title: 'Usuarios' };
 
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Administrador',

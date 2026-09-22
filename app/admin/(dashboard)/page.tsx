@@ -6,7 +6,7 @@ import { formatLastSubmission } from '@/lib/formatters';
 import { getLaunchPromoStatus } from '@/lib/promo';
 import { LAUNCH_PROMO } from '@/lib/featured';
 
-export const metadata: Metadata = { title: 'Panel — trabajo.com.py' };
+export const metadata: Metadata = { title: 'Panel' };
 
 const ACTION_LABELS: Record<string, string> = {
   create: 'creó',

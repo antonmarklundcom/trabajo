@@ -4,7 +4,7 @@ import { requireSessionWithRole } from '@/lib/auth';
 import { getAdminUser, listCompanyOptions } from '@/lib/db/admin';
 import UserForm, { type UserFormInitial } from '@/components/admin/UserForm';
 
-export const metadata: Metadata = { title: 'Editar usuario — trabajo.com.py' };
+export const metadata: Metadata = { title: 'Editar usuario' };
 
 export default async function EditarUsuarioPage({
   params,

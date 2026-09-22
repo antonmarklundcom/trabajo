@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getAdminCompanies } from '@/lib/db/admin';
 
-export const metadata: Metadata = { title: 'Empresas — trabajo.com.py' };
+export const metadata: Metadata = { title: 'Empresas' };
 
 export default async function AdminEmpresasPage() {
   const companies = await getAdminCompanies();

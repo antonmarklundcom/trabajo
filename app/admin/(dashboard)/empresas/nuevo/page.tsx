@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import CompanyForm from '@/components/admin/CompanyForm';
 
-export const metadata: Metadata = { title: 'Nueva empresa — trabajo.com.py' };
+export const metadata: Metadata = { title: 'Nueva empresa' };
 
 export default function NuevaEmpresaPage() {
   return (

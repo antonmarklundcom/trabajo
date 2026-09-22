@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { getJobs, getCategories, getCities } from '@/lib/data';
 import { canonicalFor, listingIndexRule, type ListingParams } from '@/lib/seo';
 import { categoryLabel, cityLabel } from '@/lib/labels';
@@ -65,8 +66,12 @@ export async function generateMetadata({
   const rule = listingIndexRule(params);
 
   const pageSuffix = params.page && params.page > 1 ? ` — página ${params.page}` : '';
-  const title = params.q
-    ? `Empleos de "${params.q}"${params.ciudad ? ` en ${cityLabel(params.ciudad)}` : ''}`
+  // A query is visitor-typed and unbounded; the <title> quotes at most 60
+  // characters of it.
+  const shownQuery =
+    params.q && params.q.length > 60 ? `${params.q.slice(0, 60).trimEnd()}…` : params.q;
+  const title = shownQuery
+    ? `Empleos de "${shownQuery}"${params.ciudad ? ` en ${cityLabel(params.ciudad)}` : ''}`
     : params.categoria && params.ciudad
       ? `Empleos de ${categoryLabel(params.categoria)} en ${cityLabel(params.ciudad)}${pageSuffix}`
       : params.categoria
@@ -113,6 +118,9 @@ export default async function EmpleosPage({
     getCategories(),
     getCities(),
   ]);
+
+  // A page number past the last one is a 404, not an empty, indexable 200.
+  if (filters.page && filters.page > 1 && jobs.length === 0) notFound();
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://trabajo.com.py';
   const breadcrumbJsonLd = {

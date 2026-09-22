@@ -5,7 +5,7 @@ import { getInvitationByToken } from '@/lib/db/employer-invitations';
 import ActivationForm from '@/components/empresa/ActivationForm';
 
 export const metadata: Metadata = {
-  title: 'Activar cuenta — Empresas — trabajo.com.py',
+  title: 'Activar cuenta — Empresas',
   robots: { index: false, follow: false },
 };
 

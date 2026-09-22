@@ -12,7 +12,7 @@ import {
 } from '@/lib/db/stats';
 
 export const metadata: Metadata = {
-  title: 'Estadísticas — trabajo.com.py',
+  title: 'Estadísticas',
   robots: { index: false, follow: false },
 };
 

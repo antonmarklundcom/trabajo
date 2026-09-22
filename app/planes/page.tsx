@@ -74,8 +74,9 @@ const plans: Array<{
       'Publicaciones ilimitadas',
       'Empleos destacados incluidos',
       'Perfil de empresa con logo',
-      'Gestor de candidatos',
-      'Reporte mensual de métricas',
+      // Only what exists (/empresa/postulaciones). "Reporte mensual de
+      // métricas" used to sit here with nothing behind it.
+      'Panel para gestionar las postulaciones',
       'Asesoría en reclutamiento',
     ],
     cta: 'Hablemos',
@@ -125,7 +126,7 @@ export default async function PlanesPage() {
                 {plan.featured && (
                   <div className="mb-4">
                     <span className="text-xs font-semibold px-3 py-1 rounded-full bg-brand-tint text-brand">
-                      Más popular
+                      Para puestos clave
                     </span>
                   </div>
                 )}

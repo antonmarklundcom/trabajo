@@ -5,7 +5,7 @@ import { candidateAccountsEnabled } from '@/lib/flags';
 import ResetRequestForm from '@/components/postulante/ResetRequestForm';
 
 export const metadata: Metadata = {
-  title: 'Recuperar contraseña — Postulantes — trabajo.com.py',
+  title: 'Recuperar contraseña — Postulantes',
   robots: { index: false, follow: false },
 };
 

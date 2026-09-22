@@ -5,7 +5,7 @@ import { jobStatusEnum } from '@/lib/db/schema';
 import EmpleosFilterBar from '@/components/admin/EmpleosFilterBar';
 import StatusBadge from '@/components/admin/StatusBadge';
 
-export const metadata: Metadata = { title: 'Empleos — trabajo.com.py' };
+export const metadata: Metadata = { title: 'Empleos' };
 
 type SearchParams = { [key: string]: string | string[] | undefined };
 

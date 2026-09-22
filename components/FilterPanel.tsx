@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { useCallback, useState, useTransition } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, useTransition } from 'react';
 import type { Category, City } from '@/lib/types';
 
 type Props = {
@@ -53,6 +53,55 @@ export default function FilterPanel({ categories, cities, currentFilters }: Prop
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const drawerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const titleId = useId();
+
+  // The mobile drawer is a modal dialog: focus moves into it on open, Tab and
+  // Shift+Tab stay inside it, Escape closes it, the page behind does not
+  // scroll, and focus returns to the "Filtros" button on close.
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const drawer = drawerRef.current;
+    const trigger = triggerRef.current;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const focusables = () =>
+      Array.from(
+        drawer?.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), select:not([disabled]), input:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      );
+    focusables()[0]?.focus();
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setDrawerOpen(false);
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const items = focusables();
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = previousOverflow;
+      trigger?.focus();
+    };
+  }, [drawerOpen]);
 
   const updateFilter = useCallback(
     (key: string, value: string) => {
@@ -195,8 +244,11 @@ export default function FilterPanel({ categories, cities, currentFilters }: Prop
       {/* Mobile filter toggle */}
       <div className="lg:hidden mb-4">
         <button
+          ref={triggerRef}
           onClick={() => setDrawerOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-[10px] border border-border bg-white text-sm font-medium text-ink hover:border-brand transition-colors"
+          aria-haspopup="dialog"
+          aria-expanded={drawerOpen}
+          className="flex items-center gap-2 px-4 py-3 min-h-11 rounded-[10px] border border-border bg-white text-sm font-medium text-ink hover:border-brand transition-colors"
         >
           <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
@@ -224,12 +276,18 @@ export default function FilterPanel({ categories, cities, currentFilters }: Prop
             onClick={() => setDrawerOpen(false)}
             aria-hidden="true"
           />
-          <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-xl p-6 lg:hidden max-h-[85vh] overflow-y-auto">
+          <div
+            ref={drawerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+            className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-xl p-6 lg:hidden max-h-[85vh] overflow-y-auto"
+          >
             <div className="flex items-center justify-between mb-6">
-              <h2 className="font-semibold text-ink">Filtros</h2>
+              <h2 id={titleId} className="font-semibold text-ink">Filtros</h2>
               <button
                 onClick={() => setDrawerOpen(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-2 text-ink-secondary hover:bg-border transition-colors"
+                className="w-11 h-11 flex items-center justify-center rounded-full bg-surface-2 text-ink-secondary hover:bg-border transition-colors"
                 aria-label="Cerrar filtros"
               >
                 <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
@@ -259,11 +317,14 @@ function FilterSection({
   children: React.ReactNode;
 }) {
   return (
-    <div>
-      <label className="block text-xs font-semibold uppercase tracking-wider text-ink-secondary mb-2">
+    // The <label> wraps its <select>, so each filter is labelled without ids —
+    // this content renders twice (sidebar and drawer), and duplicated ids
+    // would point both labels at the first copy.
+    <label className="block">
+      <span className="block text-xs font-semibold uppercase tracking-wider text-ink-secondary mb-2">
         {label}
-      </label>
+      </span>
       {children}
-    </div>
+    </label>
   );
 }

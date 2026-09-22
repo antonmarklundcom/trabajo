@@ -6,7 +6,7 @@ import { jobStatusEnum } from '@/lib/db/schema';
 import StatusBadge from '@/components/admin/StatusBadge';
 
 export const metadata: Metadata = {
-  title: 'Empleos — Empresas — trabajo.com.py',
+  title: 'Empleos — Empresas',
   robots: { index: false, follow: false },
 };
 

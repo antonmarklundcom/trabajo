@@ -5,7 +5,7 @@ import { candidateAccountsEnabled } from '@/lib/flags';
 import VerifyEmail from '@/components/postulante/VerifyEmail';
 
 export const metadata: Metadata = {
-  title: 'Confirmar email — Postulantes — trabajo.com.py',
+  title: 'Confirmar email — Postulantes',
   robots: { index: false, follow: false },
 };
 

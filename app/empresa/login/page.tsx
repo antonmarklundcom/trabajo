@@ -6,7 +6,7 @@ import { employerSignupEnabled } from '@/lib/flags';
 import LoginForm from '@/components/empresa/LoginForm';
 
 export const metadata: Metadata = {
-  title: 'Ingresar — Panel de empresas — trabajo.com.py',
+  title: 'Ingresar — Panel de empresas',
   robots: { index: false, follow: false },
 };
 

@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { getCategories } from '@/lib/data';
@@ -13,6 +14,13 @@ import SearchBar from '@/components/SearchBar';
  * category links are the same crawlable tier the listing page feeds
  * (PLAN-GROWTH.md §4 S3).
  */
+// The root layout's default robots is `index, follow`; a 404 must not inherit
+// it, even though the status code alone already tells crawlers to drop it.
+export const metadata: Metadata = {
+  title: 'Página no encontrada',
+  robots: { index: false, follow: true },
+};
+
 export default async function NotFound() {
   const categories = await getCategories();
   const withJobs = categories.filter((c) => (c.jobCount ?? 0) > 0);

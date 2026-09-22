@@ -7,6 +7,7 @@ import {
   CONSENT_RETENTION_MONTHS,
   ACCESS_LOG_RETENTION_MONTHS,
 } from '@/lib/retention';
+import { candidateAccountsEnabled } from '@/lib/flags';
 
 export const metadata: Metadata = {
   title: 'Política de privacidad',
@@ -97,6 +98,9 @@ const sections = [
 ];
 
 export default function PrivacidadPage() {
+  // /postulante/* 404s while candidate accounts are dark, so the self-service
+  // link is only offered when it leads somewhere; Contacto always does.
+  const showRightsPanel = candidateAccountsEnabled();
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <h1 className="text-3xl sm:text-4xl font-bold text-ink">
@@ -115,11 +119,17 @@ export default function PrivacidadPage() {
             ))}
             {s.title.startsWith('9.') && (
               <p className="mt-2 text-[15px] leading-relaxed text-ink-secondary">
-                Accedé a tu panel de derechos en{' '}
-                <Link href="/postulante/mis-datos" className="text-brand hover:underline">
-                  /postulante/mis-datos
-                </Link>
-                , o escribinos desde{' '}
+                {showRightsPanel ? (
+                  <>
+                    Accedé a tu panel de derechos en{' '}
+                    <Link href="/postulante/mis-datos" className="text-brand hover:underline">
+                      /postulante/mis-datos
+                    </Link>
+                    , o escribinos desde{' '}
+                  </>
+                ) : (
+                  <>Para ejercer tus derechos, escribinos desde{' '}</>
+                )}
                 <Link href="/contacto" className="text-brand hover:underline">
                   Contacto
                 </Link>

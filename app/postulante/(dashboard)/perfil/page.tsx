@@ -8,7 +8,7 @@ import ExperienceManager from '@/components/postulante/ExperienceManager';
 import CvUploader from '@/components/postulante/CvUploader';
 
 export const metadata: Metadata = {
-  title: 'Mi perfil — Postulantes — trabajo.com.py',
+  title: 'Mi perfil — Postulantes',
   robots: { index: false, follow: false },
 };
 

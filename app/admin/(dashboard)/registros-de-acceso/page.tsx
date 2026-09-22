@@ -17,7 +17,7 @@ import { listAccessLogs } from '@/lib/db/candidates-admin';
 import { listAuthEvents } from '@/lib/db/auth-events';
 
 export const metadata: Metadata = {
-  title: 'Registros de acceso — trabajo.com.py',
+  title: 'Registros de acceso',
   robots: { index: false, follow: false },
 };
 

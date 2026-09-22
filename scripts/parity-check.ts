@@ -23,9 +23,24 @@ function normalizeJobs(jobs: Job[]) {
   return jobs.map(normalizeJob);
 }
 
+/**
+ * JSON with object keys sorted. The two readers build the same Job with its
+ * fields in a different order (the seed spreads the JSON row, the DB mapper
+ * lists columns), and plain JSON.stringify reported every one of those as a
+ * mismatch — 71 of them against a correctly seeded database, which buried any
+ * real difference.
+ */
+function canonical(value: unknown): string {
+  return JSON.stringify(value, (_key, v: unknown) =>
+    v && typeof v === 'object' && !Array.isArray(v)
+      ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)))
+      : v,
+  );
+}
+
 function diff(label: string, seedValue: unknown, dbValue: unknown) {
-  const a = JSON.stringify(seedValue);
-  const b = JSON.stringify(dbValue);
+  const a = canonical(seedValue);
+  const b = canonical(dbValue);
   if (a !== b) {
     failures += 1;
     console.error(`MISMATCH: ${label}`);

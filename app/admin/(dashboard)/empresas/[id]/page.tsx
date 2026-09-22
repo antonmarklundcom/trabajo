@@ -7,7 +7,7 @@ import { listEmployerInvitations } from '@/lib/db/employer-invitations';
 import CompanyForm, { type CompanyFormInitial } from '@/components/admin/CompanyForm';
 import EmployerInvitationForm from '@/components/admin/EmployerInvitationForm';
 
-export const metadata: Metadata = { title: 'Editar empresa — trabajo.com.py' };
+export const metadata: Metadata = { title: 'Editar empresa' };
 
 export default async function EditarEmpresaPage({
   params,
