@@ -15,6 +15,10 @@ import { imagePublicUrl } from '@/lib/image-storage';
 import JobForm, { type JobFormInitial } from '@/components/admin/JobForm';
 import JobImageUploader from '@/components/admin/JobImageUploader';
 import FeaturePanel from '@/components/admin/FeaturePanel';
+import ListingExpiryPanel from '@/components/admin/ListingExpiryPanel';
+import { daysUntil, listingExpiryState } from '@/lib/listing-expiry';
+import { teamToEmployerHref } from '@/lib/whatsapp';
+import { canonicalFor } from '@/lib/seo';
 
 export const metadata: Metadata = { title: 'Editar empleo' };
 
@@ -64,6 +68,10 @@ export default async function EditarEmpleoPage({
     height: img.height,
   }));
 
+  const isPublished = job.status === 'published';
+  const expiryState = listingExpiryState(job.expiresAt);
+  const jobUrl = canonicalFor(`/empleos/${job.slug}`);
+
   const initial: JobFormInitial = {
     id: job.id,
     title: job.title,
@@ -96,6 +104,26 @@ export default async function EditarEmpleoPage({
           cities={cities}
           initial={initial}
           promo={promo}
+        />
+      </div>
+      <div className="bg-white rounded-[10px] border border-border p-6 sm:p-8 max-w-3xl mt-6">
+        <h2 className="text-lg font-bold text-ink mb-4">Vigencia del aviso</h2>
+        <ListingExpiryPanel
+          jobId={job.id}
+          isPublished={isPublished}
+          expiresAt={job.expiresAt ? job.expiresAt.toISOString() : null}
+          state={expiryState}
+          daysLeft={job.expiresAt ? daysUntil(job.expiresAt) : null}
+          publishedNoticeHref={
+            isPublished && expiryState !== 'expired'
+              ? teamToEmployerHref(job.whatsapp, 'published', { title: job.title, url: jobUrl })
+              : null
+          }
+          renewalNoticeHref={
+            isPublished && (expiryState === 'expiring' || expiryState === 'expired')
+              ? teamToEmployerHref(job.whatsapp, 'listing_renewal', { title: job.title })
+              : null
+          }
         />
       </div>
       <div className="bg-white rounded-[10px] border border-border p-6 sm:p-8 max-w-3xl mt-6">

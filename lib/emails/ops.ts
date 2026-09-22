@@ -80,3 +80,27 @@ export function employerLeadNotificationMessage(
 
   return null;
 }
+
+/**
+ * "Nuevo aviso pendiente" — a job loaded from the employer dashboard just
+ * entered the moderation queue, either new or sent back by a material edit.
+ * Without this the only signal was the /admin counter, which nobody sees until
+ * they happen to open the panel.
+ */
+export function pendingEmployerJobMessage(
+  to: string,
+  job: { id: number; title: string; companyName: string; resubmitted: boolean },
+): EmailMessage {
+  return {
+    to,
+    subject: `${job.resubmitted ? 'Aviso editado para revisar' : 'Nuevo aviso para revisar'}: ${job.title} — ${job.companyName}`,
+    text: [
+      job.resubmitted
+        ? `${job.companyName} editó "${job.title}" y el aviso volvió a la cola de revisión.`
+        : `${job.companyName} cargó "${job.title}" desde su panel. Está pendiente de aprobación.`,
+      '',
+      `Revisar: ${emailUrl(`/admin/empleos/${job.id}`)}`,
+      `Cola de pendientes: ${ADMIN_PENDING_QUEUE()}`,
+    ].join('\n'),
+  };
+}

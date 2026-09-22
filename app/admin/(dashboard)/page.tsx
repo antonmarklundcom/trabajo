@@ -1,6 +1,9 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { getDashboardStats } from '@/lib/db/admin';
+import { getDashboardStats, getRenewalQueue, type RenewalQueueRow } from '@/lib/db/admin';
+import { getOpsConfig } from '@/lib/ops-config';
+import { daysUntil } from '@/lib/listing-expiry';
+import { teamToEmployerHref, type TeamToEmployerMessage } from '@/lib/whatsapp';
 import { daysSince, getLastPurgeRun, PURGE_STALE_AFTER_DAYS } from '@/lib/db/ops-state';
 import { formatLastSubmission } from '@/lib/formatters';
 import { getLaunchPromoStatus } from '@/lib/promo';
@@ -17,6 +20,10 @@ const ACTION_LABELS: Record<string, string> = {
   reject: 'rechazó',
   archive: 'archivó',
   feature: 'destacó',
+  renew: 'renovó',
+  feature_grant: 'aplicó un Destacado a',
+  feature_revoke: 'quitó el Destacado de',
+  self_serve_signup: 'se registró con',
   // Written by lib/db/employer.ts — an employer acting on their own company's
   // data shows up in the same feed the curation team already reads.
   employer_create: 'creó (empleador)',
@@ -33,11 +40,13 @@ const ENTITY_LABELS: Record<string, string> = {
 };
 
 export default async function AdminDashboardPage() {
-  const [stats, lastPurgeRun, promo] = await Promise.all([
+  const [stats, lastPurgeRun, promo, renewals] = await Promise.all([
     getDashboardStats(),
     getLastPurgeRun(),
     getLaunchPromoStatus(),
+    getRenewalQueue(),
   ]);
+  const opsConfig = getOpsConfig();
 
   return (
     <div className="space-y-8">
@@ -82,6 +91,21 @@ export default async function AdminDashboardPage() {
           </p>
         </div>
       )}
+
+      <RenewalQueue
+        title="Avisos que vencen"
+        empty="Ningún aviso vence en los próximos días."
+        rows={renewals.listings}
+        kind="listing_renewal"
+      />
+      <RenewalQueue
+        title="Destacados que vencen"
+        empty="Ningún Destacado vence en los próximos días."
+        rows={renewals.destacados}
+        kind="featured_renewal"
+      />
+
+      <OpsConfigCard config={opsConfig} />
 
       <PurgeStatus lastRun={lastPurgeRun} />
 
@@ -186,5 +210,113 @@ function StatCard({
       <p className="text-3xl font-bold text-ink mt-1">{value}</p>
       {footer && <p className="text-xs text-ink-3 mt-2">{footer}</p>}
     </Link>
+  );
+}
+
+/**
+ * "Vencen pronto" (lib/listing-expiry.ts). Hostinger has no cron, so a renewal
+ * reminder is a list a person reads here, with the WhatsApp message to the
+ * job's own contact number already written — the same one-tap shape as the
+ * team's lead emails.
+ */
+function RenewalQueue({
+  title,
+  empty,
+  rows,
+  kind,
+}: {
+  title: string;
+  empty: string;
+  rows: RenewalQueueRow[];
+  kind: TeamToEmployerMessage;
+}) {
+  return (
+    <div className="bg-white rounded-[10px] border border-border">
+      <div className="px-5 py-4 border-b border-border flex items-baseline justify-between gap-2">
+        <h2 className="font-semibold text-ink">{title}</h2>
+        <span className="text-xs text-ink-3">Próximos 7 días y vencidos en los últimos 14</span>
+      </div>
+      {rows.length === 0 ? (
+        <p className="px-5 py-6 text-sm text-ink-secondary">{empty}</p>
+      ) : (
+        <ul className="divide-y divide-border">
+          {rows.map((row) => {
+            const days = daysUntil(row.dueAt);
+            const href = teamToEmployerHref(row.whatsapp, kind, { title: row.title });
+            return (
+              <li key={row.id} className="px-5 py-3 flex flex-wrap items-center justify-between gap-3 text-sm">
+                <div>
+                  <Link href={`/admin/empleos/${row.id}`} className="font-medium text-ink hover:text-brand">
+                    {row.title}
+                  </Link>
+                  <span className="text-ink-3"> · {row.company}</span>
+                  <div className={`text-xs mt-0.5 ${days <= 0 ? 'text-error' : 'text-ink-secondary'}`}>
+                    {days <= 0
+                      ? `Venció hace ${Math.abs(days)} día${Math.abs(days) === 1 ? '' : 's'}`
+                      : `Vence en ${days} día${days === 1 ? '' : 's'}`}
+                  </div>
+                </div>
+                {href ? (
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-2 rounded-[10px] bg-wa hover:bg-wa-strong text-white text-xs font-semibold"
+                  >
+                    Escribir por WhatsApp
+                  </a>
+                ) : (
+                  <span className="text-xs text-ink-3">Sin WhatsApp cargado</span>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/**
+ * "Configuración" — which production settings are on (lib/ops-config.ts).
+ * Every one of them degrades silently by design, so this is where "the site
+ * works but nobody is told anything" becomes visible.
+ */
+function OpsConfigCard({ config }: { config: ReturnType<typeof getOpsConfig> }) {
+  const off = config.items.filter((item) => !item.ok);
+  return (
+    <div
+      className={`rounded-[10px] border p-5 ${
+        config.contactLeadsLost ? 'border-brand bg-brand-tint' : 'border-border bg-white'
+      }`}
+    >
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="font-semibold text-ink">Configuración</h2>
+        <span className="text-xs text-ink-3">
+          {off.length === 0 ? 'Todo activo' : `${off.length} sin activar`}
+        </span>
+      </div>
+      {config.contactLeadsLost && (
+        <p className="text-sm text-brand font-medium mt-2">
+          Las consultas de /contacto no se guardan en ningún lado: configurá LEADS_NOTIFY_EMAIL
+          (con Resend) o un webhook de leads.
+        </p>
+      )}
+      <ul className="mt-3 space-y-2">
+        {config.items.map((item) => (
+          <li key={item.label} className="text-sm flex gap-2">
+            <span
+              aria-hidden="true"
+              className={`mt-1.5 inline-block w-2 h-2 rounded-full flex-shrink-0 ${item.ok ? 'bg-success' : 'bg-error'}`}
+            />
+            <span>
+              <span className="text-ink">{item.label}</span>
+              <span className="sr-only">{item.ok ? ': activo' : ': sin activar'}</span>
+              {!item.ok && <span className="block text-xs text-ink-secondary">{item.whenOff}</span>}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

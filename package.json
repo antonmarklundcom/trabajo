@@ -15,6 +15,7 @@
     "db:migrate": "tsx --env-file-if-exists=.env scripts/db-migrate.ts",
     "db:seed": "tsx --env-file-if-exists=.env scripts/seed-import.ts",
     "db:migrate-capiata-slug": "tsx --env-file-if-exists=.env scripts/migrate-capiata-slug.ts",
+    "db:backfill-expiry": "tsx --env-file-if-exists=.env scripts/backfill-job-expiry.ts",
     "db:verify": "tsx --env-file-if-exists=.env scripts/verify-db.ts",
     "db:parity": "cross-env DATA_SOURCE=db tsx --conditions=react-server --env-file-if-exists=.env scripts/parity-check.ts",
     "db:purge": "tsx --conditions=react-server --env-file-if-exists=.env scripts/db-purge.ts",

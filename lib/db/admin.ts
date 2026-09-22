@@ -39,6 +39,12 @@ import {
 } from '../featured';
 import { slugify, uniqueSlug } from '../slug';
 import { deleteImage } from '../image-storage';
+import {
+  computeListingExpiry,
+  computeRenewedExpiry,
+  EXPIRY_WARNING_DAYS,
+  type ListingRenewalDays,
+} from '../listing-expiry';
 
 async function getDb() {
   return (await import('./index')).db;
@@ -321,6 +327,10 @@ export async function createJob(input: JobInput, actorUserId: number) {
   const [result] = await db.insert(jobs).values({
     ...input,
     publishedAt,
+    // A listing created straight into `published` gets its expiry the same way
+    // an approved one does (lib/listing-expiry.ts); anything else gets one at
+    // approval, in updateJob().
+    expiresAt: publishedAt ? computeListingExpiry(now, input.featuredUntil) : null,
     createdBy: actorUserId,
     updatedBy: actorUserId,
     createdAt: now,
@@ -349,6 +359,14 @@ export async function updateJob(
       // A job publishing for the first time gets its publishedAt stamped now;
       // one already published (or never published) keeps its existing value.
       publishedAt: !wasPublished && willPublish ? now : (existing?.publishedAt ?? null),
+      // Every transition INTO `published` — a first approval, or re-approval
+      // after an employer's material edit sent it back to pending — starts a
+      // fresh listing period. Any other save leaves the expiry alone; extending
+      // a live listing is renewJobListing(), not a side effect of an edit.
+      expiresAt:
+        !wasPublished && willPublish
+          ? computeListingExpiry(now, input.featuredUntil ?? existing?.featuredUntil ?? null)
+          : (existing?.expiresAt ?? null),
       updatedBy: actorUserId,
       updatedAt: now,
     })
@@ -715,6 +733,106 @@ export async function revokeJobFeature(
   });
 
   return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Listing expiry — renewals and the "vence pronto" queue (lib/listing-expiry.ts)
+// ---------------------------------------------------------------------------
+
+/**
+ * Extends a listing's public period by a fixed number of days, computed here
+ * from the server clock — the operator picks 15/30/60, never a date. Only a
+ * `published` job can be renewed: renewing a pending or rejected one would be a
+ * way to schedule visibility around the moderation gate. Returns null when the
+ * job does not exist or is not published.
+ */
+export async function renewJobListing(
+  id: number,
+  actorUserId: number,
+  days: ListingRenewalDays,
+): Promise<{ expiresAt: Date } | null> {
+  const db = await getDb();
+  const now = new Date();
+  const [existing] = await db
+    .select({ id: jobs.id, status: jobs.status, expiresAt: jobs.expiresAt })
+    .from(jobs)
+    .where(eq(jobs.id, id))
+    .limit(1);
+  if (!existing || existing.status !== 'published') return null;
+
+  const expiresAt = computeRenewedExpiry(now, existing.expiresAt, days);
+  await db
+    .update(jobs)
+    .set({ expiresAt, updatedBy: actorUserId, updatedAt: now })
+    .where(eq(jobs.id, id));
+  await logActivity(actorUserId, 'job', id, 'renew', {
+    days,
+    previousExpiresAt: existing.expiresAt?.toISOString() ?? null,
+    expiresAt: expiresAt.toISOString(),
+  });
+  return { expiresAt };
+}
+
+export type RenewalQueueRow = {
+  id: number;
+  title: string;
+  company: string;
+  whatsapp: string | null;
+  /** The date that is due: `expires_at` for a listing, `featured_until` for a Destacado. */
+  dueAt: Date;
+};
+
+/**
+ * What needs a renewal conversation this week (Hostinger has no cron, so this
+ * is a list a person reads on /admin rather than an email a job sends).
+ *
+ *   - listings: published, `expires_at` within the next EXPIRY_WARNING_DAYS or
+ *     lapsed in the last 14 days — a lapsed one is still worth a message;
+ *   - destacados: `featured_until` in the same window, on a published job.
+ *
+ * Both compare against the database's NOW(), like every other featured/expiry
+ * predicate in this app.
+ */
+export async function getRenewalQueue(): Promise<{
+  listings: RenewalQueueRow[];
+  destacados: RenewalQueueRow[];
+}> {
+  const db = await getDb();
+  const windowFor = (column: typeof jobs.expiresAt | typeof jobs.featuredUntil) =>
+    and(
+      eq(jobs.status, 'published'),
+      sql`${column} IS NOT NULL`,
+      sql`${column} <= NOW() + INTERVAL ${EXPIRY_WARNING_DAYS} DAY`,
+      sql`${column} > NOW() - INTERVAL 14 DAY`,
+    );
+
+  const base = {
+    id: jobs.id,
+    title: jobs.title,
+    company: companies.name,
+    whatsapp: jobs.whatsapp,
+  };
+
+  const [listingRows, featuredRows] = await Promise.all([
+    db
+      .select({ ...base, dueAt: jobs.expiresAt })
+      .from(jobs)
+      .innerJoin(companies, eq(jobs.companyId, companies.id))
+      .where(windowFor(jobs.expiresAt))
+      .orderBy(asc(jobs.expiresAt))
+      .limit(50),
+    db
+      .select({ ...base, dueAt: jobs.featuredUntil })
+      .from(jobs)
+      .innerJoin(companies, eq(jobs.companyId, companies.id))
+      .where(windowFor(jobs.featuredUntil))
+      .orderBy(asc(jobs.featuredUntil))
+      .limit(50),
+  ]);
+
+  const withDate = (rows: (Omit<RenewalQueueRow, 'dueAt'> & { dueAt: Date | null })[]) =>
+    rows.filter((r): r is RenewalQueueRow => r.dueAt !== null);
+  return { listings: withDate(listingRows), destacados: withDate(featuredRows) };
 }
 
 export async function deleteJob(id: number, actorUserId: number) {

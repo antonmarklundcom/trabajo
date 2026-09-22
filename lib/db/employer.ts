@@ -828,6 +828,23 @@ export async function listEmployerNotificationRecipients(
     .where(and(eq(users.companyId, companyId), eq(users.role, 'employer'), eq(users.isActive, true)));
 }
 
+/**
+ * Every active employer user of a company, regardless of the application-email
+ * toggle above. For the moderation outcome of the company's OWN listing
+ * ("tu aviso fue publicado" / "no pudimos publicarlo"): that is the answer to
+ * something the employer submitted and is waiting on, not a notification they
+ * opted into, so `notifyOnApplication` does not apply to it.
+ */
+export async function listEmployerAccountRecipients(
+  companyId: number,
+): Promise<{ name: string; email: string }[]> {
+  const db = await getDb();
+  return db
+    .select({ name: users.name, email: users.email })
+    .from(users)
+    .where(and(eq(users.companyId, companyId), eq(users.role, 'employer'), eq(users.isActive, true)));
+}
+
 // ---------------------------------------------------------------------------
 // Activity log
 //

@@ -1,7 +1,9 @@
+import { after } from 'next/server';
 import { z } from 'zod';
 import { authErrorResponse, requireApiCompanyScope } from '@/lib/auth';
 import { employerDashboardEnabled } from '@/lib/flags';
-import { updateEmployerJob } from '@/lib/db/employer';
+import { getEmployerJob, updateEmployerJob } from '@/lib/db/employer';
+import { notifyTeamOfPendingJob } from '@/lib/notifications';
 import { invalidatePublicContent } from '@/lib/cache';
 import { contractTypeEnum, seniorityEnum, modalityEnum } from '@/lib/db/schema';
 
@@ -39,9 +41,20 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return Response.json({ error: 'Datos inválidos.', issues: parsed.error.issues }, { status: 400 });
     }
 
+    // Read before and after only to learn whether this edit put the job INTO
+    // the moderation queue (a resubmission after a rejection, or a material
+    // edit to a published listing). Both reads are company-scoped; ownership
+    // is still enforced by updateEmployerJob()'s own WHERE clause.
+    const before = await getEmployerJob(companyId, id);
     const changed = await updateEmployerJob(companyId, user.id, id, parsed.data);
     if (!changed) {
       return Response.json({ error: 'Empleo no encontrado.' }, { status: 404 });
+    }
+    const afterEdit = await getEmployerJob(companyId, id);
+    if (before && afterEdit && afterEdit.status === 'pending' && before.status !== 'pending') {
+      after(() =>
+        notifyTeamOfPendingJob({ companyId, jobId: id, title: afterEdit.title, resubmitted: true }),
+      );
     }
 
     // The edit may have kept the job published (e.g. a whatsapp-only change)
