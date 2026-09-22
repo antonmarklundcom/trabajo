@@ -18,7 +18,7 @@ import WithdrawButton from '@/components/postulante/WithdrawButton';
 import DeleteAccountForm from '@/components/postulante/DeleteAccountForm';
 
 export const metadata: Metadata = {
-  title: 'Mis datos — Postulantes — trabajo.com.py',
+  title: 'Mis datos — Postulantes',
   robots: { index: false, follow: false },
 };
 

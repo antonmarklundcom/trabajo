@@ -21,7 +21,7 @@ import { requireSessionWithRole } from '@/lib/auth';
 import { getRetentionSummary, type RetentionBucket } from '@/lib/db/retention-summary';
 
 export const metadata: Metadata = {
-  title: 'Retención de datos — trabajo.com.py',
+  title: 'Retención de datos',
   robots: { index: false, follow: false },
 };
 

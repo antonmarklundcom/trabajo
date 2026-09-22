@@ -8,7 +8,7 @@ import EmployerJobForm, { type EmployerJobFormInitial } from '@/components/empre
 import JobImageUploader from '@/components/empresa/JobImageUploader';
 
 export const metadata: Metadata = {
-  title: 'Editar empleo — Empresas — trabajo.com.py',
+  title: 'Editar empleo — Empresas',
   robots: { index: false, follow: false },
 };
 

@@ -11,7 +11,7 @@ import PostulacionesFilterBar from '@/components/empresa/PostulacionesFilterBar'
 import ApplicationStatusSelect from '@/components/empresa/ApplicationStatusSelect';
 
 export const metadata: Metadata = {
-  title: 'Postulaciones — Empresas — trabajo.com.py',
+  title: 'Postulaciones — Empresas',
   robots: { index: false, follow: false },
 };
 

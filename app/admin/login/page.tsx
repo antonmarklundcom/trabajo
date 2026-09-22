@@ -4,7 +4,7 @@ import { getSessionUser, homePathForRole } from '@/lib/auth';
 import LoginForm from '@/components/admin/LoginForm';
 
 export const metadata: Metadata = {
-  title: 'Ingresar — trabajo.com.py',
+  title: 'Ingresar',
   robots: { index: false, follow: false },
 };
 

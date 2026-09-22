@@ -47,7 +47,9 @@ const CSP_REPORT_ONLY = [
   // surfaces.
   "form-action 'self'",
   "frame-ancestors 'none'",
-  "upgrade-insecure-requests",
+  // `upgrade-insecure-requests` is deliberately absent while this policy is
+  // Report-Only: browsers ignore it in a report-only header and log a console
+  // error on every page saying so. Add it back in the PR that enforces the CSP.
 ].join('; ');
 
 const nextConfig: NextConfig = {
@@ -77,6 +79,29 @@ const nextConfig: NextConfig = {
       {
         source: '/trabajo/:categoria/capiat%C3%A1',
         destination: '/trabajo/:categoria/capiata',
+        permanent: true,
+      },
+      // Same pair for the city landing (PLAN-GROWTH.md §4 S4), which shipped
+      // after S1 and so never got one. A database whose city row still says
+      // `capiatá` (production until scripts/migrate-capiata-slug.ts runs)
+      // links here from the homepage city block and the sitemap.
+      {
+        source: '/trabajo-en/capiatá',
+        destination: '/trabajo-en/capiata',
+        permanent: true,
+      },
+      {
+        source: '/trabajo-en/capiat%C3%A1',
+        destination: '/trabajo-en/capiata',
+        permanent: true,
+      },
+      // One canonical host. www.trabajo.com.py answers 200 with the full site,
+      // which splits link equity across two origins. Only a request that
+      // arrives on the www host matches; the apex is untouched.
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: 'www.trabajo.com.py' }],
+        destination: 'https://trabajo.com.py/:path*',
         permanent: true,
       },
       {
@@ -121,16 +146,19 @@ const nextConfig: NextConfig = {
             key: 'Referrer-Policy',
             value: 'strict-origin-when-cross-origin',
           },
+          {
+            // Verified 2026-09-21: the live host sends no HSTS header of its
+            // own (curl -D against https://trabajo.com.py/), so this is not a
+            // second, conflicting policy. One year; no includeSubDomains, since
+            // not every subdomain on this account is known to serve HTTPS; no
+            // preload, which is a one-way door.
+            key: 'Strict-Transport-Security',
+            value: 'max-age=31536000',
+          },
         ],
       },
     ];
   },
 };
-
-// Deliberately NOT set here: Strict-Transport-Security. The brief conditions it
-// on verifying Hostinger is not already sending one, and a second, weaker HSTS
-// header from the app would be worse than none. That verification needs a
-// request to the live host, which this environment's network policy blocks —
-// so it stays an owner check rather than a guess (see the PR body).
 
 export default nextConfig;

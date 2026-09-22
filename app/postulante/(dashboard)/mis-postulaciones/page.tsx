@@ -5,7 +5,7 @@ import { listCandidateApplications } from '@/lib/db/candidate-applications';
 import WithdrawButton from '@/components/postulante/WithdrawButton';
 
 export const metadata: Metadata = {
-  title: 'Mis postulaciones — trabajo.com.py',
+  title: 'Mis postulaciones',
   robots: { index: false, follow: false },
 };
 

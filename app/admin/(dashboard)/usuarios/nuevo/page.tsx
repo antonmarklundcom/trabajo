@@ -3,7 +3,7 @@ import { requireSessionWithRole } from '@/lib/auth';
 import { listCompanyOptions } from '@/lib/db/admin';
 import UserForm from '@/components/admin/UserForm';
 
-export const metadata: Metadata = { title: 'Nuevo usuario — trabajo.com.py' };
+export const metadata: Metadata = { title: 'Nuevo usuario' };
 
 export default async function NuevoUsuarioPage() {
   const session = await requireSessionWithRole(['admin']);

@@ -4,7 +4,9 @@ import { useState } from 'react';
 import { track } from '@/lib/analytics';
 import { HONEYPOT_FIELD } from '@/lib/honeypot';
 import { validateEmail, validateMinLength } from '@/lib/form-validation';
+import { WHATSAPP_HOURS_COPY } from '@/lib/whatsapp';
 import HoneypotField from '@/components/HoneypotField';
+import FormField from '@/components/FormField';
 
 function validate(values: { name: string; phone: string; email: string; message: string }) {
   const errors: Record<string, string> = {};
@@ -75,7 +77,7 @@ export default function ContactForm() {
           </svg>
         </div>
         <p className="font-semibold text-ink">¡Mensaje enviado!</p>
-        <p className="text-sm text-ink-secondary mt-1">Te respondemos en menos de 24 horas.</p>
+        <p className="text-sm text-ink-secondary mt-1">{WHATSAPP_HOURS_COPY}</p>
       </div>
     );
   }
@@ -84,7 +86,7 @@ export default function ContactForm() {
     <form onSubmit={handleSubmit} noValidate className="space-y-4">
       <HoneypotField value={honeypot} onChange={setHoneypot} />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field label="Nombre" required error={errors.name}>
+        <FormField label="Nombre" required error={errors.name}>
           <input
             type="text"
             value={values.name}
@@ -92,8 +94,8 @@ export default function ContactForm() {
             placeholder="Tu nombre"
             className={iCls(!!errors.name)}
           />
-        </Field>
-        <Field label="Teléfono" required error={errors.phone}>
+        </FormField>
+        <FormField label="Teléfono" required error={errors.phone}>
           <input
             type="tel"
             value={values.phone}
@@ -101,9 +103,9 @@ export default function ContactForm() {
             placeholder="09X XXX XXXX"
             className={iCls(!!errors.phone)}
           />
-        </Field>
+        </FormField>
       </div>
-      <Field label="Email (opcional)" error={errors.email}>
+      <FormField label="Email (opcional)" error={errors.email}>
         <input
           type="email"
           value={values.email}
@@ -111,8 +113,8 @@ export default function ContactForm() {
           placeholder="tucorreo@ejemplo.com"
           className={iCls(!!errors.email)}
         />
-      </Field>
-      <Field label="Mensaje" required error={errors.message}>
+      </FormField>
+      <FormField label="Mensaje" required error={errors.message}>
         <textarea
           value={values.message}
           onChange={(e) => setField('message', e.target.value)}
@@ -121,7 +123,7 @@ export default function ContactForm() {
           maxLength={2000}
           className={`${iCls(!!errors.message)} resize-none`}
         />
-      </Field>
+      </FormField>
       {state === 'error' && (
         <p className="text-sm text-error bg-error-tint rounded-[10px] px-4 py-3">
           Hubo un error. Por favor intentá de nuevo.
@@ -142,17 +144,4 @@ function iCls(hasError: boolean) {
   return `w-full px-4 py-3 rounded-[10px] border text-base text-ink placeholder-ink-3 bg-white focus:outline-none focus:ring-2 transition-colors ${
     hasError ? 'border-error focus:ring-error/20' : 'border-border focus:border-brand focus:ring-brand/20'
   }`;
-}
-
-function Field({ label, required, error, children }: { label: string; required?: boolean; error?: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label className="block text-sm font-medium text-ink mb-1.5">
-        {label}
-        {required && <span className="text-error ml-0.5">*</span>}
-      </label>
-      {children}
-      {error && <p className="mt-1 text-xs text-error">{error}</p>}
-    </div>
-  );
 }

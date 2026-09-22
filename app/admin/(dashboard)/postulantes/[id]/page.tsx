@@ -30,7 +30,7 @@ import {
 } from '@/lib/db/candidates-admin';
 
 export const metadata: Metadata = {
-  title: 'Postulante — trabajo.com.py',
+  title: 'Postulante',
   robots: { index: false, follow: false },
 };
 

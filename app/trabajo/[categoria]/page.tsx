@@ -77,6 +77,9 @@ export default async function CategoriaPage({
   ]);
 
   if (!category) notFound();
+  // A page number past the last one (a stale ?page=9 after listings closed,
+  // or a hand-typed ?page=999) is a 404, not an empty, indexable 200.
+  if (page > 1 && jobs.length === 0) notFound();
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://trabajo.com.py';
 

@@ -16,7 +16,7 @@ import JobForm, { type JobFormInitial } from '@/components/admin/JobForm';
 import JobImageUploader from '@/components/admin/JobImageUploader';
 import FeaturePanel from '@/components/admin/FeaturePanel';
 
-export const metadata: Metadata = { title: 'Editar empleo — trabajo.com.py' };
+export const metadata: Metadata = { title: 'Editar empleo' };
 
 function toDatetimeLocal(date: Date | null): string {
   if (!date) return '';

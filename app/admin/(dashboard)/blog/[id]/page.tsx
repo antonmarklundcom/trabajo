@@ -8,7 +8,7 @@ import BlogPostForm, { type BlogPostFormInitial } from '@/components/admin/BlogP
 import BlogCoverUploader from '@/components/admin/BlogCoverUploader';
 import BlogDeleteButton from '@/components/admin/BlogDeleteButton';
 
-export const metadata: Metadata = { title: 'Editar artículo — trabajo.com.py' };
+export const metadata: Metadata = { title: 'Editar artículo' };
 
 export default async function EditarArticuloPage({
   params,

@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { listCategoryOptions, listCityOptions, listCompanyOptions } from '@/lib/db/admin';
 import JobForm from '@/components/admin/JobForm';
 
-export const metadata: Metadata = { title: 'Nuevo empleo — trabajo.com.py' };
+export const metadata: Metadata = { title: 'Nuevo empleo' };
 
 export default async function NuevoEmpleoPage() {
   const [companies, categories, cities] = await Promise.all([

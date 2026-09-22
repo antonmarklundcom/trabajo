@@ -5,7 +5,7 @@ import { getEmployerCompany, getEmployerDashboardStats, getEmployerPlanSummary }
 import PlanCard from '@/components/empresa/PlanCard';
 
 export const metadata: Metadata = {
-  title: 'Panel — Empresas — trabajo.com.py',
+  title: 'Panel — Empresas',
   robots: { index: false, follow: false },
 };
 

@@ -5,7 +5,7 @@ import { listCityOptions } from '@/lib/db/taxonomy';
 import RegistroForm from '@/components/postulante/RegistroForm';
 
 export const metadata: Metadata = {
-  title: 'Crear cuenta de postulante — trabajo.com.py',
+  title: 'Crear cuenta de postulante',
   robots: { index: false, follow: false },
 };
 

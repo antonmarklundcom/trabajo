@@ -4,7 +4,7 @@ import { getCandidate } from '@/lib/auth-candidate';
 import LoginForm from '@/components/postulante/LoginForm';
 
 export const metadata: Metadata = {
-  title: 'Ingresar — Postulantes — trabajo.com.py',
+  title: 'Ingresar — Postulantes',
   robots: { index: false, follow: false },
 };
 

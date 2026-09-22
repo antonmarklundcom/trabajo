@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { listCategoryOptions, listCityOptions } from '@/lib/db/taxonomy';
 import BlogPostForm from '@/components/admin/BlogPostForm';
 
-export const metadata: Metadata = { title: 'Nuevo artículo — trabajo.com.py' };
+export const metadata: Metadata = { title: 'Nuevo artículo' };
 
 export default async function NuevoArticuloPage() {
   const [categories, cities] = await Promise.all([listCategoryOptions(), listCityOptions()]);

@@ -5,7 +5,7 @@ import { applicationStatusEnum } from '@/lib/db/schema';
 import PostulacionesFilterBar from '@/components/admin/PostulacionesFilterBar';
 import ApplicationStatusSelect from '@/components/admin/ApplicationStatusSelect';
 
-export const metadata: Metadata = { title: 'Postulaciones — trabajo.com.py' };
+export const metadata: Metadata = { title: 'Postulaciones' };
 
 type SearchParams = { [key: string]: string | string[] | undefined };
 

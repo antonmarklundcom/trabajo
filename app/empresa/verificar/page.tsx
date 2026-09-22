@@ -5,7 +5,7 @@ import { employerSignupEnabled } from '@/lib/flags';
 import VerifyEmail from '@/components/empresa/VerifyEmail';
 
 export const metadata: Metadata = {
-  title: 'Confirmar email — Empresas — trabajo.com.py',
+  title: 'Confirmar email — Empresas',
   robots: { index: false, follow: false },
 };
 

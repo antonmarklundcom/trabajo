@@ -4,7 +4,7 @@ import { listCategoryOptions, listCityOptions } from '@/lib/db/taxonomy';
 import EmployerJobForm from '@/components/empresa/EmployerJobForm';
 
 export const metadata: Metadata = {
-  title: 'Nuevo empleo — Empresas — trabajo.com.py',
+  title: 'Nuevo empleo — Empresas',
   robots: { index: false, follow: false },
 };
 

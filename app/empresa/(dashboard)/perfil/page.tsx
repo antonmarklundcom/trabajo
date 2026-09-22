@@ -7,7 +7,7 @@ import CompanyProfileForm, {
 } from '@/components/empresa/CompanyProfileForm';
 
 export const metadata: Metadata = {
-  title: 'Perfil de la empresa — Empresas — trabajo.com.py',
+  title: 'Perfil de la empresa — Empresas',
   robots: { index: false, follow: false },
 };
 

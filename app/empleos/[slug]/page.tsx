@@ -67,7 +67,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
         alternates: { canonical: canonicalFor(`/empleos/${slug}`) },
       };
     }
-    return { title: 'Empleo no encontrado' };
+    return { title: 'Empleo no encontrado', robots: { index: false, follow: true } };
   }
 
   return {
