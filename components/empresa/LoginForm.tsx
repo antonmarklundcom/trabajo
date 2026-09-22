@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 export default function LoginForm() {
@@ -9,6 +10,8 @@ export default function LoginForm() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const emailId = useId();
+  const passwordId = useId();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -43,8 +46,9 @@ export default function LoginForm() {
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-ink mb-1.5">Email</label>
+        <label htmlFor={emailId} className="block text-sm font-medium text-ink mb-1.5">Email</label>
         <input
+          id={emailId}
           type="email"
           required
           autoComplete="username"
@@ -54,8 +58,9 @@ export default function LoginForm() {
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-ink mb-1.5">Contraseña</label>
+        <label htmlFor={passwordId} className="block text-sm font-medium text-ink mb-1.5">Contraseña</label>
         <input
+          id={passwordId}
           type="password"
           required
           autoComplete="current-password"
@@ -76,6 +81,12 @@ export default function LoginForm() {
       >
         {submitting ? 'Ingresando...' : 'Ingresar'}
       </button>
+
+      <p className="text-center text-sm">
+        <Link href="/empresa/recuperar" className="text-ink-secondary hover:underline">
+          ¿Olvidaste tu contraseña?
+        </Link>
+      </p>
     </form>
   );
 }

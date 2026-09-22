@@ -1,12 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import Link from 'next/link';
 
 const INPUT =
   'w-full px-4 py-2.5 rounded-[10px] border border-border text-base text-ink bg-white focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20';
 
-export default function ResetRequestForm() {
+/**
+ * Shared by both audiences: `basePath` is '/postulante' (default) or
+ * '/empresa', and decides the endpoint and the "volver" link. The response
+ * handling is identical because both endpoints answer identically.
+ */
+export default function ResetRequestForm({ basePath = '/postulante' }: { basePath?: '/postulante' | '/empresa' }) {
+  const emailId = useId();
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [sent, setSent] = useState('');
@@ -17,7 +23,7 @@ export default function ResetRequestForm() {
     setSubmitting(true);
     setError('');
     try {
-      const res = await fetch('/api/postulante/recuperar', {
+      const res = await fetch(`/api${basePath}/recuperar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
@@ -45,7 +51,7 @@ export default function ResetRequestForm() {
         <p className="text-sm text-ink-secondary">
           Revisá tu correo. El enlace vence en 30 minutos.
         </p>
-        <Link href="/postulante/login" className="block text-sm text-brand hover:underline">
+        <Link href={`${basePath}/login`} className="block text-sm text-brand hover:underline">
           Volver a ingresar
         </Link>
       </div>
@@ -58,8 +64,9 @@ export default function ResetRequestForm() {
         Escribí tu email y te enviamos un enlace para elegir una contraseña nueva.
       </p>
       <div>
-        <label className="block text-sm font-medium text-ink mb-1.5">Email</label>
+        <label htmlFor={emailId} className="block text-sm font-medium text-ink mb-1.5">Email</label>
         <input
+          id={emailId}
           type="email"
           required
           autoComplete="username"
@@ -76,7 +83,7 @@ export default function ResetRequestForm() {
       >
         {submitting ? 'Enviando…' : 'Enviar enlace'}
       </button>
-      <Link href="/postulante/login" className="block text-center text-sm text-ink-secondary hover:underline">
+      <Link href={`${basePath}/login`} className="block text-center text-sm text-ink-secondary hover:underline">
         Volver a ingresar
       </Link>
     </form>

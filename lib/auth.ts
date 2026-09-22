@@ -403,3 +403,21 @@ export function recordFailedLogin(ip: string, email: string): void {
 export function clearLoginAttempts(ip: string, email: string): void {
   staffLoginLimiter.clear(ip, email);
 }
+
+// A separate budget for employer password-reset REQUESTS, for the same reason
+// the candidate side has one (lib/auth-candidate.ts): the reset form is an
+// unauthenticated endpoint anyone can point at any address, and it must not be
+// able to spend the budget that stops credential stuffing on that account's
+// login. No `clear`: a reset request has no in-the-moment success to reward.
+const employerResetLimiter = createAttemptLimiter(LOGIN_LIMITS);
+
+export function checkEmployerResetRateLimit(
+  ip: string,
+  email: string,
+): { allowed: boolean; retryAfterSeconds: number } {
+  return employerResetLimiter.check(ip, email);
+}
+
+export function recordEmployerResetRequest(ip: string, email: string): void {
+  employerResetLimiter.recordFailure(ip, email);
+}

@@ -285,6 +285,9 @@ primario).
 
 /empresa/registro             Alta de cuenta de empresa (autoservicio)
 /empresa/verificar            Confirmación de email
+/empresa/recuperar            "¿Olvidaste tu contraseña?" — enlace de un solo uso, 30 min (solo cuentas de empresa)
+/api/empresa/recuperar        Pide el enlace — misma respuesta exista o no la cuenta, con límite de tasa
+/api/v1/jobs/[slug]/vista     Cuenta una visita del aviso (beacon del navegador; siempre 204)
 /api/empresa/registro         Alta — con límite de tasa; crea SIEMPRE una empresa nueva
 /api/empresa/verificar        Confirma el email con un token de un solo uso
 ```

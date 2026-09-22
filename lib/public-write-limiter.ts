@@ -55,3 +55,19 @@ const employerSignupLimiter = createRequestLimiter(MAX_SIGNUPS_PER_HOUR, SIGNUP_
 export function isEmployerSignupLimited(ip: string): boolean {
   return employerSignupLimiter.isLimited(ip);
 }
+
+// ---------------------------------------------------------------------------
+// Listing view beacon (POST /api/v1/jobs/[slug]/vista).
+//
+// Its own instance, keyed on IP + slug: one counted view per visitor per
+// listing per 30 minutes. Not a security boundary — the number is shown only
+// to the company that owns the listing — but without it one reload loop could
+// make an employer believe a listing is popular.
+const JOB_VIEW_WINDOW_MS = 30 * 60 * 1000;
+
+const jobViewLimiter = createRequestLimiter(1, JOB_VIEW_WINDOW_MS);
+
+/** Records the view attempt and reports whether this visitor already counted. */
+export function isJobViewLimited(ip: string, slug: string): boolean {
+  return jobViewLimiter.isLimited(`${ip}|${slug}`);
+}

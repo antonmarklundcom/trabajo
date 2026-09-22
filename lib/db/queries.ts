@@ -592,3 +592,26 @@ export async function getTaxonomyCounts(
     () => queryTaxonomyCounts(filter),
   );
 }
+
+// ---------------------------------------------------------------------------
+// Listing views — the one public WRITE on the jobs table.
+//
+// +1 on `view_count` for a listing a visitor actually opened (the beacon in
+// components/JobViewBeacon.tsx). Through visiblePredicate() like every public
+// read, so a slug that is pending, rejected, archived or expired cannot be
+// counted — and cannot be probed for existence through this endpoint either,
+// since the answer is the same no-op. Deliberately not cached and not
+// touching `updated_at`: a view is not an edit, and the sitemap's lastmod
+// must not move because someone read the page.
+// ---------------------------------------------------------------------------
+
+async function queryRecordJobView(slug: string): Promise<void> {
+  await db
+    .update(jobs)
+    .set({ viewCount: sql`${jobs.viewCount} + 1` })
+    .where(and(eq(jobs.slug, slug), visiblePredicate()));
+}
+
+export async function recordJobView(slug: string): Promise<void> {
+  await queryRecordJobView(slug);
+}

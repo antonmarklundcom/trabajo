@@ -20,6 +20,7 @@ import ApplySection from '@/components/postulante/ApplySection';
 import SaveJobSection from '@/components/postulante/SaveJobSection';
 import { candidateAccountsEnabled } from '@/lib/flags';
 import JobCard from '@/components/JobCard';
+import JobViewBeacon from '@/components/JobViewBeacon';
 import type { ClosedJob, Job } from '@/lib/types';
 
 // Cached reads are invalidated on demand by every admin mutation
@@ -200,6 +201,9 @@ export default async function JobDetailPage({ params }: { params: Params }) {
 
   return (
     <>
+      {/* Counts the view for the company's dashboard. Live listings only — the
+          tombstone above returns before this. */}
+      <JobViewBeacon slug={job.slug} />
       {/* JSON-LD — only on the detail page */}
       <script
         type="application/ld+json"

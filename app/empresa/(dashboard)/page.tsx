@@ -24,7 +24,7 @@ export default async function EmpresaDashboardPage() {
         <p className="text-sm text-ink-secondary mt-1">Resumen de tu actividad en trabajo.com.py.</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard
           label="Empleos publicados"
           value={stats.publishedCount}
@@ -46,6 +46,11 @@ export default async function EmpresaDashboardPage() {
           value={stats.newApplicationCount}
           href="/empresa/postulaciones?status=new"
           highlight={stats.newApplicationCount > 0}
+        />
+        <StatCard
+          label="Visitas a tus avisos"
+          value={stats.viewCount}
+          href="/empresa/empleos"
         />
       </div>
 

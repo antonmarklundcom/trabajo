@@ -120,6 +120,13 @@
       "when": 1790047479686,
       "tag": "0016_natural_silverclaw",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "5",
+      "when": 1790048325341,
+      "tag": "0017_nostalgic_vector",
+      "breakpoints": true
     }
   ]
 }

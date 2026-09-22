@@ -132,3 +132,6 @@ function constantTimeEquals(a: string, b: string): boolean {
   if (bufA.length !== bufB.length) return false;
   return timingSafeEqual(bufA, bufB);
 }
+
+/** A reset link is a credential: short-lived, like the candidate side's. */
+export const PASSWORD_RESET_TTL_MS = 30 * 60 * 1000;

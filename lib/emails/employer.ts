@@ -161,3 +161,27 @@ export function jobRejectedMessage(
     ].join('\n'),
   };
 }
+
+/** "Restablecer tu contraseña" — the employer twin of the candidate email. */
+export function employerPasswordResetMessage(to: string, name: string, token: string): EmailMessage {
+  const link = emailUrl(`/empresa/recuperar/confirmar?token=${encodeURIComponent(token)}`);
+  return {
+    to,
+    subject: 'Restablecer tu contraseña — Panel de empresas',
+    text: [
+      `Hola ${name},`,
+      '',
+      'Pediste restablecer la contraseña del panel de empresas de trabajo.com.py.',
+      'Entrá acá para elegir una nueva:',
+      '',
+      link,
+      '',
+      'El enlace vence en 30 minutos y se puede usar una sola vez.',
+      '',
+      'Si no pediste esto, no hace falta que hagas nada: tu contraseña actual sigue',
+      'funcionando y este enlace vence solo.',
+      '',
+      '— trabajo.com.py',
+    ].join('\n'),
+  };
+}
