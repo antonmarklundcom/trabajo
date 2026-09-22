@@ -143,6 +143,31 @@ check('monthsAgo does not mutate its input', iso(original), '2026-08-09T12:00:00
   }
 }
 
+// ---------------------------------------------------------------------------
+// The consent record fits its column.
+//
+// POLICY_VERSION grew to 28 characters in PR 11 while consents.policy_version
+// stayed varchar(20). Under MySQL's default strict mode every consent INSERT
+// then fails with ER_DATA_TOO_LONG — and registerEmployer() writes the user and
+// the company BEFORE the consent, so a self-serve signup returned a 500 after
+// half-creating the account, without the record of what was agreed to. Nothing
+// but a real database noticed. This compares the two from source.
+// ---------------------------------------------------------------------------
+{
+  const policySource = readFileSync(join(process.cwd(), 'lib', 'policy.ts'), 'utf8');
+  const schemaSource = readFileSync(join(process.cwd(), 'lib', 'db', 'schema.ts'), 'utf8');
+  const version = policySource.match(/export const POLICY_VERSION = '([^']+)'/)?.[1] ?? '';
+  const columnLength = Number(
+    schemaSource.match(/varchar\('policy_version', \{ length: (\d+) \}\)/)?.[1] ?? 0,
+  );
+  check('POLICY_VERSION is found in lib/policy.ts', version.length > 0, true);
+  check(
+    `POLICY_VERSION (${version.length} chars) fits consents.policy_version (varchar(${columnLength}))`,
+    version.length > 0 && version.length <= columnLength,
+    true,
+  );
+}
+
 console.log('');
 if (failures > 0) {
   console.error(`${failures} assertion(s) failed.`);

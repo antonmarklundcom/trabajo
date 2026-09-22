@@ -1,0 +1,1 @@
+ALTER TABLE `consents` MODIFY COLUMN `policy_version` varchar(64) NOT NULL;

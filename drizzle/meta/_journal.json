@@ -113,6 +113,13 @@
       "when": 1788839581283,
       "tag": "0015_glossy_slipstream",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "5",
+      "when": 1790047479686,
+      "tag": "0016_natural_silverclaw",
+      "breakpoints": true
     }
   ]
 }
