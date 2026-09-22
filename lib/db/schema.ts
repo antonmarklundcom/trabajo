@@ -489,7 +489,7 @@ export const deletionRequests = mysqlTable('deletion_requests', {
   candidateId: int('candidate_id').notNull(),
   // sha256(lowercased email). Lets a re-signup be correlated with a prior
   // deletion without keeping the address around to do it.
-  emailHash: varchar('email_hash', { length: 20 }).notNull(),
+  emailHash: varchar('email_hash', { length: 64 }).notNull(),
   requestedBy: mysqlEnum('requested_by', deletionRequestActorEnum).notNull(),
   actorUserId: int('actor_user_id'),
   // Written BEFORE anything is destroyed, so an interrupted purge is still
