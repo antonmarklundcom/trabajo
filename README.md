@@ -295,6 +295,19 @@ apagada devuelven 404. `/empresa/registro` y `/empresa/verificar` llevan además
 `EMPLOYER_SIGNUP_ENABLED`, para poder tener el panel abierto a las empresas
 invitadas y el alta por autoservicio cerrada.
 
+Cada aviso queda publicado 30 días desde que se aprueba (`lib/listing-expiry.ts`;
+nunca menos que el Destacado que ya tenga). Al vencer, la URL muestra la página
+de oferta cerrada (HTTP 200, `noindex`). Se renueva desde `/admin/empleos/[id]`
+→ "Vigencia del aviso" (+15/+30/+60 días, calculado en el servidor), y `/admin`
+lista los avisos y Destacados que vencen en los próximos 7 días con el mensaje
+de WhatsApp ya armado. Para los avisos publicados antes de este cambio (sin
+vencimiento): `npm run db:backfill-expiry` (simulación) y luego `-- --write`.
+
+Al aprobar o rechazar un aviso, los usuarios de esa empresa reciben un correo;
+cuando una empresa carga o edita un aviso desde su panel, el equipo recibe
+"Nuevo aviso para revisar" en `LEADS_NOTIFY_EMAIL`. La tarjeta "Configuración"
+de `/admin` muestra qué variables de producción están activas.
+
 Destacado se vende hoy por WhatsApp: el equipo cotiza, la empresa paga y un
 operador abre la ventana desde `/admin/empleos/[id]` (botones de 15/30/60/90
 días; la fecha la calcula el servidor). La venta —monto, medio de pago y nota—

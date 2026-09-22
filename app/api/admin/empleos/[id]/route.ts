@@ -1,8 +1,10 @@
+import { after } from 'next/server';
 import { z } from 'zod';
 import { authErrorResponse, requireApiSession, requireRole } from '@/lib/auth';
 import { deleteJob, getAdminJob, jobSlugExists, updateJobWithLaunchPromo } from '@/lib/db/admin';
 import { invalidateLaunchPromo, invalidatePublicContent } from '@/lib/cache';
 import { launchPromoEnabled } from '@/lib/promo';
+import { notifyEmployerOfJobDecision } from '@/lib/notifications';
 import { slugify, uniqueSlug } from '@/lib/slug';
 import { jobStatusEnum, contractTypeEnum, seniorityEnum, modalityEnum } from '@/lib/db/schema';
 
@@ -118,6 +120,33 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     // Only on an actual grant: the counter the public promo copy renders moved,
     // and nothing else in this handler can move it.
     if (promo.granted) invalidateLaunchPromo();
+
+    // Tell the company when THIS save decided its listing: a transition into
+    // published (approval) or into rejected. A re-save in the same status is
+    // an edit and tells nobody. After the response, like every notification.
+    const decision =
+      data.status === 'published' && existing.status !== 'published'
+        ? 'approved'
+        : data.status === 'rejected' && existing.status !== 'rejected'
+          ? 'rejected'
+          : null;
+    if (decision) {
+      after(async () => {
+        const saved = await getAdminJob(id);
+        if (!saved) return;
+        await notifyEmployerOfJobDecision({
+          companyId: saved.companyId,
+          decision,
+          job: {
+            title: saved.title,
+            slug: saved.slug,
+            expiresAt: saved.expiresAt,
+            promoFeatured: promo.granted,
+            reason: saved.rejectionReason,
+          },
+        });
+      });
+    }
 
     return Response.json({
       ok: true,

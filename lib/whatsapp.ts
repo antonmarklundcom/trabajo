@@ -45,6 +45,9 @@ export const EMPLOYER_INTENTS = [
   'empresa',
   'contacto',
   'renovar',
+  // Renewing the LISTING itself (lib/listing-expiry.ts), as opposed to
+  // 'renovar' above, which is renewing a Destacado window.
+  'renovar_aviso',
 ] as const;
 
 export type EmployerIntent = (typeof EMPLOYER_INTENTS)[number];
@@ -95,6 +98,8 @@ function employerIntentMessage(intent: EmployerIntent, options: EmployerIntentOp
       return context?.companyName
         ? `Hola, soy de ${context.companyName} y quiero renovar el plan Destacado.`
         : 'Hola, quiero renovar el plan Destacado.';
+    case 'renovar_aviso':
+      return `Hola, quiero renovar mi aviso en trabajo.com.py.${contextSuffix(context)}`;
   }
 }
 
@@ -105,4 +110,33 @@ export function employerWhatsAppHref(
 ): string | null {
   const number = siteWhatsAppNumber();
   return number ? waHref(number, employerIntentMessage(intent, options)) : null;
+}
+
+/**
+ * The team writing TO an employer, from /admin — the other direction from every
+ * intent above. The number is the job row's own contact number (AGENTS.md: a
+ * number comes from the env or from the job row, never from a literal); null
+ * when the row has none, and the caller renders no link.
+ *
+ *   - 'published': the listing just went live. The only notice a /publicar
+ *     employer gets — they have no account, so no email reaches them.
+ *   - 'listing_renewal' / 'featured_renewal': the renewal conversation the
+ *     /admin renewal queue exists to prompt.
+ */
+export type TeamToEmployerMessage = 'published' | 'listing_renewal' | 'featured_renewal';
+
+export function teamToEmployerHref(
+  number: string | null | undefined,
+  kind: TeamToEmployerMessage,
+  job: { title: string; url?: string },
+): string | null {
+  const digits = number?.replace(/D/g, '');
+  if (!digits) return null;
+  const message =
+    kind === 'published'
+      ? `Hola, te escribimos de trabajo.com.py: tu aviso "${job.title}" ya está publicado${job.url ? `: ${job.url}` : '.'} Si querés que aparezca primero en los resultados, preguntanos por Destacado.`
+      : kind === 'listing_renewal'
+        ? `Hola, te escribimos de trabajo.com.py: tu aviso "${job.title}" vence pronto. ¿Querés que lo renovemos?`
+        : `Hola, te escribimos de trabajo.com.py: el Destacado de tu aviso "${job.title}" vence pronto. ¿Querés renovarlo?`;
+  return waHref(digits, message);
 }

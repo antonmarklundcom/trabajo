@@ -23,6 +23,15 @@ import {
   computeFeaturedUntil,
   isFeatureDuration,
 } from '../lib/featured';
+import {
+  LISTING_DAYS,
+  LISTING_RENEWAL_DAYS,
+  computeListingExpiry,
+  computeRenewedExpiry,
+  isListingRenewalDays,
+  listingExpiryState,
+} from '../lib/listing-expiry';
+import { readFileSync } from 'node:fs';
 
 let failures = 0;
 
@@ -129,9 +138,66 @@ check(
   'UI copy is Spanish (Paraguay) — AGENTS.md. A missing label renders blank.',
 );
 
+// ---------------------------------------------------------------------------
+// Listing expiry (lib/listing-expiry.ts) — the sibling arithmetic on
+// `expires_at`. Same family of mistakes as the Destacado window, plus one of
+// its own: a featured window that outlives the listing is paid for and unseen.
+
+check(
+  `a new listing expires ${LISTING_DAYS} days after publication`,
+  computeListingExpiry(now, null).getTime() === days(LISTING_DAYS).getTime(),
+);
+check(
+  'a listing never expires before the Destacado window it already carries',
+  computeListingExpiry(now, days(90)).getTime() === days(90).getTime(),
+  'A 90-day launch promo on a 30-day listing would be 60 paid-for days nobody sees.',
+);
+check(
+  'a short Destacado window does not shorten the listing',
+  computeListingExpiry(now, days(10)).getTime() === days(LISTING_DAYS).getTime(),
+);
+check(
+  'a renewal mid-period is added to the current expiry, never shortening it',
+  computeRenewedExpiry(now, days(5), 30).getTime() === days(35).getTime(),
+);
+check(
+  'a renewal of a lapsed listing counts from now, never landing in the past',
+  computeRenewedExpiry(now, days(-100), 15).getTime() === days(15).getTime(),
+);
+check(
+  'a renewal of a listing with no expiry counts from now',
+  computeRenewedExpiry(now, null, 60).getTime() === days(60).getTime(),
+);
+check(
+  'every offered renewal length is accepted and nothing else is',
+  LISTING_RENEWAL_DAYS.every((d) => isListingRenewalDays(d)) &&
+    ![0, -30, 1, 45, 365, 1.5, NaN, '30'].some((d) => isListingRenewalDays(d)),
+);
+check(
+  'expiry states: none / active / expiring (<=7d) / expired',
+  listingExpiryState(null, now) === 'none' &&
+    listingExpiryState(days(20), now) === 'active' &&
+    listingExpiryState(days(7), now) === 'expiring' &&
+    listingExpiryState(days(0), now) === 'expired' &&
+    listingExpiryState(days(-3), now) === 'expired',
+);
+
+// From source: the write sites use the helper rather than their own arithmetic.
+const adminSource = readFileSync(new URL('../lib/db/admin.ts', import.meta.url), 'utf8');
+check(
+  'updateJob() and createJob() stamp expires_at through computeListingExpiry()',
+  (adminSource.match(/computeListingExpiry\(/g) ?? []).length >= 2,
+  'A transition into published that does not set expires_at leaves the listing up forever, ' +
+    'with no validThrough and a "30 días" promise on /planes that is false.',
+);
+check(
+  'renewJobListing() computes the date with computeRenewedExpiry()',
+  /export async function renewJobListing[\s\S]*?computeRenewedExpiry\(/.test(adminSource),
+);
+
 if (failures > 0) {
   console.error(`\n${failures} assertion(s) FAILED.`);
   process.exit(1);
 }
-console.log('\nAll Destacado window assertions passed.');
+console.log('\nAll Destacado window and listing expiry assertions passed.');
 process.exit(0);

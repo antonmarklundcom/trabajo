@@ -92,3 +92,72 @@ export function employerVerificationMessage(
     ].join('\n'),
   };
 }
+
+/**
+ * "Tu aviso ya está publicado" — the admin approval of the company's own
+ * listing. The moment an employer who posted for free is most likely to act on
+ * a Destacado offer, so it is named here once, plainly, with no price (prices
+ * are quoted over WhatsApp).
+ *
+ * No applicant data can be in here — nobody has applied yet — but the rule at
+ * the top of this file still holds for anything added later.
+ */
+export function jobApprovedMessage(
+  to: string,
+  name: string,
+  job: { title: string; slug: string; expiresAt: Date | null; promoFeatured: boolean },
+): EmailMessage {
+  const until = job.expiresAt
+    ? job.expiresAt.toLocaleDateString('es-PY', { year: 'numeric', month: 'long', day: 'numeric' })
+    : null;
+  return {
+    to,
+    subject: `Tu aviso está publicado — ${job.title}`,
+    text: [
+      `Hola ${name},`,
+      '',
+      `Aprobamos tu aviso "${job.title}" y ya está publicado en trabajo.com.py:`,
+      emailUrl(`/empleos/${job.slug}`),
+      '',
+      until ? `Queda publicado hasta el ${until}.` : null,
+      job.promoFeatured
+        ? 'Además, por la promoción de lanzamiento, tu aviso aparece como Destacado sin costo.'
+        : 'Si querés que aparezca primero en los resultados y en la portada, preguntanos por Destacado respondiendo a este correo o por WhatsApp.',
+      '',
+      'Las postulaciones te llegan por WhatsApp y a tu panel:',
+      emailUrl('/empresa/postulaciones'),
+      '',
+      '— trabajo.com.py',
+    ]
+      .filter((line): line is string => line !== null)
+      .join('\n'),
+  };
+}
+
+/**
+ * "No pudimos publicar tu aviso" — an admin rejection. The reason is the one
+ * the operator typed on /admin (required there), which is also what the
+ * dashboard already shows next to the listing.
+ */
+export function jobRejectedMessage(
+  to: string,
+  name: string,
+  job: { title: string; reason: string },
+): EmailMessage {
+  return {
+    to,
+    subject: `No pudimos publicar tu aviso — ${job.title}`,
+    text: [
+      `Hola ${name},`,
+      '',
+      `Revisamos tu aviso "${job.title}" y por ahora no lo podemos publicar. El motivo:`,
+      '',
+      job.reason,
+      '',
+      'Podés corregirlo desde tu panel y volver a enviarlo; lo revisamos de nuevo:',
+      emailUrl('/empresa/empleos'),
+      '',
+      '— trabajo.com.py',
+    ].join('\n'),
+  };
+}

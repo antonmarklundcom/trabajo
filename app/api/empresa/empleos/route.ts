@@ -1,7 +1,9 @@
+import { after } from 'next/server';
 import { z } from 'zod';
 import { authErrorResponse, requireApiCompanyScope } from '@/lib/auth';
 import { employerDashboardEnabled } from '@/lib/flags';
 import { createEmployerJob } from '@/lib/db/employer';
+import { notifyTeamOfPendingJob } from '@/lib/notifications';
 import { invalidatePublicContent } from '@/lib/cache';
 import { contractTypeEnum, seniorityEnum, modalityEnum } from '@/lib/db/schema';
 
@@ -41,6 +43,12 @@ export async function POST(request: Request) {
     // changes — invalidated anyway for the same reason admin's company POST
     // is: one cheap call, and it keeps every mutating handler consistent.
     invalidatePublicContent();
+
+    // The team hears about it now rather than whenever someone next opens
+    // /admin. After the response, so a slow mail provider never delays it.
+    after(() =>
+      notifyTeamOfPendingJob({ companyId, jobId: id, title: parsed.data.title, resubmitted: false }),
+    );
 
     return Response.json({ ok: true, id }, { status: 201 });
   } catch (err) {

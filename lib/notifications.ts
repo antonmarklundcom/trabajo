@@ -22,15 +22,21 @@ import { sendEmail } from './email';
 import type { LeadInput } from './leads';
 import { getLaunchPromoStatus } from './promo';
 import {
+  getEmployerCompany,
   getStatusChangeNotificationTarget,
+  listEmployerAccountRecipients,
   listEmployerNotificationRecipients,
 } from './db/employer';
 import {
   applicationContactedMessage,
   applicationReceivedMessage,
 } from './emails/candidate';
-import { newApplicationMessage } from './emails/employer';
-import { employerLeadNotificationMessage } from './emails/ops';
+import {
+  jobApprovedMessage,
+  jobRejectedMessage,
+  newApplicationMessage,
+} from './emails/employer';
+import { employerLeadNotificationMessage, pendingEmployerJobMessage } from './emails/ops';
 
 /**
  * "Recibimos tu postulación" to the applicant (N1).
@@ -165,6 +171,76 @@ export async function notifyCandidateOfContact(params: {
     );
   } catch (err) {
     console.error('[notify] status-change notification failed', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
+/**
+ * The moderation outcome of a company's own listing, to that company's active
+ * employer users: "publicado" on approval, "no pudimos publicarlo" (with the
+ * operator's reason) on rejection.
+ *
+ * The caller decides that a TRANSITION happened — PATCH /api/admin/empleos/[id]
+ * compares the stored status with the saved one — so a re-save of an already
+ * published listing sends nothing. A company created from the /publicar form
+ * has no employer users, so nobody is emailed; for those the admin job page
+ * offers the same notice as a prefilled WhatsApp message instead.
+ */
+export async function notifyEmployerOfJobDecision(params: {
+  companyId: number;
+  decision: 'approved' | 'rejected';
+  job: { title: string; slug: string; expiresAt: Date | null; promoFeatured: boolean; reason: string | null };
+}): Promise<void> {
+  try {
+    const recipients = await listEmployerAccountRecipients(params.companyId);
+    for (const recipient of recipients) {
+      await sendEmail(
+        params.decision === 'approved'
+          ? jobApprovedMessage(recipient.email, recipient.name, params.job)
+          : jobRejectedMessage(recipient.email, recipient.name, {
+              title: params.job.title,
+              reason: params.job.reason ?? '',
+            }),
+      );
+    }
+  } catch (err) {
+    console.error('[notify] job decision notification failed', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
+/**
+ * "Nuevo aviso para revisar" to the team inbox — an employer's dashboard
+ * listing entered the moderation queue (new, or sent back by a material edit).
+ * Same `LEADS_NOTIFY_EMAIL` inbox and the same log-and-skip degrade as
+ * notifyTeamOfLead(): the lead form was already covered, this closes the one
+ * path into `pending` that told nobody.
+ */
+export async function notifyTeamOfPendingJob(params: {
+  companyId: number;
+  jobId: number;
+  title: string;
+  resubmitted: boolean;
+}): Promise<void> {
+  try {
+    const to = process.env.LEADS_NOTIFY_EMAIL;
+    if (!to) {
+      console.warn('[notify] pending job notification skipped — LEADS_NOTIFY_EMAIL unset');
+      return;
+    }
+    const company = await getEmployerCompany(params.companyId);
+    await sendEmail(
+      pendingEmployerJobMessage(to, {
+        id: params.jobId,
+        title: params.title,
+        companyName: company?.name ?? 'Una empresa',
+        resubmitted: params.resubmitted,
+      }),
+    );
+  } catch (err) {
+    console.error('[notify] pending job notification failed', {
       error: err instanceof Error ? err.message : String(err),
     });
   }

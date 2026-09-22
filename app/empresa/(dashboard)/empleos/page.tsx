@@ -4,6 +4,9 @@ import { requireCompanyScope } from '@/lib/auth';
 import { listEmployerJobs, type EmployerJobFilters } from '@/lib/db/employer';
 import { jobStatusEnum } from '@/lib/db/schema';
 import StatusBadge from '@/components/admin/StatusBadge';
+import WhatsAppCta from '@/components/WhatsAppCta';
+import { daysUntil, listingExpiryState } from '@/lib/listing-expiry';
+import { getEmployerCompany } from '@/lib/db/employer';
 
 export const metadata: Metadata = {
   title: 'Empleos — Empresas — trabajo.com.py',
@@ -31,7 +34,10 @@ export default async function EmpresaEmpleosPage({
   const page = param(sp, 'page') ? Number(param(sp, 'page')) : 1;
 
   const filters: EmployerJobFilters = { status, q: q || undefined, page };
-  const { jobs, total, pageSize } = await listEmployerJobs(companyId, filters);
+  const [{ jobs, total, pageSize }, company] = await Promise.all([
+    listEmployerJobs(companyId, filters),
+    getEmployerCompany(companyId),
+  ]);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
@@ -88,6 +94,20 @@ export default async function EmpresaEmpleosPage({
                   </td>
                   <td className="px-4 py-3">
                     <StatusBadge status={job.status} />
+                    {job.status === 'published' && <ExpiryNote expiresAt={job.expiresAt} />}
+                    {job.status === 'published' &&
+                      ['expiring', 'expired'].includes(listingExpiryState(job.expiresAt)) && (
+                        <div className="mt-1.5">
+                          <WhatsAppCta
+                            intent="renovar_aviso"
+                            variant="link"
+                            size="sm"
+                            label="Renovar por WhatsApp"
+                            context={{ jobTitle: job.title, companyName: company?.name }}
+                            sourcePage="/empresa/empleos"
+                          />
+                        </div>
+                      )}
                   </td>
                   <td className="px-4 py-3 text-ink-secondary">
                     {job.applicantCount > 0 ? (
@@ -134,6 +154,28 @@ export default async function EmpresaEmpleosPage({
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * "Vence el …" under a published listing's status (lib/listing-expiry.ts). An
+ * expired listing is still `published` in the database — time took it down,
+ * not a person — so the badge alone would say "Publicado" over a listing
+ * nobody can see.
+ */
+function ExpiryNote({ expiresAt }: { expiresAt: Date | null }) {
+  if (!expiresAt) return null;
+  const state = listingExpiryState(expiresAt);
+  const date = new Date(expiresAt).toLocaleDateString('es-PY');
+  if (state === 'expired') {
+    return <div className="text-xs text-error mt-1">Vencido el {date} — ya no se muestra</div>;
+  }
+  const days = daysUntil(expiresAt);
+  return (
+    <div className={`text-xs mt-1 ${state === 'expiring' ? 'text-gold-strong' : 'text-ink-3'}`}>
+      Vence el {date}
+      {state === 'expiring' && ` (en ${days} día${days === 1 ? '' : 's'})`}
     </div>
   );
 }
