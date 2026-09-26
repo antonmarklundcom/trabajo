@@ -32,6 +32,7 @@ export default function ContactForm() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [values, setValues] = useState({ name: '', phone: '', email: '', message: '' });
   const [honeypot, setHoneypot] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   type FieldKey = keyof typeof values;
 
@@ -49,6 +50,7 @@ export default function ContactForm() {
     }
 
     setState('submitting');
+    setErrorMessage('');
     try {
       const res = await fetch('/api/v1/leads', {
         method: 'POST',
@@ -60,7 +62,12 @@ export default function ContactForm() {
           [HONEYPOT_FIELD]: honeypot,
         }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setErrorMessage(typeof data?.error === 'string' ? data.error : '');
+        setState('error');
+        return;
+      }
       track('lead_submit', { lead_type: 'contact', channel: 'form' });
       setState('success');
     } catch {
@@ -125,8 +132,8 @@ export default function ContactForm() {
         />
       </FormField>
       {state === 'error' && (
-        <p className="text-sm text-error bg-error-tint rounded-[10px] px-4 py-3">
-          Hubo un error. Por favor intentá de nuevo.
+        <p role="alert" className="text-sm text-error bg-error-tint rounded-[10px] px-4 py-3">
+          {errorMessage || 'Hubo un error. Por favor intentá de nuevo.'}
         </p>
       )}
       <button

@@ -10,6 +10,7 @@ import {
 import { getJobs } from '@/lib/data';
 import JobCard from '@/components/JobCard';
 import ShareLinks from '@/components/ShareLinks';
+import JsonLd from '@/components/JsonLd';
 
 type Params = Promise<{ slug: string }>;
 
@@ -116,14 +117,8 @@ export default async function BlogPostPage({ params }: { params: Params }) {
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
-      />
+      <JsonLd data={jsonLd} />
+      <JsonLd data={breadcrumbJsonLd} />
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <nav className="flex items-center gap-2 text-sm text-ink-secondary mb-6" aria-label="Ruta">

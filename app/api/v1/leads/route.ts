@@ -38,14 +38,24 @@ export async function POST(req: NextRequest) {
     return SILENT_OK();
   }
   if (isRateLimited(ip)) {
-    console.warn('[leads] rate limit exceeded — rejecting silently', { ip });
-    return SILENT_OK();
+    // The leave-page WhatsApp beacon (no name) is a click, fire-and-forget:
+    // dropping it silently loses a count. A form a person typed is different —
+    // behind a mobile carrier's NAT many real seekers share one address, and a
+    // fake success there is an application that was never sent. Tell them.
+    const b = body as Record<string, unknown> | null;
+    const isBeacon = b?.type === 'application' && !b?.name;
+    console.warn('[leads] rate limit exceeded', { ip, isBeacon });
+    if (isBeacon) return SILENT_OK();
+    return NextResponse.json(
+      { error: 'Recibimos muchos envíos seguidos desde tu conexión. Esperá un minuto e intentá de nuevo.' },
+      { status: 429 },
+    );
   }
 
   const parsed = leadSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: 'Validation failed', issues: parsed.error.issues },
+      { error: 'Revisá los datos del formulario.', issues: parsed.error.issues },
       { status: 422 },
     );
   }
@@ -65,8 +75,9 @@ export async function POST(req: NextRequest) {
   // application.
   let createdCompanyId: number | null = null;
   if (lead.type === 'application' && lead.name && lead.phone) {
+    let created: Awaited<ReturnType<typeof createApplication>> | undefined;
     try {
-      const created = await createApplication({
+      created = await createApplication({
         jobSlug: lead.jobSlug,
         name: lead.name,
         phone: lead.phone,
@@ -77,6 +88,17 @@ export async function POST(req: NextRequest) {
       createdCompanyId = created?.companyId ?? null;
     } catch (err) {
       captureError('leads:application-insert', err, { jobSlug: lead.jobSlug });
+    }
+    // null (not undefined) means the DB answered and the listing is not open:
+    // closed, expired, never approved or gone. Nobody would read this
+    // application, so say that — no fan-out, and no N1 "recibimos tu
+    // postulación" email. A DB failure (undefined) still falls through to the
+    // webhook fan-out as before, so the lead is not lost.
+    if (created === null) {
+      return NextResponse.json(
+        { error: 'Esta oferta ya no recibe postulaciones.' },
+        { status: 410 },
+      );
     }
   }
 

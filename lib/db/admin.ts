@@ -13,7 +13,7 @@
 // for the public site.
 import 'server-only';
 
-import { and, asc, count, desc, eq, like, ne, or, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, isNull, like, ne, or, sql } from 'drizzle-orm';
 import {
   activityLog,
   applications,
@@ -859,6 +859,18 @@ export async function deleteJob(id: number, actorUserId: number) {
   // of what a processor sent us and survive the order by design
   // (scripts/verify-cascades.ts, DELIBERATE_ORPHANS).
   await db.delete(featureOrders).where(eq(featureOrders.jobId, id));
+  // Applications are NOT deleted with the job — they survive as redacted husks
+  // (scripts/verify-cascades.ts, DELIBERATE_ORPHANS) — but they must be
+  // redacted HERE. The retention sweep finds due applications through a join
+  // to jobs (lib/db/retention.ts), so once this row is gone the sweep can
+  // never reach them, and the applicants' names, phones and messages would be
+  // kept forever. Deleting a job closes it with nobody left to review them,
+  // so the redaction the sweep would have done later happens now. Same
+  // columns as redactApplications(); candidate_id is kept for the same reason.
+  await db
+    .update(applications)
+    .set({ name: null, phone: null, email: null, message: null, cvId: null, redactedAt: new Date() })
+    .where(and(eq(applications.jobId, id), isNull(applications.redactedAt)));
   await db.delete(jobs).where(eq(jobs.id, id));
   await logActivity(actorUserId, 'job', id, 'delete');
 }
@@ -1206,26 +1218,30 @@ export type ApplicationInput = {
 };
 
 /**
- * Returns `null` (never throws) when the job slug doesn't resolve — the
- * caller in app/api/v1/leads/route.ts must never let a DB failure fail the
- * seeker's submission (ARCHITECTURE.md §7).
- */
-/**
  * Returns the new row's id and the job's company, or null when the slug matches
- * no job. The companyId is returned rather than looked up again by the caller
- * because this function already has the row: N2 needs it to find who to notify,
- * and a second query for a column we just read is a second chance to be wrong.
+ * no job that is OPEN right now — published and not past `expires_at`. The
+ * page's form can outlive the listing (a tab left open, a cached page, a
+ * direct POST), and an application to a closed or never-approved listing is
+ * one nobody will answer: the caller tells the seeker so instead of saying
+ * "enviada". The open check is written out here rather than imported from
+ * lib/db/queries.ts, whose visiblePredicate() this file keeps its distance
+ * from (header comment); it is the same two conditions.
+ *
+ * The companyId is returned rather than looked up again by the caller because
+ * this function already has the row: N2 needs it to find who to notify, and a
+ * second query for a column we just read is a second chance to be wrong.
  */
 export async function createApplication(
   input: ApplicationInput,
 ): Promise<{ applicationId: number; companyId: number } | null> {
   const db = await getDb();
   const [job] = await db
-    .select({ id: jobs.id, companyId: jobs.companyId })
+    .select({ id: jobs.id, companyId: jobs.companyId, status: jobs.status, expiresAt: jobs.expiresAt })
     .from(jobs)
     .where(eq(jobs.slug, input.jobSlug))
     .limit(1);
-  if (!job) return null;
+  if (!job || job.status !== 'published') return null;
+  if (job.expiresAt && job.expiresAt.getTime() <= Date.now()) return null;
 
   const [result] = await db.insert(applications).values({
     jobId: job.id,

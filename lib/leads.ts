@@ -250,6 +250,20 @@ export async function processLead(lead: LeadInput): Promise<void> {
   }
 }
 
+/**
+ * Whether a lead that could NOT be written to the database would still reach
+ * a person: a CRM/Sheets webhook or the team inbox (lib/notifications.ts).
+ * Server-side only — the variables are not NEXT_PUBLIC_, so in a browser
+ * bundle this is always false.
+ */
+export function hasLeadDeliveryChannel(): boolean {
+  return Boolean(
+    process.env.GHL_WEBHOOK_URL ||
+      process.env.GOOGLE_SHEETS_WEBHOOK_URL ||
+      (process.env.LEADS_NOTIFY_EMAIL && process.env.RESEND_API_KEY && process.env.EMAIL_FROM),
+  );
+}
+
 // The honeypot guard (PLAN.md step 9) moved to lib/honeypot.ts in S6: it is
 // the one thing a client form component needs from this file, and this file
 // imports zod at module scope.
