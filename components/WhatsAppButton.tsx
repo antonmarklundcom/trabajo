@@ -11,6 +11,10 @@ type Props = {
   citySlug?: string;
   categorySlug?: string;
   contractType?: string;
+  /** Defaults to the full call to action; the sticky bar uses a shorter one. */
+  label?: string;
+  /** `compact` is the sticky bar's height; `default` everywhere else. */
+  size?: 'default' | 'compact';
 };
 
 export default function WhatsAppButton({
@@ -20,6 +24,8 @@ export default function WhatsAppButton({
   citySlug,
   categorySlug,
   contractType,
+  label = 'Postulate por WhatsApp',
+  size = 'default',
 }: Props) {
   const message = `Hola, me interesa postularme para el puesto de "${jobTitle}" que vi en trabajo.com.py`;
   const href = waHref(whatsapp, message);
@@ -60,10 +66,12 @@ export default function WhatsAppButton({
       target="_blank"
       rel="noopener noreferrer"
       onClick={handleClick}
-      className="flex items-center justify-center gap-2 w-full py-3.5 px-6 rounded-[12px] bg-wa hover:bg-wa-strong text-white font-semibold text-base transition-colors"
+      className={`flex items-center justify-center gap-2 w-full rounded-[12px] bg-wa hover:bg-wa-strong text-white font-semibold transition-colors ${
+        size === 'compact' ? 'min-h-12 px-3 text-sm min-[375px]:text-[15px] whitespace-nowrap' : 'min-h-[52px] px-6 text-base'
+      }`}
     >
       <WhatsAppIcon />
-      Postulate por WhatsApp
+      {label}
     </a>
   );
 }
