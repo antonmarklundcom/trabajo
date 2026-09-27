@@ -28,7 +28,7 @@
 // tree even when DATA_SOURCE=seed and DATABASE_URL is unset.
 import 'server-only';
 
-import { and, asc, count, desc, eq, inArray, isNull, like, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gt, gte, inArray, isNull, like, or, sql } from 'drizzle-orm';
 import {
   activityLog,
   applications,
@@ -46,6 +46,7 @@ import {
 import { slugify, uniqueSlug } from '../slug';
 import { deleteImage } from '../image-storage';
 import { LAUNCH_PROMO_CHANNEL } from '../featured';
+import { digestPeriodStart, type DigestListing } from '../employer-digest';
 
 async function getDb() {
   return (await import('./index')).db;
@@ -730,6 +731,7 @@ export type EmployerCompanyInput = Partial<{
   description: string | null;
   logoKey: string | null;
   notifyOnApplication: boolean;
+  notifyWeeklyDigest: boolean;
 }>;
 
 export async function getEmployerCompany(companyId: number) {
@@ -850,6 +852,165 @@ export async function listEmployerAccountRecipients(
     .select({ name: users.name, email: users.email })
     .from(users)
     .where(and(eq(users.companyId, companyId), eq(users.role, 'employer'), eq(users.isActive, true)));
+}
+
+// ---------------------------------------------------------------------------
+// Weekly summary ("Resumen semanal", scripts/employer-digest.ts)
+//
+// Three functions, all companyId-first like the rest of this file. The one
+// cross-company read the sender needs — which companies to consider at all —
+// is lib/db/employer-digest.ts, and returns company ids and flags only; every
+// read and write about a company's listings goes through here.
+// ---------------------------------------------------------------------------
+
+/**
+ * A listing that is public right now: published and not past `expires_at`.
+ *
+ * The same two conditions as visiblePredicate() in lib/db/queries.ts, restated
+ * rather than imported: this file has never reached into the public read path
+ * (it is the employer's view of its OWN rows, whatever their status), and the
+ * summary is still an employer read — it just happens to want the rows the
+ * public can see, because "your listing had 0 views" about a listing nobody
+ * can open would be a true number that means nothing. scripts/verify-digest.ts
+ * asserts the two stay the same expressions.
+ */
+function liveListing() {
+  return and(
+    eq(jobs.status, 'published'),
+    or(isNull(jobs.expiresAt), gt(jobs.expiresAt, sql`NOW()`)),
+  );
+}
+
+/**
+ * Everything the weekly summary says about one company, or null when the
+ * company does not exist.
+ *
+ * Applications are COUNTED in SQL and never selected: the result type is
+ * `DigestListing` (lib/employer-digest.ts), which has no field for a name, a
+ * phone, an address or a message, and the query below never names one either
+ * — scripts/verify-digest.ts reads this function's body to keep it that way.
+ * The left join is on the application's job and creation date only.
+ */
+export async function getEmployerDigest(
+  companyId: number,
+  now: Date,
+): Promise<{
+  companyName: string;
+  notifyWeeklyDigest: boolean;
+  lastDigestSentAt: Date | null;
+  periodStart: Date;
+  listings: DigestListing[];
+} | null> {
+  const db = await getDb();
+
+  const [company] = await db
+    .select({
+      name: companies.name,
+      notifyWeeklyDigest: companies.notifyWeeklyDigest,
+      lastDigestSentAt: companies.lastDigestSentAt,
+    })
+    .from(companies)
+    .where(eq(companies.id, companyId))
+    .limit(1);
+  if (!company) return null;
+
+  const periodStart = digestPeriodStart(company.lastDigestSentAt, now);
+
+  const rows = await db
+    .select({
+      jobId: jobs.id,
+      title: jobs.title,
+      slug: jobs.slug,
+      viewCount: jobs.viewCount,
+      viewCountAtDigest: jobs.viewCountAtDigest,
+      expiresAt: jobs.expiresAt,
+      featuredUntil: jobs.featuredUntil,
+      applicationsInPeriod: count(applications.id),
+    })
+    .from(jobs)
+    .leftJoin(
+      applications,
+      and(eq(applications.jobId, jobs.id), gte(applications.createdAt, periodStart)),
+    )
+    .where(and(ownedByCompany(companyId), liveListing()))
+    .groupBy(jobs.id)
+    .orderBy(desc(jobs.publishedAt), asc(jobs.id));
+
+  return {
+    companyName: company.name,
+    notifyWeeklyDigest: company.notifyWeeklyDigest,
+    lastDigestSentAt: company.lastDigestSentAt,
+    periodStart,
+    listings: rows.map((row) => ({
+      jobId: row.jobId,
+      title: row.title,
+      slug: row.slug,
+      viewCount: row.viewCount,
+      // Clamped: the counter only grows, but a hand-edited row or a restored
+      // dump must not print "-12 visitas".
+      viewsSinceDigest: Math.max(0, row.viewCount - row.viewCountAtDigest),
+      applicationsInPeriod: row.applicationsInPeriod,
+      expiresAt: row.expiresAt,
+      featuredUntil: row.featuredUntil,
+    })),
+  };
+}
+
+/**
+ * Who gets the weekly summary: every active employer user of the company, or
+ * nobody when the company has turned it off — the same shape as
+ * listEmployerNotificationRecipients() above, with its own switch. The opt-out
+ * is enforced by the read that produces the recipients, so the sender cannot
+ * forget it; the script also checks it earlier, but only to print why.
+ */
+export async function listEmployerDigestRecipients(
+  companyId: number,
+): Promise<{ name: string; email: string }[]> {
+  const db = await getDb();
+
+  const [company] = await db
+    .select({ notifyWeeklyDigest: companies.notifyWeeklyDigest })
+    .from(companies)
+    .where(eq(companies.id, companyId))
+    .limit(1);
+  if (!company || !company.notifyWeeklyDigest) return [];
+
+  return db
+    .select({ name: users.name, email: users.email })
+    .from(users)
+    .where(and(eq(users.companyId, companyId), eq(users.role, 'employer'), eq(users.isActive, true)));
+}
+
+/**
+ * Records a summary that was actually delivered. Called by the sender ONLY
+ * after a successful send, never before: a provider outage must leave the
+ * company due on the next run, with its views still counted from the old
+ * snapshot, rather than stamped as summarised and silently skipped for a week.
+ *
+ * The snapshot is the view count that was REPORTED, per job — not a blanket
+ * `view_count_at_digest = view_count`. A view recorded between the read and
+ * this write would otherwise be absorbed into the snapshot without ever being
+ * shown in any summary. Scoped by companyId in both statements, and in one
+ * transaction so the stamp and the snapshot cannot disagree.
+ */
+export async function recordEmployerDigestSent(
+  companyId: number,
+  sentAt: Date,
+  reported: readonly { jobId: number; viewCount: number }[],
+): Promise<void> {
+  const db = await getDb();
+  await db.transaction(async (tx) => {
+    for (const listing of reported) {
+      await tx
+        .update(jobs)
+        .set({ viewCountAtDigest: listing.viewCount })
+        .where(and(eq(jobs.id, listing.jobId), ownedByCompany(companyId)));
+    }
+    await tx
+      .update(companies)
+      .set({ lastDigestSentAt: sentAt })
+      .where(eq(companies.id, companyId));
+  });
 }
 
 // ---------------------------------------------------------------------------

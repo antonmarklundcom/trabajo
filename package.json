@@ -19,6 +19,7 @@
     "db:verify": "tsx --env-file-if-exists=.env scripts/verify-db.ts",
     "db:parity": "cross-env DATA_SOURCE=db tsx --conditions=react-server --env-file-if-exists=.env scripts/parity-check.ts",
     "db:purge": "tsx --conditions=react-server --env-file-if-exists=.env scripts/db-purge.ts",
+    "digest:employers": "tsx --conditions=react-server --env-file-if-exists=.env scripts/employer-digest.ts",
     "user:create": "tsx --env-file-if-exists=.env scripts/create-user.ts",
     "user:password": "tsx --env-file-if-exists=.env scripts/set-password.ts",
     "candidate:create": "tsx --env-file-if-exists=.env scripts/create-candidate.ts",
@@ -39,6 +40,7 @@
     "sort:verify": "tsx scripts/verify-sort-parity.ts",
     "seo:verify": "tsx scripts/verify-seo.ts",
     "whatsapp:verify": "tsx scripts/verify-whatsapp.ts",
+    "digest:verify": "tsx --conditions=react-server scripts/verify-digest.ts",
     "sentry:verify": "tsx scripts/verify-sentry-scrub.ts"
   },
   "dependencies": {

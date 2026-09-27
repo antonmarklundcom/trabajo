@@ -215,6 +215,67 @@ numbers are quoted in `/privacidad` — see `PLAN-PHASE2.md` §8 Q1, resolved in
 practice: the numbers are shipped and CI-locked, and changing them now is a
 migration + re-consent, not a doc edit.
 
+### `npm run digest:employers` — the weekly employer summary
+
+Emails every company that has it switched on (`/empresa/perfil`, on by
+default) a "Tu resumen semanal en trabajo.com.py": per public listing, views
+since the last summary, the COUNT of new applications, an expiry warning with
+a renewal link, and — on listings not already featured — one Destacado line.
+No applicant data, ever; `npm run digest:verify` asserts that in CI.
+
+**`npm run db:migrate` first — before, or together with, the deploy that ships
+this.** Migration `0018_long_dark_phoenix` adds `companies.notify_weekly_digest`,
+`companies.last_digest_sent_at` and `jobs.view_count_at_digest` (all additive,
+with defaults). Until it has run, every query that selects a whole `jobs` or
+`companies` row — the company profile and job editor in `/empresa`, the admin
+job and company pages — names a column that does not exist yet and fails.
+
+```bash
+npm run digest:employers              # DRY RUN — who would get what, counts only
+npm run digest:employers -- --apply   # sends, then records each send
+npm run digest:employers -- --verbose # also list every skipped company
+```
+
+- **Dry run is the default.** `--apply` refuses to start without
+  `RESEND_API_KEY` and `EMAIL_FROM` (the web app degrades to log-and-skip on a
+  missing key; a script whose only job is sending must not).
+- **Safe to re-run.** A company summarised less than 6 days ago is skipped, so
+  a double-fired schedule or a manual re-run mails nobody twice. The stamp and
+  the view snapshot are written only after a successful send: a provider
+  outage leaves the company due on the next run with no views lost.
+- **Exit code.** Non-zero if any company failed; the others are still sent.
+- Links in the email use `NEXT_PUBLIC_SITE_URL` (falls back to
+  `https://trabajo.com.py`) and the WhatsApp links use
+  `NEXT_PUBLIC_WHATSAPP_LEADS` — without it the email says "respondé a este
+  correo" instead. Set both in whatever environment runs the script, not only
+  in hPanel.
+
+**Scheduling: Mondays 08:00 America/Asuncion.** Paraguay is on UTC−3 all year
+(no DST since 2024), so that is `0 11 * * 1` in UTC. Two ways to run it, in
+order of preference:
+
+1. **hPanel → Advanced → Cron Jobs, if your plan shows it.** This document has
+   so far assumed there is no cron for this app (see `db:purge` above), so
+   check before relying on it. The cron shell does not get the app's hPanel
+   env vars and the deploy directory is replaced on every deploy, so keep the
+   variables in a file outside it and source them:
+
+   ```bash
+   # ~/digest.env  (chmod 600) — DATABASE_URL with host localhost, RESEND_API_KEY,
+   # EMAIL_FROM, NEXT_PUBLIC_SITE_URL, NEXT_PUBLIC_WHATSAPP_LEADS
+   0 11 * * 1  cd ~/public_html/.builds/last-source && set -a && . ~/digest.env && set +a && PATH=/opt/alt/alt-nodejs22/root/usr/bin:$PATH npm run digest:employers -- --apply >> ~/digest.log 2>&1
+   ```
+
+   Confirm the Node path (§"Hostinger SSH, if unavoidable"), the source
+   directory, and that `node_modules/.bin/tsx` exists there (it is a
+   devDependency) with one manual dry run over SSH before trusting the entry.
+   Hostinger's cron UI may interpret the time in the server's zone rather than
+   UTC — check the server's `date` and adjust.
+2. **Otherwise, the same way as the purge:** from your machine (Remote MySQL
+   allowlist, `.env` with the remote `DATABASE_URL` and the mail keys) every
+   Monday, or from a scheduled Claude Routine. Missing a week costs nothing but
+   the email: the next run reports the whole period since the last one.
+
 ### `drizzle-kit` connecting does NOT mean your scripts will
 
 `drizzle-kit` auto-loads `.env`. Plain `tsx` scripts do **not**. An

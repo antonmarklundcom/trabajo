@@ -23,6 +23,7 @@ export default async function EmpresaPerfilPage() {
     website: company?.website ?? '',
     description: company?.description ?? '',
     notifyOnApplication: company?.notifyOnApplication ?? true,
+    notifyWeeklyDigest: company?.notifyWeeklyDigest ?? true,
   };
 
   return (

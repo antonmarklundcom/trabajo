@@ -13,6 +13,9 @@ const schema = z.object({
   // N2. Not nullable: the column is NOT NULL with a default, and "unset" is
   // not a state the form can produce.
   notifyOnApplication: z.boolean(),
+  // The weekly summary's opt-out (scripts/employer-digest.ts). Same reasoning:
+  // a NOT NULL column with a default, and the form always sends it.
+  notifyWeeklyDigest: z.boolean(),
 });
 
 export async function PATCH(request: Request) {
