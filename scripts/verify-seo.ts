@@ -30,6 +30,7 @@ import {
 import robots from '../app/robots';
 import { serializeJsonLd } from '../lib/json-ld';
 import { isHttpUrl } from '../lib/company-website';
+import { uniqueSlug } from '../lib/slug';
 
 const ROOT = process.cwd();
 
@@ -452,9 +453,33 @@ for (const file of publicPages) {
   );
 }
 
-if (failures > 0) {
-  console.error(`\n${failures} assertion(s) FAILED.`);
-  process.exit(1);
+// ---------------------------------------------------------------------------
+// Slugs always fit their column, suffix included.
+// ---------------------------------------------------------------------------
+
+async function checkSlugLengths(): Promise<void> {
+  const title = 'Coordinador de gestion administrativa '.repeat(8).slice(0, 200);
+  const taken = new Set<string>();
+  const exists = async (candidate: string) => taken.has(candidate);
+  let longest = 0;
+  for (let i = 0; i < 12; i++) {
+    const slug = await uniqueSlug(title, exists);
+    taken.add(slug);
+    longest = Math.max(longest, slug.length);
+  }
+  check(
+    'uniqueSlug never exceeds the narrowest slug column (200), even with a suffix',
+    longest <= 200,
+    `longest slug was ${longest} chars`,
+  );
+  check('uniqueSlug never ends in a dash after the cap', ![...taken].some((s) => /-$/.test(s)));
 }
-console.log('\nAll SEO index-control assertions passed.');
-process.exit(0);
+
+void checkSlugLengths().then(() => {
+  if (failures > 0) {
+    console.error(`\n${failures} assertion(s) FAILED.`);
+    process.exit(1);
+  }
+  console.log('\nAll SEO index-control assertions passed.');
+  process.exit(0);
+});
