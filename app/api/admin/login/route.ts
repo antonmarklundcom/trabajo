@@ -48,7 +48,7 @@ export async function POST(request: Request) {
 
   clearLoginAttempts(ip, email);
   await recordAuthEvent({ surface: 'admin', event: 'login_ok', userId: user.id, ip: trustedIp });
-  await createSession(user.id);
+  await createSession(user.id, user.sessionVersion);
   // The client navigates to redirectTo rather than to a hardcoded '/admin':
   // employers share this table and this cookie but not the admin route tree,
   // and sending one to /admin would bounce straight back out (PLAN-PHASE2.md

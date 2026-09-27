@@ -147,9 +147,16 @@ el driver `disk` se sirven desde `/img/...`. La base de datos guarda la
 NEXT_PUBLIC_GA_ID=G-XXXXXXXXXX
 ```
 
-Con `NEXT_PUBLIC_GA_ID` seteado se carga Google Analytics 4 (page views
-automáticos + eventos `lead_submit` y `whatsapp_click`). Sin la variable no se
-carga ningún script de analítica.
+Con `NEXT_PUBLIC_GA_ID` seteado se carga Google Analytics 4 (page views +
+eventos `lead_submit` y `whatsapp_click`). Sin la variable no se carga ningún
+script de analítica.
+
+Los page views se envían a mano (`components/AnalyticsPageViews.tsx`), solo en
+páginas públicas y con una URL saneada (`lib/analytics-location.ts`): en
+`/admin`, `/empresa`, `/postulante` y `/api` no se envía nada, y de la query
+string solo pasan los filtros del listado y los `utm_*` — nunca `token`, que en
+las páginas de verificación, activación y recuperación de contraseña es un
+secreto. `npm run analytics:verify` lo comprueba.
 
 Son los dos únicos eventos del sitio (`lib/analytics.ts` los tipa; ninguna
 CTA nueva puede inventar un tercero):

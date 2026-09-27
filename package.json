@@ -39,7 +39,8 @@
     "sort:verify": "tsx scripts/verify-sort-parity.ts",
     "seo:verify": "tsx scripts/verify-seo.ts",
     "whatsapp:verify": "tsx scripts/verify-whatsapp.ts",
-    "sentry:verify": "tsx scripts/verify-sentry-scrub.ts"
+    "sentry:verify": "tsx scripts/verify-sentry-scrub.ts",
+    "accounts:verify": "tsx scripts/verify-accounts.ts"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.70.0",

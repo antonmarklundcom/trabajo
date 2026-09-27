@@ -15,6 +15,7 @@ import { and, desc, eq, isNull } from 'drizzle-orm';
 
 import { applications, candidates, consents, jobs } from './schema';
 import { getCurrentCandidateCv } from './candidate-cvs';
+import { isDuplicateKeyOn } from './duplicate-key';
 
 async function getDb() {
   return (await import('./index')).db;
@@ -131,12 +132,14 @@ export async function createCandidateApplication(
  * swallow a duplicate from some future index on this table and report it to the
  * candidate as "you already applied", which would be a lie that looks like a
  * feature.
+ *
+ * Delegates to isDuplicateKeyOn(), which reads through drizzle's
+ * DrizzleQueryError wrapper to the mysql2 error underneath — reading `code` off
+ * the thrown object directly never matched, so this race used to surface as a
+ * 500 instead of "ya te postulaste".
  */
 function isDuplicateApplication(err: unknown): boolean {
-  if (typeof err !== 'object' || err === null) return false;
-  const candidate = err as { code?: string; errno?: number; message?: string };
-  const isDuplicate = candidate.code === 'ER_DUP_ENTRY' || candidate.errno === 1062;
-  return isDuplicate && (candidate.message ?? '').includes('candidate_job_application_unique_idx');
+  return isDuplicateKeyOn(err, 'candidate_job_application_unique_idx');
 }
 
 /** Whether this candidate has already applied to this job (drives the apply button). */
