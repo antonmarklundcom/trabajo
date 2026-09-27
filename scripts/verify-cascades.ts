@@ -105,6 +105,26 @@ const NO_PARENT_DELETE: { child: string; parent: string; why: string }[] = [
 ];
 
 /**
+ * Tables that point at NO other table, so no parent delete could ever owe them
+ * a cleanup. Listed so that "not in DEPENDENCIES" is a stated decision rather
+ * than an omission, and asserted: section 2d fails if one of these grows an
+ * `*_id` column, which is the moment it stops being standalone and has to be
+ * registered above.
+ */
+const STANDALONE: { table: string; sqlName: string; why: string }[] = [
+  {
+    // "Avisame de empleos nuevos" (drizzle/0021). Keyed by an email address,
+    // filtered by category/city SLUGS rather than ids, and never tied to a
+    // candidate account. The only thing that points at it is
+    // consents.subject_id (subject_type = 'job_alert'), which is a deliberate
+    // orphan — see DELIBERATE_ORPHANS.consents.
+    table: 'jobAlerts',
+    sqlName: 'job_alerts',
+    why: 'an address + a category/city slug filter; references no other row',
+  },
+];
+
+/**
  * Rows that are deliberately left pointing at an id that no longer resolves.
  * Listed so that "this parent has no registered dependents" is a stated
  * decision rather than an omission — see candidate-arco.ts step 6.
@@ -112,7 +132,9 @@ const NO_PARENT_DELETE: { child: string; parent: string; why: string }[] = [
 const DELIBERATE_ORPHANS: Record<string, string> = {
   authEvents:
     'record of an attempt on our systems, not the subject\'s data; swept on its own 24-month clock',
-  consents: 'proof of what was authorised; survives the candidate by design (§4.3, 5 years)',
+  consents:
+    'proof of what was authorised; survives the candidate — or the job alert — it names by design ' +
+    '(§4.3, 5 years from the purge / the alert\'s granted=false end row)',
   deletionRequests: 'the record that the candidate row was destroyed; cannot reference it',
   dataAccessLogs: 'audit of staff reads; purged on its own retention clock, not with the subject',
   applications: 'redacted to a husk rather than deleted, so employer/admin counts stay coherent',
@@ -334,6 +356,25 @@ for (const { child, parent, why } of NO_PARENT_DELETE) {
       /redactedAt:/.test(body),
     'Without it, the applicants of a deleted job keep their name, phone and ' +
       'message forever: findApplicationsToRedact() joins to jobs and cannot see them.',
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 2d. Standalone tables still reference nothing.
+// ---------------------------------------------------------------------------
+for (const { table, sqlName, why } of STANDALONE) {
+  const start = schema.source.indexOf(`export const ${table} = mysqlTable(`);
+  const rest = start === -1 ? '' : schema.source.slice(start);
+  // The definition runs to the closing `);` at column 0.
+  const body = rest.slice(0, rest.indexOf('\n);') + 3);
+  const idColumns = [...body.matchAll(/int\('(\w+_id)'/g)].map((m) => m[1]);
+
+  check(`${table} (${sqlName}) is defined in schema.ts`, body.length > 0 && body.includes(`'${sqlName}'`));
+  check(
+    `${table} is standalone — ${why}`,
+    body.length > 0 && idColumns.length === 0,
+    `${table} now has ${idColumns.join(', ')}. A table that points at another one is not standalone: ` +
+      `register it in DEPENDENCIES (with a cleanup beside every delete of its parent) or in NO_PARENT_DELETE.`,
   );
 }
 

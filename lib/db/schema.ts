@@ -2,6 +2,7 @@ import {
   mysqlTable,
   int,
   varchar,
+  char,
   text,
   boolean,
   date,
@@ -428,7 +429,12 @@ export const candidateExperiences = mysqlTable(
 // for this employer" answerable a year later (PLAN-PHASE2.md §4.1).
 // ---------------------------------------------------------------------------
 
-export const consentSubjectEnum = ['candidate', 'employer_user'] as const;
+// `job_alert` (drizzle/0021): the subscriber of a "Avisame de empleos nuevos"
+// email alert. There is no account behind one — just an address — so the
+// subject is the `job_alerts` row, and subject_id is its id. That row is
+// hard-DELETEd on unsubscribe and by the retention sweep; its consent rows
+// deliberately outlive it, exactly like a purged candidate's do.
+export const consentSubjectEnum = ['candidate', 'employer_user', 'job_alert'] as const;
 
 export const consentPurposeEnum = [
   /** Storing a profile + CV at all. Blocking at signup. */
@@ -437,6 +443,13 @@ export const consentPurposeEnum = [
   'application_share',
   /** ToS + "we are not an agency" acknowledgement, at employer activation. */
   'terms_acceptance',
+  /**
+   * The weekly "empleos nuevos" email for ONE stated filter (categoría and/or
+   * ciudad). Written at subscribe, in the same transaction as the job_alerts
+   * row; a granted=false row is appended when the alert ends — unsubscribe or
+   * retention sweep — and is the anchor of this ledger's own retention clock.
+   */
+  'job_alerts',
 ] as const;
 
 export const consents = mysqlTable(
@@ -1031,5 +1044,57 @@ export const contactMessages = mysqlTable(
     // both walk created_at; the unhandled count filters on handled_at.
     index('created_idx').on(table.createdAt),
     index('handled_created_idx').on(table.handledAt, table.createdAt),
+  ],
+);
+
+// ---------------------------------------------------------------------------
+// job_alerts — "Avisame de empleos nuevos"
+//
+// One row per (address, filter) a visitor asked to be emailed about. It matches
+// JOBS to a filter the person stated; nothing here describes, scores or ranks
+// the person (AGENTS.md: no candidate matching). No account, no name, no phone:
+// the address and the two slugs are the whole of what is stored.
+//
+// Double opt-in: the row is inserted with confirmed_at NULL and nothing is ever
+// sent to it until the link in the confirmation email is used. Unconfirmed rows
+// are hard-DELETEd after JOB_ALERT_UNCONFIRMED_DAYS; confirmed ones after
+// JOB_ALERT_INACTIVITY_MONTHS without a successful send (lib/retention.ts,
+// swept by `db:purge`). Unsubscribe is a hard DELETE too — never a flag.
+//
+// token_hash is sha256 of the link token, never the token itself. The token is
+// an HMAC of (id, email) under JOB_ALERTS_SECRET (lib/job-alert-token.ts), so
+// the weekly sender can re-derive every alert's unsubscribe link without the
+// raw value ever being stored, and a leaked row cannot be redeemed.
+//
+// Standalone: category_slug / city_slug are slugs, not ids, and nothing points
+// at this table except consents.subject_id (registered in
+// scripts/verify-cascades.ts). No FKs, like everything else in this file.
+// ---------------------------------------------------------------------------
+
+export const jobAlerts = mysqlTable(
+  'job_alerts',
+  {
+    id: int('id').autoincrement().primaryKey(),
+    // Lowercased and trimmed on write.
+    email: varchar('email', { length: 320 }).notNull(),
+    // NULL means "every category" / "every city".
+    categorySlug: varchar('category_slug', { length: 100 }),
+    citySlug: varchar('city_slug', { length: 100 }),
+    tokenHash: char('token_hash', { length: 64 }).notNull().unique(),
+    confirmedAt: datetime('confirmed_at'),
+    // When the confirmation email last went out. Only there to throttle a
+    // repeated subscribe of the same unconfirmed alert to one re-send per
+    // JOB_ALERT_RESEND_MINUTES (lib/job-alerts.ts) — the form is the one thing
+    // on the site that emails an address its submitter may not own.
+    confirmationSentAt: datetime('confirmation_sent_at'),
+    // The weekly email, stamped only after the provider accepted it.
+    lastSentAt: datetime('last_sent_at'),
+    createdAt: datetime('created_at').notNull(),
+  },
+  (table) => [
+    // The duplicate check at subscribe, and the per-address cap.
+    index('email_idx').on(table.email),
+    // The sender's "confirmed and due" scan and the retention sweep.
+    index('confirmed_sent_idx').on(table.confirmedAt, table.lastSentAt),
   ],
 );

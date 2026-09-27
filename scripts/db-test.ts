@@ -647,6 +647,110 @@ async function main() {
     });
 
     // =======================================================================
+    // 7. Job alerts — double opt-in, unsubscribe, the weekly selection and
+    //    the retention sweep, with their consents rows (append-only).
+    // =======================================================================
+    await runCase('7 job alerts', async () => {
+      const alerts = await import('../lib/db/job-alerts');
+      const retention = await import('../lib/db/retention');
+      const { jobAlertToken } = await import('../lib/job-alert-token');
+      const secret = 's'.repeat(40);
+      const createdIds: number[] = [];
+      const consentRows = async (id: number) =>
+        db
+          .select({ granted: schema.consents.granted })
+          .from(schema.consents)
+          .where(and(eq(schema.consents.subjectType, 'job_alert'), eq(schema.consents.subjectId, id)));
+      const alertRow = async (id: number) =>
+        (await db.select().from(schema.jobAlerts).where(eq(schema.jobAlerts.id, id)))[0] ?? null;
+
+      try {
+        const email = `${PREFIX}alerta@example.py`;
+        const first = await alerts.subscribeJobAlert({
+          email, categorySlug: null, citySlug: null, ip: null, userAgent: 'x'.repeat(400), secret,
+        });
+        check(first.action === 'send' && first.created, 'a new subscription asks for confirmation', first);
+        if (first.action !== 'send') return;
+        createdIds.push(first.alertId);
+        const token = first.token;
+        check(token === jobAlertToken(first.alertId, email, secret), 'the emailed token is the derived one');
+        const row = await alertRow(first.alertId);
+        check(row !== null && row.confirmedAt === null, 'the alert starts unconfirmed');
+        check(row !== null && row.tokenHash !== token && row.tokenHash.length === 64, 'only a hash of the token is stored');
+        const granted = await consentRows(first.alertId);
+        check(granted.length === 1 && granted[0].granted === true, 'one granted consent row, written with the alert (long user-agent fitted)', granted);
+
+        const again = await alerts.subscribeJobAlert({ email, categorySlug: null, citySlug: null, ip: null, userAgent: null, secret });
+        const sameFilter = await db
+          .select({ id: schema.jobAlerts.id })
+          .from(schema.jobAlerts)
+          .where(eq(schema.jobAlerts.email, email));
+        check(sameFilter.length === 1, 'subscribing twice to the same filter creates no second alert', again);
+
+        const unconfirmedDue = await alerts.listDueJobAlerts(new Date(Date.now() + DAY_MS));
+        check(!unconfirmedDue.some((a) => a.id === first.alertId), 'an unconfirmed alert is never sent');
+
+        const confirmed = await alerts.confirmJobAlert(token);
+        check(confirmed.ok && !confirmed.already, 'the emailed token confirms the alert', confirmed);
+        check((await alertRow(first.alertId))?.confirmedAt != null, 'confirmed_at is set');
+        const twice = await alerts.confirmJobAlert(token);
+        check(twice.ok && twice.already, 'confirming twice is harmless');
+        check(!(await alerts.confirmJobAlert('x'.repeat(43))).ok, 'a made-up token confirms nothing');
+
+        const due = await alerts.listDueJobAlerts(new Date(Date.now() + DAY_MS));
+        check(due.some((a) => a.id === first.alertId), 'a confirmed, never-sent alert is due');
+        await alerts.markJobAlertSent(first.alertId, new Date());
+        const dueAfter = await alerts.listDueJobAlerts(new Date(Date.now() - 6 * DAY_MS));
+        check(!dueAfter.some((a) => a.id === first.alertId), 'an alert sent just now is not due within the 6-day window');
+
+        const gone = await alerts.unsubscribeJobAlert(token, { ip: null, userAgent: null });
+        check(gone === true, 'unsubscribe succeeds');
+        check((await alertRow(first.alertId)) === null, 'unsubscribe HARD-deletes the alert');
+        const afterUnsub = await consentRows(first.alertId);
+        check(
+          afterUnsub.length === 2 && afterUnsub.some((c) => c.granted === false),
+          'unsubscribe appends a withdrawal consent row and keeps the grant',
+          afterUnsub,
+        );
+        check((await alerts.unsubscribeJobAlert(token, { ip: null, userAgent: null })) === false, 'unsubscribing twice finds nothing');
+
+        // Retention: an unconfirmed alert past its 7 days is swept.
+        const stale = await alerts.subscribeJobAlert({
+          email: `${PREFIX}alerta-vieja@example.py`, categorySlug: null, citySlug: null, ip: null, userAgent: null, secret,
+        });
+        if (stale.action === 'send') {
+          createdIds.push(stale.alertId);
+          const toDelete = await retention.findJobAlertsToDelete(
+            new Date(Date.now() + DAY_MS),
+            new Date(Date.now() - 365 * DAY_MS),
+          );
+          check(toDelete.some((a) => a.id === stale.alertId && a.reason === 'unconfirmed'), 'the sweep finds an unconfirmed alert past its window');
+          const n = await retention.deleteJobAlerts([stale.alertId], new Date());
+          check(n === 1 && (await alertRow(stale.alertId)) === null, 'the sweep hard-deletes it');
+          const staleConsents = await consentRows(stale.alertId);
+          check(staleConsents.some((c) => c.granted === false), 'the sweep appends a withdrawal consent row', staleConsents);
+        } else {
+          check(false, 'a second address could subscribe', stale);
+        }
+
+        const consentsDue = await retention.findJobAlertConsentsToDelete(new Date(Date.now() + 10 * 365 * DAY_MS));
+        const dueIds = new Set(consentsDue.map((c) => c.alertId));
+        check(
+          createdIds.every((id) => dueIds.has(id)),
+          "once the alert is gone, its consent rows fall to the 5-year clock (correlated subquery)",
+          consentsDue.slice(0, 5),
+        );
+      } finally {
+        if (createdIds.length > 0) {
+          await db
+            .delete(schema.consents)
+            .where(and(eq(schema.consents.subjectType, 'job_alert'), inArray(schema.consents.subjectId, createdIds)));
+        }
+        await db.delete(schema.jobAlerts).where(like(schema.jobAlerts.email, `${PREFIX}%`));
+      }
+    });
+
+    // =======================================================================
     // 8. Blog public reads — drafts and scheduled posts never leak, and the
     //    archive/related/count queries (group by, sort key) run on MySQL.
     // =======================================================================

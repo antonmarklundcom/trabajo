@@ -18,6 +18,8 @@
 // enable it.
 import 'server-only';
 
+import { jobAlertsSecret } from './job-alert-token';
+
 function isEnabled(value: string | undefined): boolean {
   return value?.trim().toLowerCase() === 'true';
 }
@@ -82,4 +84,22 @@ export function pagoparConfigured(): boolean {
 /** Set-but-blank is unset. hPanel stores an emptied field as an empty string. */
 function isPresent(value: string | undefined): boolean {
   return (value ?? '').trim().length > 0;
+}
+
+/**
+ * "Avisame de empleos nuevos" — the job-alert subscribe form and its confirm
+ * step. Ships dark, like the route-tree flags above, for the same reason:
+ * /privacidad does not mention job alerts yet, and a consent flow must not reach
+ * visitors before the copy that describes it. BOTH the switch and a usable
+ * JOB_ALERTS_SECRET are required — without the secret no link in any alert
+ * email can be built, so "on" with no secret would be a form whose every
+ * confirmation email is broken.
+ *
+ * Deliberately NOT a gate on unsubscribe (app/alertas/baja, POST
+ * /api/alertas/baja): switching the feature off must never strand someone who
+ * already subscribed without a way out. Redeeming a link needs no secret
+ * (lib/job-alert-token.ts), so that path works either way.
+ */
+export function jobAlertsEnabled(): boolean {
+  return isEnabled(process.env.JOB_ALERTS_ENABLED) && jobAlertsSecret() !== null;
 }

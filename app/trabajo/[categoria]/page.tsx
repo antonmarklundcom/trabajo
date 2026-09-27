@@ -9,6 +9,8 @@ import { JOBS_PAGE_SIZE } from '@/lib/pagination';
 import JobCard from '@/components/JobCard';
 import Pagination from '@/components/Pagination';
 import JsonLd from '@/components/JsonLd';
+import JobAlertForm from '@/components/JobAlertForm';
+import { jobAlertsEnabled } from '@/lib/flags';
 import BlogPostLinks from '@/components/BlogPostLinks';
 import { getPostsForJobCategory } from '@/lib/blog';
 
@@ -192,6 +194,10 @@ export default async function CategoriaPage({
           </>
         )}
 
+        {/* After the listings, never above them (components/JobAlertForm.tsx). */}
+        {jobAlertsEnabled() && (
+          <JobAlertForm categorySlug={category.slug} categoryName={category.name} />
+        )}
         <BlogPostLinks
           title={`Cómo conseguir trabajo en ${category.name}`}
           posts={guides}

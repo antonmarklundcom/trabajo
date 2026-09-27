@@ -26,11 +26,13 @@
  * Route trees that belong to a signed-in (or signing-in) account. No page_view
  * is ever sent from these, and GA is disabled while one is open, so even an
  * automatic enhanced-measurement hit configured in the GA admin cannot fire
- * there. `/api` is here for completeness — a route handler never renders the
+ * there. `/alertas` is not an account area, but both of its pages
+ * (`/alertas/confirmar`, `/alertas/baja`) exist only to receive a job-alert
+ * link token, which is exactly what this list keeps out of GA. `/api` is here for completeness — a route handler never renders the
  * component — so that the list reads as "everything that is not a public
  * page" rather than as a list of the pages we happened to think of.
  */
-export const ACCOUNT_PATH_PREFIXES = ['/admin', '/empresa', '/postulante', '/api'] as const;
+export const ACCOUNT_PATH_PREFIXES = ['/admin', '/empresa', '/postulante', '/alertas', '/api'] as const;
 
 /**
  * The query parameters that may reach GA. The listing filters are the real

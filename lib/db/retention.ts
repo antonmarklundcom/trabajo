@@ -30,6 +30,7 @@ import {
   dataAccessLogs,
   deletionRequests,
   jobs,
+  jobAlerts,
   authEvents,
 } from './schema';
 
@@ -396,4 +397,133 @@ export async function deleteContactMessages(ids: number[]): Promise<number> {
   const db = await getDb();
   const [result] = await db.delete(contactMessages).where(inArray(contactMessages.id, ids));
   return result.affectedRows;
+}
+
+// ---------------------------------------------------------------------------
+// 7. job_alerts — unconfirmed after 7 days; confirmed after 12 months unsent
+//
+// Hard DELETE, never a flag (AGENTS.md). Two clocks, one query each half:
+//   - never confirmed: created_at. Nobody has shown they own the address.
+//   - confirmed: the last successful send, or the confirmation for an alert
+//     that has never matched anything. A filter that produced nothing for a
+//     year is an address kept for no purpose.
+// Both cutoffs are parameters, like every clock in this file.
+// ---------------------------------------------------------------------------
+
+export type DueJobAlert = {
+  id: number;
+  reason: 'unconfirmed' | 'inactive';
+  /** created_at for an unconfirmed row; the last send (or confirmation) otherwise. */
+  since: Date;
+};
+
+export async function findJobAlertsToDelete(
+  unconfirmedBefore: Date,
+  inactiveBefore: Date,
+): Promise<DueJobAlert[]> {
+  const db = await getDb();
+  const lastActivity = sql<Date>`COALESCE(${jobAlerts.lastSentAt}, ${jobAlerts.confirmedAt})`;
+
+  const [unconfirmed, inactive] = await Promise.all([
+    db
+      .select({ id: jobAlerts.id, since: jobAlerts.createdAt })
+      .from(jobAlerts)
+      .where(and(isNull(jobAlerts.confirmedAt), lt(jobAlerts.createdAt, unconfirmedBefore)))
+      .orderBy(asc(jobAlerts.createdAt)),
+    db
+      .select({ id: jobAlerts.id, since: lastActivity })
+      .from(jobAlerts)
+      .where(and(isNotNull(jobAlerts.confirmedAt), lt(lastActivity, inactiveBefore)))
+      .orderBy(asc(lastActivity)),
+  ]);
+
+  return [
+    ...unconfirmed.map((row) => ({ id: row.id, reason: 'unconfirmed' as const, since: new Date(row.since) })),
+    ...inactive.map((row) => ({ id: row.id, reason: 'inactive' as const, since: new Date(row.since) })),
+  ];
+}
+
+/**
+ * Deletes the given alerts and, in the same transaction, appends a
+ * granted=false consents row for each one actually deleted — the same pair of
+ * writes an unsubscribe makes (lib/db/job-alerts.ts), for the same reason:
+ * the ledger's latest row for the subject then says the processing ended, and
+ * WHEN, which is the anchor findJobAlertConsentsToDelete() counts from. ip and
+ * user_agent are NULL: no person made this request, and an evidence column
+ * holds nothing rather than something that looks like a visitor.
+ */
+export async function deleteJobAlerts(ids: number[], at: Date): Promise<number> {
+  if (ids.length === 0) return 0;
+  const { POLICY_VERSION } = await import('../policy');
+  const db = await getDb();
+
+  return db.transaction(async (tx) => {
+    const present = await tx
+      .select({ id: jobAlerts.id })
+      .from(jobAlerts)
+      .where(inArray(jobAlerts.id, ids));
+    if (present.length === 0) return 0;
+    const presentIds = present.map((row) => row.id);
+
+    const [result] = await tx.delete(jobAlerts).where(inArray(jobAlerts.id, presentIds));
+
+    await tx.insert(consents).values(
+      presentIds.map((id) => ({
+        subjectType: 'job_alert' as const,
+        subjectId: id,
+        purpose: 'job_alerts' as const,
+        granted: false,
+        policyVersion: POLICY_VERSION,
+        relatedCompanyId: null,
+        relatedJobId: null,
+        ip: null,
+        userAgent: null,
+        createdAt: at,
+      })),
+    );
+
+    return result.affectedRows;
+  });
+}
+
+// ---------------------------------------------------------------------------
+// 3b. consents of ended job alerts — 5 years after the alert ended
+//
+// Same period as the candidate rule in section 3 and the same principle: the
+// clock starts when the data the consent authorised stopped existing. For an
+// alert that moment is the granted=false row every deletion path appends
+// (unsubscribe, and deleteJobAlerts() above), so the anchor is the subject's
+// LATEST consent row. A subject is only ever due when its alert row is gone —
+// the NOT EXISTS is what keeps a live alert's ledger out of the sweep even if
+// an id were ever reused.
+// ---------------------------------------------------------------------------
+
+export type DueJobAlertConsent = {
+  id: number;
+  alertId: number;
+  endedAt: Date;
+};
+
+export async function findJobAlertConsentsToDelete(cutoff: Date): Promise<DueJobAlertConsent[]> {
+  const db = await getDb();
+  // The outer reference is spelled out rather than interpolated: in a SELECT
+  // list drizzle renders `${consents.subjectId}` unqualified, and inside this
+  // subquery a bare `subject_id` would bind to the INNER alias — every subject
+  // would then report the whole ledger's latest date.
+  const endedAt = sql<Date>`(SELECT MAX(ended.created_at) FROM ${consents} AS ended WHERE ended.subject_type = 'job_alert' AND ended.subject_id = \`consents\`.\`subject_id\`)`;
+
+  const rows = await db
+    .select({ id: consents.id, alertId: consents.subjectId, endedAt })
+    .from(consents)
+    .where(
+      and(
+        eq(consents.subjectType, 'job_alert'),
+        sql`${endedAt} < ${cutoff}`,
+        sql`EXISTS (SELECT 1 FROM ${consents} AS withdrawn WHERE withdrawn.subject_type = 'job_alert' AND withdrawn.subject_id = \`consents\`.\`subject_id\` AND withdrawn.granted = false)`,
+        sql`NOT EXISTS (SELECT 1 FROM ${jobAlerts} WHERE ${jobAlerts.id} = ${consents.subjectId})`,
+      ),
+    )
+    .orderBy(asc(consents.id));
+
+  return rows.map((row) => ({ id: row.id, alertId: row.alertId, endedAt: new Date(row.endedAt) }));
 }

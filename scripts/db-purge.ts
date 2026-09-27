@@ -29,6 +29,12 @@
 //   4. data_access_logs, 24 months.
 //   5. auth_events, 24 months.
 //   6. contact_messages (/contacto), 12 months from arrival — hard DELETE.
+//   7. job_alerts: unconfirmed after 7 days, confirmed after 12 months with no
+//      successful send — hard DELETE plus a granted=false consents row each.
+//      Those end rows are what section 3b counts from.
+//   3b. consents of ended job alerts, 5 years after the alert ended. Read up
+//      front with everything else, so an alert ended by section 7 in this same
+//      run is not in its list — and could not be due anyway on a 5-year clock.
 //
 // deletion_requests is retained indefinitely and never appears here: it holds
 // no personal data by construction (§1.2), and it is the evidence that the rest
@@ -41,6 +47,9 @@ import {
   CANDIDATE_WARNING_MONTHS,
   CONSENT_RETENTION_MONTHS,
   CONTACT_MESSAGE_RETENTION_MONTHS,
+  JOB_ALERT_INACTIVITY_MONTHS,
+  JOB_ALERT_UNCONFIRMED_DAYS,
+  daysAgo,
   monthsAgo,
 } from '../lib/retention';
 import { sendEmail } from '../lib/email';
@@ -120,6 +129,8 @@ async function main() {
   const consentCutoff = monthsAgo(CONSENT_RETENTION_MONTHS, now);
   const accessLogCutoff = monthsAgo(ACCESS_LOG_RETENTION_MONTHS, now);
   const contactMessageCutoff = monthsAgo(CONTACT_MESSAGE_RETENTION_MONTHS, now);
+  const jobAlertUnconfirmedCutoff = daysAgo(JOB_ALERT_UNCONFIRMED_DAYS, now);
+  const jobAlertInactiveCutoff = monthsAgo(JOB_ALERT_INACTIVITY_MONTHS, now);
 
   console.log(`Now:    ${now.toISOString()}`);
 
@@ -136,6 +147,8 @@ async function main() {
     dueAccessLogs,
     dueAuthEvents,
     dueContactMessages,
+    dueJobAlerts,
+    dueJobAlertConsents,
   ] = await Promise.all([
     retention.findCandidatesInactiveSince(candidateCutoff),
     retention.findCandidatesToWarn(warningCutoff, candidateCutoff),
@@ -145,6 +158,9 @@ async function main() {
     // Same 24-month clock as the access logs (PLAN-NEXT.md §2 A1).
     retention.findAuthEventsToDelete(accessLogCutoff),
     retention.findContactMessagesToDelete(contactMessageCutoff),
+    retention.findJobAlertsToDelete(jobAlertUnconfirmedCutoff, jobAlertInactiveCutoff),
+    // Same 5-year period as section 3, counted from the alert's end row.
+    retention.findJobAlertConsentsToDelete(consentCutoff),
   ]);
 
   if (apply && dueCandidates.length > 0) {
@@ -333,6 +349,42 @@ async function main() {
   }
 
   // -------------------------------------------------------------------------
+  section(
+    `7. job_alerts — unconfirmed ${JOB_ALERT_UNCONFIRMED_DAYS} days (before ${fmt(jobAlertUnconfirmedCutoff)}), ` +
+      `confirmed with no send ${JOB_ALERT_INACTIVITY_MONTHS} months (before ${fmt(jobAlertInactiveCutoff)})`,
+  );
+  const unconfirmedAlerts = dueJobAlerts.filter((a) => a.reason === 'unconfirmed');
+  const inactiveAlerts = dueJobAlerts.filter((a) => a.reason === 'inactive');
+  console.log(`  ${unconfirmedAlerts.length} never-confirmed alert(s), ${inactiveAlerts.length} inactive alert(s) due for deletion`);
+  listIds(
+    'alert',
+    dueJobAlerts.map((a) => ({ id: a.id, when: a.since })),
+    verbose,
+  );
+  let jobAlertsDeleted = 0;
+  if (apply && dueJobAlerts.length > 0) {
+    jobAlertsDeleted = await retention.deleteJobAlerts(
+      dueJobAlerts.map((a) => a.id),
+      now,
+    );
+    console.log(`  deleted ${jobAlertsDeleted} alert(s) (a granted=false consent row appended for each)`);
+  }
+
+  // -------------------------------------------------------------------------
+  section(`3b. consents of ended job alerts — ${CONSENT_RETENTION_MONTHS} months after the alert ended (before ${fmt(consentCutoff)})`);
+  console.log(`  ${dueJobAlertConsents.length} consent row(s) due for deletion`);
+  listIds(
+    'consent',
+    dueJobAlertConsents.map((c) => ({ id: c.id, when: c.endedAt })),
+    verbose,
+  );
+  let jobAlertConsentsDeleted = 0;
+  if (apply && dueJobAlertConsents.length > 0) {
+    jobAlertConsentsDeleted = await retention.deleteConsents(dueJobAlertConsents.map((c) => c.id));
+    console.log(`  deleted ${jobAlertConsentsDeleted} consent row(s)`);
+  }
+
+  // -------------------------------------------------------------------------
   section('Summary');
   const verb = apply ? 'done' : 'would do';
   console.log(`  candidates deleted        ${verb}: ${dueCandidates.length - failures}`);
@@ -341,6 +393,8 @@ async function main() {
   console.log(`  access log rows deleted   ${verb}: ${apply ? logsDeleted : dueAccessLogs.length}`);
   console.log(`  auth event rows deleted   ${verb}: ${apply ? authEventsDeleted : dueAuthEvents.length}`);
   console.log(`  contact messages deleted  ${verb}: ${apply ? contactMessagesDeleted : dueContactMessages.length}`);
+  console.log(`  job alerts deleted        ${verb}: ${apply ? jobAlertsDeleted : dueJobAlerts.length}`);
+  console.log(`  alert consents deleted    ${verb}: ${apply ? jobAlertConsentsDeleted : dueJobAlertConsents.length}`);
   console.log(`  candidates warned         ${verb}: ${apply ? warned : toWarn.length}`);
   if (!apply) {
     console.log('\nNothing was changed. Re-run with --apply to execute.');
