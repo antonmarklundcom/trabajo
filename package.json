@@ -23,6 +23,7 @@
     "user:password": "tsx --env-file-if-exists=.env scripts/set-password.ts",
     "candidate:create": "tsx --env-file-if-exists=.env scripts/create-candidate.ts",
     "db:verify-scoping": "tsx --conditions=react-server --env-file-if-exists=.env scripts/verify-scoping.ts",
+    "db:test": "tsx --conditions=react-server scripts/db-test.ts",
     "storage:verify": "tsx --conditions=react-server --env-file-if-exists=.env scripts/verify-storage.ts",
     "image-storage:verify": "tsx --conditions=react-server --env-file-if-exists=.env scripts/verify-image-storage.ts",
     "retention:verify": "tsx scripts/verify-retention.ts",
