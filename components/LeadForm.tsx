@@ -33,6 +33,7 @@ export default function LeadForm({ jobSlug, jobTitle, citySlug, categorySlug, co
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [values, setValues] = useState({ name: '', phone: '', email: '', message: '' });
   const [honeypot, setHoneypot] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   function setField(field: keyof typeof values, value: string) {
     setValues((v) => ({ ...v, [field]: value }));
@@ -48,6 +49,7 @@ export default function LeadForm({ jobSlug, jobTitle, citySlug, categorySlug, co
     }
 
     setState('submitting');
+    setErrorMessage('');
     try {
       const res = await fetch('/api/v1/leads', {
         method: 'POST',
@@ -65,7 +67,12 @@ export default function LeadForm({ jobSlug, jobTitle, citySlug, categorySlug, co
           [HONEYPOT_FIELD]: honeypot,
         }),
       });
-      if (!res.ok) throw new Error('Error del servidor');
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setErrorMessage(typeof data?.error === 'string' ? data.error : '');
+        setState('error');
+        return;
+      }
       track('lead_submit', { lead_type: 'seeker', channel: 'form', job_slug: jobSlug });
       setState('success');
     } catch {
@@ -143,8 +150,8 @@ export default function LeadForm({ jobSlug, jobTitle, citySlug, categorySlug, co
       </FormField>
 
       {state === 'error' && (
-        <p className="text-sm text-error bg-error-tint rounded-[10px] px-4 py-3">
-          Hubo un error al enviar. Por favor intentá de nuevo.
+        <p role="alert" className="text-sm text-error bg-error-tint rounded-[10px] px-4 py-3">
+          {errorMessage || 'Hubo un error al enviar. Por favor intentá de nuevo.'}
         </p>
       )}
 

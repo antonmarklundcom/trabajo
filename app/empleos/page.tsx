@@ -12,6 +12,7 @@ import SortControl from '@/components/SortControl';
 import SearchBar from '@/components/SearchBar';
 import Pagination from '@/components/Pagination';
 import { JOBS_PAGE_SIZE } from '@/lib/pagination';
+import JsonLd from '@/components/JsonLd';
 
 // Cached reads are invalidated on demand by every admin mutation
 // (lib/cache.ts), so this timer is only the safety net for job expiry and
@@ -159,10 +160,7 @@ export default async function EmpleosPage({
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
-      />
+      <JsonLd data={breadcrumbJsonLd} />
 
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-sm text-ink-secondary mb-6" aria-label="Ruta">

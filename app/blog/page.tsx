@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { canonicalFor } from '@/lib/seo';
 import Link from 'next/link';
 import { getBlogPosts, BLOG_CATEGORY_LABELS } from '@/lib/blog';
+import JsonLd from '@/components/JsonLd';
 
 // Five minutes, matching PUBLIC_CACHE_TTL_SECONDS in lib/cache-tags.ts.
 //
@@ -49,9 +50,9 @@ export default async function BlogIndexPage() {
 
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
+      <JsonLd data={breadcrumbJsonLd} />
       {itemListJsonLd && (
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }} />
+        <JsonLd data={itemListJsonLd} />
       )}
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">

@@ -244,6 +244,24 @@ async function main() {
     console.log(`  redacted ${redacted} application(s)`);
   }
 
+  // Applications left behind by a hard-deleted job, which section 2's join to
+  // jobs cannot see. deleteJob() redacts on delete now; this catches the rows
+  // deleted before it did, and any a crash between its two statements leaves.
+  const orphanedApplications = await retention.findApplicationsOfDeletedJobs();
+  section('2b. Application personal data — job deleted (due immediately)');
+  console.log(`  ${orphanedApplications.length} application(s) whose job no longer exists`);
+  if (verbose) {
+    for (const a of orphanedApplications) console.log(`    application #${a.id} (job #${a.jobId}, deleted)`);
+  }
+  if (apply && orphanedApplications.length > 0) {
+    const n = await retention.redactApplications(
+      orphanedApplications.map((a) => a.id),
+      now,
+    );
+    redacted += n;
+    console.log(`  redacted ${n} application(s)`);
+  }
+
   // -------------------------------------------------------------------------
   section(`3. consents — ${CONSENT_RETENTION_MONTHS} months after the data they authorised was purged (purged before ${fmt(consentCutoff)})`);
   console.log(`  ${dueConsents.length} consent row(s) due for deletion`);

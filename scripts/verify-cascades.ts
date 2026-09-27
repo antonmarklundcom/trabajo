@@ -304,6 +304,33 @@ for (const { child, parent, why } of NO_PARENT_DELETE) {
 }
 
 // ---------------------------------------------------------------------------
+// 2c. A deleted job's applications are redacted, not just orphaned.
+// ---------------------------------------------------------------------------
+// `applications` is in DELIBERATE_ORPHANS as "redacted to a husk" — which is
+// only true if something redacts it. The retention sweep reaches applications
+// through a join to jobs, so for a hard-deleted job nothing ever would: the
+// redaction has to happen in deleteJob(), before the job row goes.
+{
+  const adminSource = readFileSync(join(DB_DIR, 'admin.ts'), 'utf8');
+  const deleteJob = adminSource.slice(adminSource.indexOf('export async function deleteJob'));
+  const body = deleteJob.slice(0, deleteJob.indexOf('\n}'));
+  const redactAt = body.indexOf('.update(applications)');
+  const deleteAt = body.indexOf('.delete(jobs)');
+
+  check(
+    'deleteJob() redacts the job\'s applications before deleting the job',
+    redactAt !== -1 &&
+      deleteAt !== -1 &&
+      redactAt < deleteAt &&
+      /name:\s*null/.test(body) &&
+      /phone:\s*null/.test(body) &&
+      /redactedAt:/.test(body),
+    'Without it, the applicants of a deleted job keep their name, phone and ' +
+      'message forever: findApplicationsToRedact() joins to jobs and cannot see them.',
+  );
+}
+
+// ---------------------------------------------------------------------------
 // 3. The deliberate orphans are still deliberate — printed, not asserted, so
 //    the run reads as a complete account of the schema's dangling references.
 // ---------------------------------------------------------------------------

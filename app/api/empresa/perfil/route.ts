@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { COMPANY_WEBSITE_ERROR, companyWebsiteSchema } from '@/lib/company-website';
 import { authErrorResponse, requireApiCompanyScope } from '@/lib/auth';
 import { employerDashboardEnabled } from '@/lib/flags';
 import { updateEmployerCompany } from '@/lib/db/employer';
@@ -7,7 +8,7 @@ import { updateEmployerCompany } from '@/lib/db/employer';
 // URL and the name is what the platform vouched for at invitation time.
 const schema = z.object({
   whatsapp: z.string().max(20).nullable(),
-  website: z.string().max(500).nullable(),
+  website: companyWebsiteSchema,
   description: z.string().max(5000).nullable(),
   // N2. Not nullable: the column is NOT NULL with a default, and "unset" is
   // not a state the form can produce.
@@ -25,7 +26,11 @@ export async function PATCH(request: Request) {
     const body = await request.json().catch(() => null);
     const parsed = schema.safeParse(body);
     if (!parsed.success) {
-      return Response.json({ error: 'Datos inválidos.', issues: parsed.error.issues }, { status: 400 });
+      const websiteInvalid = parsed.error.issues.some((issue) => issue.path[0] === 'website');
+      return Response.json(
+        { error: websiteInvalid ? COMPANY_WEBSITE_ERROR : 'Datos inválidos.', issues: parsed.error.issues },
+        { status: 400 },
+      );
     }
 
     await updateEmployerCompany(companyId, user.id, parsed.data);
