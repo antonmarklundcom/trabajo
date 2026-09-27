@@ -10,7 +10,7 @@ import {
   getJobs,
 } from '@/lib/data';
 import { canonicalFor } from '@/lib/seo';
-import { formatSalary, formatRelativeDate, contractTypeLabel, seniorityLabel, modalityLabel, employmentTypeJsonLd } from '@/lib/formatters';
+import { formatSalary, formatRelativeDate, relativeAgo, contractTypeLabel, seniorityLabel, modalityLabel, employmentTypeJsonLd } from '@/lib/formatters';
 import WhatsAppButton from '@/components/WhatsAppButton';
 import ShareLinks from '@/components/ShareLinks';
 import LeadForm from '@/components/LeadForm';
@@ -22,6 +22,8 @@ import { candidateAccountsEnabled } from '@/lib/flags';
 import JobCard from '@/components/JobCard';
 import JobViewBeacon from '@/components/JobViewBeacon';
 import type { ClosedJob, Job } from '@/lib/types';
+import MobileApplyBar from '@/components/MobileApplyBar';
+import { reportListingHref } from '@/lib/whatsapp';
 import JsonLd from '@/components/JsonLd';
 import { isHttpUrl } from '@/lib/company-website';
 
@@ -197,11 +199,30 @@ export default async function JobDetailPage({ params }: { params: Params }) {
     ],
   };
 
-  const chips = [
-    contractTypeLabel(job.contractType),
-    seniorityLabel(job.seniority),
-    modalityLabel(job.modality),
-  ];
+  const isFeatured = job.featuredUntil !== null && new Date(job.featuredUntil) > new Date();
+  const salaryText = job.salaryHidden ? 'A convenir' : formatSalary(job.salaryMin, job.salaryMax);
+  const postedLabel = formatRelativeDate(job.postedAt);
+  // Only when it says something the "Publicado" line does not: two timestamps
+  // seconds apart used to render the same relative date twice.
+  const updatedAgo = relativeAgo(job.updatedAt);
+  const showUpdated = updatedAgo !== relativeAgo(job.postedAt);
+  const reportHref = reportListingHref(job.title, jobUrl);
+
+  // Anchors shared by the top apply block, the form section and the sticky
+  // bar (components/MobileApplyBar.tsx).
+  const APPLY_TOP_ID = 'postular-arriba';
+  const APPLY_FORM_ID = 'postular';
+
+  const whatsappProps = job.whatsapp
+    ? {
+        whatsapp: job.whatsapp,
+        jobTitle: job.title,
+        jobSlug: job.slug,
+        citySlug: job.citySlug,
+        categorySlug: job.categorySlug,
+        contractType: job.contractType,
+      }
+    : null;
 
   return (
     <>
@@ -212,47 +233,114 @@ export default async function JobDetailPage({ params }: { params: Params }) {
       <JsonLd data={jsonLd} />
       <JsonLd data={breadcrumbJsonLd} />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Breadcrumb */}
-        <nav className="flex items-center gap-2 text-sm text-ink-secondary mb-6 flex-wrap" aria-label="Ruta">
-          <Link href="/" className="hover:text-brand transition-colors">Inicio</Link>
-          <span aria-hidden="true">›</span>
-          <Link href="/empleos" className="hover:text-brand transition-colors">Empleos</Link>
-          {category && (
-            <>
-              <span aria-hidden="true">›</span>
-              <Link href={`/trabajo/${category.slug}`} className="hover:text-brand transition-colors">
-                {category.name}
-              </Link>
-            </>
-          )}
-          <span aria-hidden="true">›</span>
-          <span className="text-ink font-medium truncate max-w-xs">{job.title}</span>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-10 sm:py-8">
+        {/* Breadcrumb. On a phone the full trail wraps to three lines above the
+            title, so it collapses to one "back to the category" link there. */}
+        <nav aria-label="Ruta" className="mb-4 sm:mb-6 text-sm text-ink-secondary">
+          <Link
+            href={category ? `/trabajo/${category.slug}` : '/empleos'}
+            className="sm:hidden inline-flex items-center gap-1 min-h-11 -my-2 font-medium hover:text-brand"
+          >
+            <span aria-hidden="true">‹</span>
+            {category ? category.name : 'Todos los empleos'}
+          </Link>
+          <ol className="hidden sm:flex items-center gap-2 flex-wrap">
+            <li><Link href="/" className="hover:text-brand transition-colors">Inicio</Link></li>
+            <li aria-hidden="true">›</li>
+            <li><Link href="/empleos" className="hover:text-brand transition-colors">Empleos</Link></li>
+            {category && (
+              <>
+                <li aria-hidden="true">›</li>
+                <li>
+                  <Link href={`/trabajo/${category.slug}`} className="hover:text-brand transition-colors">
+                    {category.name}
+                  </Link>
+                </li>
+              </>
+            )}
+            <li aria-hidden="true">›</li>
+            <li className="text-ink font-medium truncate max-w-xs" aria-current="page">{job.title}</li>
+          </ol>
         </nav>
 
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Main content */}
-          <div className="flex-1 min-w-0">
-            <article className="bg-white rounded-[10px] border border-border p-6 sm:p-8">
-              {job.featuredUntil && new Date(job.featuredUntil) > new Date() && (
-                <span className="inline-flex items-center gap-1.5 mb-4 text-xs font-bold uppercase tracking-wide px-3 py-1.5 rounded-full bg-gold text-white">
-                  ★ Empleo destacado
-                </span>
-              )}
+        {/* One column on a phone, in reading order: header → apply → description
+            → form → more jobs. From `lg` the apply card moves into a sticky
+            sidebar and the top apply block is dropped. */}
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-8 lg:items-start">
+          <div className="min-w-0">
+            <article className="bg-surface rounded-card border border-border shadow-card overflow-hidden">
               {/* Header */}
-              <div className="flex items-start gap-4 mb-6">
-                <CompanyAvatar company={job.company} logo={job.companyLogo} size={64} />
-                <div className="flex-1 min-w-0">
-                  <h1 className="text-2xl sm:text-3xl font-bold text-ink leading-tight">
-                    {job.title}
-                  </h1>
-                  <p className="mt-1 text-lg text-ink-secondary">{job.company}</p>
+              <header className="p-5 sm:p-8">
+                {isFeatured && (
+                  <span className="inline-flex items-center gap-1 mb-4 text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-gold-tint text-gold-strong border border-gold/30">
+                    <span aria-hidden="true">★</span> Empleo destacado
+                  </span>
+                )}
+                <div className="flex items-start gap-4">
+                  <CompanyAvatar company={job.company} logo={job.companyLogo} size={56} />
+                  <div className="flex-1 min-w-0">
+                    <h1 className="text-[1.625rem] sm:text-3xl font-bold text-ink leading-[1.15] tracking-tight text-balance">
+                      {job.title}
+                    </h1>
+                    <p className="mt-1.5 text-base sm:text-lg text-ink-secondary">{job.company}</p>
+                  </div>
                 </div>
-              </div>
+
+                <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-secondary">
+                  <Link
+                    href={`/trabajo-en/${job.citySlug}`}
+                    className="inline-flex items-center gap-1 font-medium text-ink hover:text-brand"
+                  >
+                    <LocationIcon />
+                    {city?.name ?? job.citySlug}
+                  </Link>
+                  <span aria-hidden="true" className="text-ink-3">·</span>
+                  <time dateTime={job.postedAt}>{postedLabel}</time>
+                </p>
+
+                {/* Salary first and largest: it is the first thing a seeker
+                    decides on, and "A convenir" deserves to be said plainly. */}
+                <div className="mt-5 rounded-[12px] bg-surface-2 px-4 py-3.5">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-ink-secondary">Salario</p>
+                  <p className="mt-0.5 text-xl font-bold text-ink tabular-nums">{salaryText}</p>
+                </div>
+
+                <dl className="mt-4 grid grid-cols-3 gap-3">
+                  <Fact label="Contrato" value={contractTypeLabel(job.contractType)} />
+                  <Fact label="Modalidad" value={modalityLabel(job.modality)} />
+                  <Fact label="Experiencia" value={seniorityLabel(job.seniority)} />
+                </dl>
+
+                {/* The apply block, once, near the top — phones only. The
+                    sticky bar takes over when this scrolls away. */}
+                <div id={APPLY_TOP_ID} className="lg:hidden mt-6 space-y-2.5">
+                  {whatsappProps ? (
+                    <>
+                      <WhatsAppButton {...whatsappProps} />
+                      <a
+                        href={`#${APPLY_FORM_ID}`}
+                        className="flex items-center justify-center min-h-12 w-full rounded-[12px] border border-border-strong bg-surface text-ink font-semibold hover:bg-surface-2"
+                      >
+                        Postularme con el formulario
+                      </a>
+                    </>
+                  ) : (
+                    <a
+                      href={`#${APPLY_FORM_ID}`}
+                      className="flex items-center justify-center min-h-[52px] w-full rounded-[12px] bg-brand hover:bg-brand-hover text-white font-semibold"
+                    >
+                      Postularme a este empleo
+                    </a>
+                  )}
+                  <p className="text-xs text-ink-secondary text-center">
+                    Gratis · Te contactás directo con la empresa
+                  </p>
+                </div>
+              </header>
 
               {/* Job images (PLAN-IMAGES.md §5) */}
               {job.images.length > 0 && (
-                <div className={`grid gap-2 mb-6 ${job.images.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                <div className={`px-5 sm:px-8 pb-2 grid gap-2 ${job.images.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
                   {job.images.map((url, index) => (
                     // eslint-disable-next-line @next/next/no-img-element -- one stored size, no next/image loader (PLAN-IMAGES.md §6)
                     <img
@@ -267,73 +355,68 @@ export default async function JobDetailPage({ params }: { params: Params }) {
                 </div>
               )}
 
-              {/* Key details */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-5 border-t border-b border-border mb-6">
-                <Detail
-                  label="Ciudad"
-                  value={city?.name ?? job.citySlug}
-                  icon={<LocationIcon />}
-                  href={`/trabajo-en/${job.citySlug}`}
-                />
-                <Detail
-                  label="Salario"
-                  value={job.salaryHidden ? 'A convenir' : formatSalary(job.salaryMin, job.salaryMax)}
-                  icon={<SalaryIcon />}
-                />
-                <Detail label="Contrato" value={contractTypeLabel(job.contractType)} icon={<ContractIcon />} />
-                <Detail label="Modalidad" value={modalityLabel(job.modality)} icon={<ModalityIcon />} />
-              </div>
-
-              {/* Chips */}
-              <div className="flex flex-wrap gap-2 mb-6">
-                {chips.map((chip) => (
-                  <span
-                    key={chip}
-                    className="px-3 py-1 rounded-full text-xs font-medium bg-surface-2 text-ink-secondary border border-border"
-                  >
-                    {chip}
-                  </span>
-                ))}
-              </div>
-
               {/* Description */}
-              <div className="prose-job">
-                <MarkdownContent content={job.description} />
-              </div>
-
-              {/* Meta */}
-              <div className="mt-8 pt-6 border-t border-border flex flex-col sm:flex-row gap-4 text-sm text-ink-secondary">
-                <time dateTime={job.postedAt}>Publicado: {formatRelativeDate(job.postedAt)}</time>
-                {job.updatedAt !== job.postedAt && (
-                  <time dateTime={job.updatedAt}>Actualizado: {formatRelativeDate(job.updatedAt)}</time>
-                )}
-              </div>
+              <section aria-labelledby="descripcion" className="border-t border-border p-5 sm:p-8">
+                <h2 id="descripcion" className="text-lg font-bold text-ink mb-4">Descripción del puesto</h2>
+                <div className="prose-job">
+                  <MarkdownContent content={job.description} />
+                </div>
+                <p className="mt-6 flex flex-wrap gap-x-3 gap-y-1 text-sm text-ink-3">
+                  <time dateTime={job.postedAt}>{postedLabel}</time>
+                  {showUpdated && (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <time dateTime={job.updatedAt}>Actualizado {updatedAgo}</time>
+                    </>
+                  )}
+                </p>
+              </section>
             </article>
 
-            <ShareLinks
-              title={`${job.title} — ${job.company}`}
-              url={jobUrl}
-              className="mt-6"
-            />
-
-            {/* Omitted entirely when empty — an "Empleos similares" heading
-                over nothing reads as a broken page. */}
-            {similarJobs.length > 0 && (
-              <div className="mt-10">
-                <h2 className="text-lg font-bold text-ink mb-4">Empleos similares</h2>
-                <div className="flex flex-col gap-4">
-                  {similarJobs.map((similar) => (
-                    <JobCard key={similar.slug} job={similar} />
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Trust note. Fraud is the reason seekers distrust job boards;
+                saying the rule out loud, next to a one-tap report, is cheap
+                and it is the promise the whole site makes. */}
+            <aside
+              aria-label="Seguridad"
+              className="mt-4 flex gap-3 rounded-card border border-border bg-surface-2 p-4 text-sm text-ink-secondary"
+            >
+              <ShieldIcon />
+              <p>
+                <strong className="text-ink font-semibold">Postularte es gratis.</strong>{' '}
+                Ninguna empresa seria te cobra por una entrevista, un curso o un uniforme.
+                {reportHref && (
+                  <>
+                    {' '}
+                    <a
+                      href={reportHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-brand hover:underline"
+                    >
+                      Reportar este aviso
+                    </a>
+                  </>
+                )}
+              </p>
+            </aside>
           </div>
 
-          {/* Sidebar: Apply */}
-          <aside className="w-full lg:w-80 flex-shrink-0">
-            <div className="bg-white rounded-[10px] border border-border p-6 sticky top-24">
-              <h2 className="text-lg font-bold text-ink mb-4">Postulate ahora</h2>
+          {/* Apply card: after the description on a phone (the top block and
+              the sticky bar link here), a sticky sidebar from `lg`. */}
+          <aside
+            id={APPLY_FORM_ID}
+            className="mt-6 lg:mt-0 lg:row-span-2 lg:sticky lg:top-24 scroll-mt-20"
+            aria-labelledby="postular-titulo"
+          >
+            <div className="bg-surface rounded-card border border-border shadow-card p-5 sm:p-6">
+              <h2 id="postular-titulo" className="text-lg font-bold text-ink">
+                <span className="lg:hidden">Postulate con el formulario</span>
+                <span className="hidden lg:inline">Postulate a este empleo</span>
+              </h2>
+              <p className="mt-1 mb-5 text-sm text-ink-secondary">
+                <span className="lg:hidden">La empresa recibe tus datos y te contacta.</span>
+                <span className="hidden lg:inline">Gratis · Te contactás directo con la empresa.</span>
+              </p>
 
               {candidateAccountsEnabled() && (
                 <>
@@ -342,29 +425,18 @@ export default async function JobDetailPage({ params }: { params: Params }) {
                 </>
               )}
 
-              {job.whatsapp && (
-                <div className="mb-6">
-                  <WhatsAppButton
-                    whatsapp={job.whatsapp}
-                    jobTitle={job.title}
-                    jobSlug={job.slug}
-                    citySlug={job.citySlug}
-                    categorySlug={job.categorySlug}
-                    contractType={job.contractType}
-                  />
-                  <p className="mt-2 text-xs text-ink-secondary text-center">
-                    Te conecta directamente con la empresa
-                  </p>
-                </div>
-              )}
-
-              {job.whatsapp && (
-                <div className="relative mb-6">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-border" />
-                  </div>
-                  <div className="relative flex justify-center text-xs">
-                    <span className="bg-white px-3 text-ink-secondary">o también</span>
+              {/* On a phone WhatsApp is already at the top and in the sticky
+                  bar; here it would be a third copy above the form. */}
+              {whatsappProps && (
+                <div className="hidden lg:block mb-6">
+                  <WhatsAppButton {...whatsappProps} />
+                  <div className="relative mt-6" aria-hidden="true">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-border" />
+                    </div>
+                    <div className="relative flex justify-center text-xs">
+                      <span className="bg-surface px-3 text-ink-secondary">o completá el formulario</span>
+                    </div>
                   </div>
                 </div>
               )}
@@ -377,76 +449,104 @@ export default async function JobDetailPage({ params }: { params: Params }) {
                 contractType={job.contractType}
               />
             </div>
-
-            {/* Category / similar jobs link */}
-            {category && (
-              <div className="mt-4 bg-white rounded-[10px] border border-border p-4">
-                <p className="text-sm text-ink-secondary">
-                  Más empleos en{' '}
-                  <Link href={`/trabajo/${category.slug}`} className="text-brand font-medium hover:underline">
-                    {category.name}
-                  </Link>
-                  {city && (
-                    <>
-                      {' '}en{' '}
-                      <Link
-                        href={`/trabajo/${category.slug}/${job.citySlug}`}
-                        className="text-brand font-medium hover:underline"
-                      >
-                        {city.name}
-                      </Link>
-                    </>
-                  )}
-                </p>
-              </div>
-            )}
           </aside>
+
+          <div className="min-w-0 mt-8 lg:mt-6">
+            <ShareLinks title={`${job.title} — ${job.company}`} url={jobUrl} />
+
+            {/* Omitted entirely when empty — an "Empleos similares" heading
+                over nothing reads as a broken page. */}
+            {similarJobs.length > 0 && (
+              <section className="mt-10" aria-labelledby="similares">
+                <div className="flex items-baseline justify-between gap-4 mb-4">
+                  <h2 id="similares" className="text-lg font-bold text-ink">Empleos similares</h2>
+                  {category && (
+                    <Link href={`/trabajo/${category.slug}`} className="text-sm font-medium text-brand hover:underline whitespace-nowrap">
+                      Ver más <span aria-hidden="true">→</span>
+                    </Link>
+                  )}
+                </div>
+                <div className="flex flex-col gap-4">
+                  {similarJobs.map((similar) => (
+                    <JobCard key={similar.slug} job={similar} />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {category && (
+              <p className="mt-6 text-sm text-ink-secondary">
+                Más empleos en{' '}
+                <Link href={`/trabajo/${category.slug}`} className="text-brand font-medium hover:underline">
+                  {category.name}
+                </Link>
+                {city && (
+                  <>
+                    {' '}en{' '}
+                    <Link
+                      href={`/trabajo/${category.slug}/${job.citySlug}`}
+                      className="text-brand font-medium hover:underline"
+                    >
+                      {city.name}
+                    </Link>
+                  </>
+                )}
+              </p>
+            )}
+
+            {/* The other audience. Every job page is also read by people who
+                hire; this is where the site's free listing is offered to them. */}
+            <section className="mt-10 rounded-card bg-ink text-white p-6 sm:p-8">
+              <h2 className="text-lg sm:text-xl font-bold">¿Tu empresa está contratando?</h2>
+              <p className="mt-2 text-sm text-white/75 max-w-md">
+                Publicá tu empleo gratis. Los postulantes te escriben directo a tu WhatsApp.
+              </p>
+              <Link
+                href="/publicar"
+                className="mt-5 inline-flex items-center justify-center min-h-11 px-5 rounded-[10px] bg-white text-ink font-semibold hover:bg-surface-2"
+              >
+                Publicar un empleo gratis
+              </Link>
+            </section>
+          </div>
         </div>
       </div>
+
+      {/* Phones only; lives outside the grid so `fixed` is relative to the
+          viewport, not to a transformed ancestor. */}
+      <MobileApplyBar
+        whatsapp={job.whatsapp}
+        jobTitle={job.title}
+        jobSlug={job.slug}
+        citySlug={job.citySlug}
+        categorySlug={job.categorySlug}
+        contractType={job.contractType}
+        topAnchorId={APPLY_TOP_ID}
+        formAnchorId={APPLY_FORM_ID}
+      />
     </>
   );
 }
 
-function Detail({
-  label,
-  value,
-  icon,
-  href,
-}: {
-  label: string;
-  value: string;
-  icon: React.ReactNode;
-  /** Optional (PLAN-GROWTH.md §4 S4 — the city detail links to its landing). */
-  href?: string;
-}) {
+function Fact({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex flex-col gap-1">
-      <span className="flex items-center gap-1.5 text-xs text-ink-secondary uppercase tracking-wide font-medium">
-        <span className="text-ink-secondary">{icon}</span>
-        {label}
-      </span>
-      {href ? (
-        <Link href={href} className="text-sm font-semibold text-brand hover:underline">
-          {value}
-        </Link>
-      ) : (
-        <span className="text-sm font-semibold text-ink">{value}</span>
-      )}
+    <div className="min-w-0 rounded-[10px] border border-border px-3 py-2.5">
+      <dt className="text-[11px] font-semibold uppercase tracking-wide text-ink-3">{label}</dt>
+      <dd className="mt-0.5 text-sm font-semibold text-ink leading-snug">{value}</dd>
     </div>
+  );
+}
+
+function ShieldIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className="flex-shrink-0 text-success mt-px">
+      <path fillRule="evenodd" d="M10 1.944A11.954 11.954 0 012.166 5C2.056 5.649 2 6.319 2 7c0 5.225 3.34 9.67 8 11.317C14.66 16.67 18 12.225 18 7c0-.682-.057-1.35-.166-2.001A11.954 11.954 0 0110 1.944zM13.707 8.707a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+    </svg>
   );
 }
 
 function LocationIcon() {
   return <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd"/></svg>;
-}
-function SalaryIcon() {
-  return <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z"/><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clipRule="evenodd"/></svg>;
-}
-function ContractIcon() {
-  return <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd"/></svg>;
-}
-function ModalityIcon() {
-  return <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/></svg>;
 }
 
 /**

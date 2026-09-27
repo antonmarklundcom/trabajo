@@ -10,16 +10,25 @@ export function formatSalary(min: number | null, max: number | null): string {
   return 'A convenir';
 }
 
-export function formatRelativeDate(iso: string): string {
+/**
+ * "hoy", "ayer", "hace 3 días" … — the relative part on its own, so a label
+ * can put its own verb in front ("Actualizado hace 2 días").
+ */
+export function relativeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const days = Math.floor(diff / 86_400_000);
-  if (days === 0) return 'Publicado hoy';
-  if (days === 1) return 'Publicado ayer';
-  if (days < 7) return `Publicado hace ${days} días`;
-  if (days < 14) return 'Publicado hace 1 semana';
-  if (days < 30) return `Publicado hace ${Math.floor(days / 7)} semanas`;
-  if (days < 60) return 'Publicado hace 1 mes';
-  return `Publicado hace ${Math.floor(days / 30)} meses`;
+  if (days <= 0) return 'hoy';
+  if (days === 1) return 'ayer';
+  if (days < 7) return `hace ${days} días`;
+  if (days < 14) return 'hace 1 semana';
+  if (days < 30) return `hace ${Math.floor(days / 7)} semanas`;
+  if (days < 60) return 'hace 1 mes';
+  return `hace ${Math.floor(days / 30)} meses`;
+}
+
+/** "Publicado hace 3 días" — the verb is part of the string. */
+export function formatRelativeDate(iso: string): string {
+  return `Publicado ${relativeAgo(iso)}`;
 }
 
 /**
