@@ -51,6 +51,9 @@ export const EMPLOYER_INTENTS = [
   // Renewing the LISTING itself (lib/listing-expiry.ts), as opposed to
   // 'renovar' above, which is renewing a Destacado window.
   'renovar_aviso',
+  // "Avisame de la próxima promoción" on /publicar-gratis while no promotion
+  // runs — a question, not a way to publish (§14 of PLAN-GROWTH.md).
+  'promocion',
 ] as const;
 
 export type EmployerIntent = (typeof EMPLOYER_INTENTS)[number];
@@ -100,6 +103,8 @@ function employerIntentMessage(intent: EmployerIntent, options: EmployerIntentOp
       return context?.companyName
         ? `Hola, soy de ${context.companyName} y quiero renovar el plan Destacado.`
         : 'Hola, quiero renovar el plan Destacado.';
+    case 'promocion':
+      return 'Hola, quiero enterarme de la próxima promoción para publicar empleos gratis en trabajo.com.py.';
     case 'renovar_aviso':
       return `Hola, quiero renovar mi aviso en trabajo.com.py.${contextSuffix(context)}`;
   }

@@ -1,7 +1,11 @@
 # Keyword research — Google Keyword Planner, 2026-09-27
 
-Raw data: [`keywords-2026-09-27.csv`](keywords-2026-09-27.csv) — 298 unique
-phrases, one row each: `phrase, monthly_searches, low_cpc_sek, high_cpc_sek`.
+Raw data: [`keywords-2026-09-27.csv`](keywords-2026-09-27.csv) — one row per
+unique phrase: `phrase, monthly_searches, low_cpc_sek, high_cpc_sek`.
+
+Add a new Keyword Planner paste with `python3 docs/seo/kwp-merge.py paste.txt`:
+it parses the planner's copy-paste format, keeps existing rows, appends new
+phrases and re-sorts by volume.
 
 - **Location / language:** Paraguay, Spanish (the first "publicar … gratis"
   batch may have been pulled with a different location — re-check it before
@@ -24,7 +28,7 @@ phrases, one row each: `phrase, monthly_searches, low_cpc_sek, high_cpc_sek`.
 | Part-time / students | trabajos de medio tiempo para estudiantes paraguay (90), bolsa de trabajo paraguay medio tiempo (70) | — | Candidate for a filter landing (modalidad = medio tiempo) or a blog guide |
 | Profession | bolsa de trabajo para ingenieros en paraguay (50), … para docentes (30) | — | Category landings / blog |
 | Employer, evergreen | busco empleados (110), buscar personal (90), busco personal (20), se necesita personal, necesito personal, contratar personal, reclutamiento / selección de personal (30 each), anuncios de empleo, clasificados de empleo | `/buscar-personal` | New page, indexed, in the sitemap and footer |
-| Employer, "gratis" | publicar empleos gratis, publicar trabajos gratis, publicar ofertas de empleo gratis, paginas para publicar empleos gratis (all ~10) | `/publicar-gratis` (ads only) | `noindex`; title uses the wording for ad relevance. Volume is too small and the page too temporary to rank |
+| Employer, "gratis" | publicar empleos gratis, publicar trabajos gratis, publicar ofertas de empleo gratis, paginas para publicar empleos gratis, plataformas para publicar vacantes gratis (all ~10) | `/publicar-gratis` (permanent, indexed) + blog draft `paginas-para-publicar-empleos-gratis-en-paraguay` | Page sells the promotion when one runs and says honestly when none does (PLAN-GROWTH.md §18). Also the Google Ads landing |
 | Competitor brand | computrabajo paraguay (590), computrabajo empresas, publicar en computrabajo | — | Ads only, never page copy naming them |
 
 ## Not ours

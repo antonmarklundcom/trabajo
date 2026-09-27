@@ -185,8 +185,10 @@ check(
 
 const landing = code(read('app/publicar-gratis/page.tsx'));
 check(
-  '/publicar-gratis hands off to /publicar once the promotion is over',
-  /if \(!promo\) redirect\('\/publicar'\)/.test(landing),
+  '/publicar-gratis says there is no promotion, and the price, once it is over',
+  landing.includes('Hoy no hay una promoción activa') &&
+    /cuesta \{regular\} por 30/.test(landing) &&
+    !landing.includes('redirect('),
 );
 check(
   '/publicar-gratis posts through the same moderated form as /publicar',

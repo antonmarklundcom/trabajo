@@ -41,6 +41,7 @@ const DEFAULT_LABEL: Record<EmployerIntent, string> = {
   contacto: 'Escribinos por WhatsApp',
   renovar: 'Renovar por WhatsApp',
   renovar_aviso: 'Renovar aviso por WhatsApp',
+  promocion: 'Avisame de la próxima promoción',
 };
 
 const VARIANT_CLASS: Record<Variant, Record<Size, string>> = {

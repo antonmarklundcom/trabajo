@@ -1415,8 +1415,7 @@ instead of straight to the form:
   benefits (`components/EmployerBenefits.tsx`), "un posteo en redes vs. un
   aviso en el portal" comparison (no competitor named), how it works, the same
   `EmployerForm` as `/publicar` (so a lead is an ordinary `pending` listing),
-  FAQ. `noindex` so it does not compete with `/publicar`; redirects to
-  `/publicar` once no promotion is active.
+  FAQ. *Superseded by §18: the page is now permanent and indexed.*
 - **Value copy** describes what the product does — 30 days, search and filters
   by category/city/salary, a page prepared for Google, WhatsApp applications,
   reviewed listings, no daily spam — and never claims more candidates or speed
@@ -1440,8 +1439,29 @@ Data and the keyword → page map live in `docs/seo/KEYWORDS.md` and
   personal, se necesita personal, reclutamiento/selección de personal), in the
   sitemap and the footer. Honest about not being a selection agency (§4 of
   /terminos).
-- `/publicar-gratis` stays `noindex`; its title carries the "publicar empleos
-  gratis" wording for Google Ads relevance only.
+- `/publicar-gratis`: see §18 (permanent, indexed).
 - Invoices: `INVOICE_NOTE` in `lib/plans.ts`, shown on /planes,
   /publicar-gratis and /buscar-personal.
+
+## 18. `/publicar-gratis` is permanent (2026-09-27)
+
+Owner decision: keep whatever the page ranks for after a promotion ends,
+instead of redirecting it away.
+
+- **One URL, two states.** While the Básico promotion runs, it sells it (as in
+  §16). With none running, its first line is "Hoy no hay una promoción
+  activa", it states today's price, keeps the benefits, comparison and form,
+  and offers "Avisame de la próxima promoción" (WhatsApp intent `promocion` —
+  a question, never a way to publish). The word "gratis" stays in the title
+  because that is the search; the page answers it honestly.
+  `pricing:verify` asserts the no-promotion copy and that it never redirects.
+- **Indexed and in the sitemap.** Title targets "publicar empleos gratis";
+  the comparison heading targets "plataformas para publicar empleos".
+- **Blog support:** `content/blog-drafts/paginas-para-publicar-empleos-gratis-en-paraguay.md`
+  targets "páginas para publicar empleos gratis" / "plataformas para publicar
+  vacantes gratis" as an honest guide to the options (social groups,
+  LinkedIn, portals, MTESS, universities, us), linking to the page. Its
+  `[VERIFICAR]` markers must be cleared before it is published.
+- The "gratis" searches are all ~10/month in Paraguay; this is a cheap
+  long-term position plus Google Ads relevance, not a traffic plan.
 
