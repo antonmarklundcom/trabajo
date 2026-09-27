@@ -8,5 +8,6 @@
 // PR 6 landed the employer terms/privacy copy (/terminos §4-5, /privacidad
 // §5-6). PR 11 adds the candidate-facing privacy sections (/privacidad §7-9:
 // retention periods, ARCO rights, private-by-default statement) — bumped
-// again per the file-level note above.
-export const POLICY_VERSION = '2026-08-09-candidate-copy-v1';
+// again per the file-level note above. The job-alerts section (/privacidad §10)
+// bumped it once more, before JOB_ALERTS_ENABLED is switched on.
+export const POLICY_VERSION = '2026-09-27-job-alerts-v1';

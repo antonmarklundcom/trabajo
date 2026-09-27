@@ -6,6 +6,8 @@ import {
   APPLICATION_REDACTION_MONTHS,
   CONSENT_RETENTION_MONTHS,
   ACCESS_LOG_RETENTION_MONTHS,
+  JOB_ALERT_UNCONFIRMED_DAYS,
+  JOB_ALERT_INACTIVITY_MONTHS,
 } from '@/lib/retention';
 import { candidateAccountsEnabled } from '@/lib/flags';
 
@@ -84,13 +86,21 @@ const sections = [
     ],
   },
   {
-    title: '10. Cookies y analítica',
+    title: '10. Alertas de empleos por email',
+    body: [
+      `Si pedís recibir avisos de empleos nuevos, guardamos solo tu email y el filtro que elegiste (categoría y/o ciudad). Te pedimos confirmar el email antes de enviarte nada; si no lo confirmás, borramos el pedido a los ${JOB_ALERT_UNCONFIRMED_DAYS} días.`,
+      `Te escribimos como máximo una vez por semana y solo cuando hay empleos nuevos. Podés darte de baja desde cualquiera de esos emails, y al hacerlo borramos la alerta. Si una alerta pasa ${JOB_ALERT_INACTIVITY_MONTHS} meses sin enviarte nada, también la borramos.`,
+      `Guardamos el registro de tu consentimiento (cuándo te suscribiste y cuándo te diste de baja, sin tu email) durante ${CONSENT_RETENTION_MONTHS / 12} años después de que la alerta se elimine.`,
+    ],
+  },
+  {
+    title: '11. Cookies y analítica',
     body: [
       'El sitio puede usar cookies y tecnologías similares con fines de analítica (por ejemplo, Google Analytics) para entender cómo se usa el portal. Podés bloquear las cookies desde la configuración de tu navegador sin que eso impida usar el sitio.',
     ],
   },
   {
-    title: '11. Cambios a esta política',
+    title: '12. Cambios a esta política',
     body: [
       'Podemos actualizar esta política para reflejar cambios en el sitio o en la normativa. La versión vigente estará siempre publicada en esta página.',
     ],
@@ -106,7 +116,7 @@ export default function PrivacidadPage() {
       <h1 className="text-3xl sm:text-4xl font-bold text-ink">
         Política de privacidad
       </h1>
-      <p className="mt-3 text-sm text-ink-3">Última actualización: julio de 2026</p>
+      <p className="mt-3 text-sm text-ink-3">Última actualización: septiembre de 2026</p>
 
       <div className="mt-8 space-y-8">
         {sections.map((s) => (
