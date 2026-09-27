@@ -10,6 +10,14 @@ existing rows, appends new phrases, re-sorts by volume. Put raw exports in
 `docs/seo/raw/` if you want to keep them. The build plan that uses this data
 is `PLAN-SEO.md`.
 
+**No-AI option:** open [`kwp-tool.html`](kwp-tool.html) in a browser (double-click
+it — works offline, nothing is uploaded). Drop any number of Keyword Planner
+exports plus this CSV; it merges variants with the same rule as the script,
+filters (text, /regex/, minimum volume, exclusion list), totals editable themes
+and cities, shows top words and word pairs weighted by volume, and downloads
+the merged or filtered CSV in the 4-column format above. Tested to give the
+same 3.727 unique phrases as `kwp-merge.py` on the three 2026-09-27 exports.
+
 - **Location / language:** Paraguay, Spanish (the first "publicar … gratis"
   batch may have been pulled with a different location — re-check it before
   relying on it).

@@ -104,8 +104,7 @@ def from_paste(text):
 
 
 def fmt(n, decimals):
-    if n is None:
-        return '0'
+    n = n or 0
     return f'{n:.{decimals}f}' if decimals else str(int(n))
 
 
@@ -129,7 +128,7 @@ def main(paths):
 
     if os.path.exists(CSV_PATH):
         for r in csv.DictReader(open(CSV_PATH, encoding='utf-8')):
-            put((r['phrase'], int(r['monthly_searches']), r['low_cpc_sek'], r['high_cpc_sek']))
+            put((r['phrase'], int(r['monthly_searches']), fmt(number(r['low_cpc_sek']), 2), fmt(number(r['high_cpc_sek']), 2)))
     added = 0
     for path in paths:
         text = read_text(path)
