@@ -1,6 +1,6 @@
 # PLAN-SEO.md — programmatic SEO build (2026-09-27)
 
-Status: **not started.** Six PRs (plus one optional PR), each small enough for a single Claude Code
+Status: **not started.** Seven PRs (plus one optional PR), each small enough for a single Claude Code
 session, each with a copy-paste prompt in §4. Keyword data and the
 keyword → page map live in `docs/seo/` (`KEYWORDS.md`,
 `keywords-2026-09-27.csv`); PLAN-GROWTH.md §17 records what already shipped
@@ -47,15 +47,35 @@ with `SearchAction` on `/`, `BlogPosting` on articles. New page types add
 | S4 | Job-title landings `/empleos-de/[puesto]` from a curated dictionary | Opus | — | block 4 (job titles) |
 | S5 | Salary pages `/salarios/[puesto]` | Opus | S4 (reuses its dictionary) | block 6 (salaries) |
 | S6 | Labour calculators (aguinaldo, salario neto/IPS, salario mínimo) | Sonnet | owner verifies the legal constants | block 7 (labour rights) |
+| S7 | Schedule field on jobs ("de lunes a viernes", fines de semana, nocturno, rotativo) + filter + landing | Opus | — | already met: 3.230 searches/mo (KEYWORDS.md) |
 
-Order: S1 and S2 first (small, immediate), then S3, S4, S5; S6 whenever the
-owner has verified the constants. S0 can go anywhere.
+Order: S1 and S2 first (small, immediate), then S3, S7, S4, S5; S6 whenever
+the owner has verified the constants. S0 can go anywhere. Evidence for the
+order is in `docs/seo/KEYWORDS.md` ("What the 2026-09-27 seeker export says"):
+company careers 8.470/mo, remote 5.110, schedule 3.230, sin experiencia 2.060.
 
 "Keyword gate" means: before the session starts, the owner has merged that
 block's Keyword Planner results into `docs/seo/keywords-2026-09-27.csv`
 (`python3 docs/seo/kwp-merge.py <export.csv>`), and the session picks its
 page list and title wording from the CSV — **not** from guesses. A candidate
 page with no search demand is not built.
+
+### S7 — Schedule field ("de lunes a viernes")
+
+"busco trabajo de lunes a viernes en paraguay" alone is 1.300/mo, and the
+schedule theme totals 3.230/mo — but a job has no schedule today, so no page
+can answer it honestly.
+
+- Schema: `jobs.schedule` — a nullable `mysqlEnum` (`lunes_a_viernes`,
+  `lunes_a_sabado`, `fines_de_semana`, `nocturno`, `rotativo`), a Drizzle
+  migration, no foreign key. Nullable because every existing job predates it.
+- Every write path sets it: admin `JobForm`, the employer dashboard form, and
+  the `/publicar` form (optional field). Validation in the shared Zod schema.
+- Display on the job page and card; `JobPosting` gets `workHours` as text.
+- `/empleos` filter `horario=…`; a landing `/trabajo-de-lunes-a-viernes`
+  (and `/trabajo-nocturno`, `/trabajo-fin-de-semana` if demand holds) with the
+  same indexing rule as S3.
+- `db:parity` / seed JSON updated; `seo:verify` covers the new landing rule.
 
 ### S0 — Google Indexing API (optional)
 
@@ -94,9 +114,10 @@ page with no search demand is not built.
 
 ### S2 — More cities
 
-- Add the cities block 2 shows demand for (candidates: Fernando de la Mora,
-  Limpio, Mariano Roque Alonso, Ñemby, Itauguá, Caacupé, Concepción, Pedro
-  Juan Caballero, Caaguazú, Villarrica, Coronel Oviedo) to `lib/seed/cities.json`
+- Add the cities the 2026-09-27 export shows demand for: Caaguazú (330/mo),
+  Mariano Roque Alonso (280), Ñemby (240), Caacupé (220), Coronel Oviedo
+  (210), Pedro Juan Caballero (180), Limpio (120), Itauguá (120), Villarrica
+  (80) to `lib/seed/cities.json`
   **and** the `cities` table through an idempotent upsert script (the pattern
   of `scripts/migrate-capiata-slug.ts`), with a `CITY_COPY` paragraph each.
 - Nothing else changes: `/trabajo-en/[ciudad]` already renders any city, is
@@ -111,8 +132,10 @@ page with no search demand is not built.
   `/trabajo-medio-tiempo` (tipo=medio_tiempo), `/pasantias` (tipo=pasantia),
   `/trabajo-temporal` (tipo=temporal), `/trabajo-freelance`
   (tipo=freelance), `/trabajo-sin-experiencia` (nivel=sin_experiencia),
-  `/trabajo-remoto` (modalidad=remoto). Final slugs and titles come from
-  block 3; drop any with no demand.
+  `/trabajo-remoto` (modalidad=remoto). Demand so far: remoto 5.110/mo,
+  sin experiencia 2.060, medio tiempo 1.650 — build those three first; drop
+  any other with no demand. Use "vacancias" as well as "empleos" in titles
+  (vacancia laboral: 1.960/mo — the Paraguayan word).
 - One shared component + a definitions file (`lib/seo/job-type-landings.ts`:
   slug, filter, H1, title, intro paragraph). Paginated like the city
   landings, with `BreadcrumbList` + `ItemList` and cross-links to cities and categories.
@@ -243,6 +266,16 @@ Use the model named in the table; never Fable for these sessions.
 > functions, `scripts/verify-labor.ts` with worked examples wired as a step in
 > the existing CI job, and cross-links with the matching blog guides. No
 > liquidación calculator. Verify locally; one PR.
+
+**S7 (Opus)**
+> Read AGENTS.md and PLAN-SEO.md §1 and §2 S7. Add the nullable
+> `jobs.schedule` enum with a Drizzle migration (no FK), set it from every job
+> write path (admin JobForm, employer dashboard form, the optional field on
+> /publicar via the shared Zod schema), show it on the job page, card and
+> JobPosting `workHours`, add the `horario` filter to /empleos and the
+> `/trabajo-de-lunes-a-viernes` landing with the S3 indexing rule. Keep seed
+> and DB in parity. Verify locally, including `db:test` if a database is
+> available; one PR.
 
 **S0 (Opus)** — after the owner has set `GOOGLE_INDEXING_SA_JSON`
 > Read AGENTS.md and PLAN-SEO.md §1 and §2 S0. Implement the Indexing API
