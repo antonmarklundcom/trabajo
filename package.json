@@ -38,6 +38,7 @@
     "moderation:verify": "tsx scripts/verify-moderation.ts",
     "blog:verify": "tsx --conditions=react-server --env-file-if-exists=.env scripts/verify-blog.ts",
     "blog:import": "tsx --conditions=react-server --env-file-if-exists=.env scripts/blog-import.ts",
+    "blog:drafts": "tsx --conditions=react-server --env-file-if-exists=.env scripts/blog-drafts.ts",
     "jobs:verify": "tsx scripts/verify-jobs.ts",
     "sort:verify": "tsx scripts/verify-sort-parity.ts",
     "seo:verify": "tsx scripts/verify-seo.ts",

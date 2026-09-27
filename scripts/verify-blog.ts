@@ -35,6 +35,7 @@ import { blogArchiveRobots, blogArchivesForSitemap, blogListingCanonical } from 
 import { parsePageParam } from '../lib/pagination';
 import { readingMinutes, seoChecklist, wordCount } from '../lib/blog-editor';
 import { blogPostSchema, unknownRelatedTaxonomy } from '../app/api/admin/blog/schema';
+import { checkDraftBodyRules, checkDrafts } from './blog-drafts';
 
 let failures = 0;
 
@@ -586,6 +587,25 @@ async function main() {
       'a city landing and an absolute production URL count as landing links',
       seoChecklist({ title: '', description: '', body: '[a](/trabajo-en/luque)', category: 'noticias', relatedCategory: '' }).find((c) => c.id === 'landing-link')?.ok === true &&
         seoChecklist({ title: '', description: '', body: '[a](https://trabajo.com.py/empleos?q=x)', category: 'noticias', relatedCategory: '' }).find((c) => c.id === 'landing-link')?.ok === true,
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // 3h. The C0 drafts are importable (PLAN-GROWTH.md §4 C0).
+  // -------------------------------------------------------------------------
+  // content/blog/drafts/ is what `blog:import -- --drafts` inserts, and that
+  // import refuses the whole batch if one file fails scripts/blog-drafts.ts.
+  // Checking it here means a draft that could not be imported never merges.
+  {
+    const reports = await checkDrafts();
+    for (const r of reports) {
+      check(`draft ${r.file.replace(process.cwd() + '/', '')} is importable`, r.errors.length === 0, r.errors.join('; '));
+    }
+    const legalFixture = checkDraftBodyRules('derechos-laborales', 'Sin marca de revisión.\n\nTexto.');
+    check(
+      'a derechos-laborales draft without the review marker and disclaimer is refused',
+      legalFixture.length === 2,
+      legalFixture.join('; '),
     );
   }
 

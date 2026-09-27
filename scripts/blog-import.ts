@@ -1,7 +1,15 @@
-// One-time import of the Väg A Markdown articles into blog_posts.
+// Imports Markdown articles into blog_posts.
 //
-//   npm run blog:import           # dry run, prints what it would insert
+//   npm run blog:import                       # dry run, prints what it would insert
 //   npm run blog:import -- --write
+//   npm run blog:import -- --drafts           # content/blog/drafts/ (C0), dry run
+//   npm run blog:import -- --drafts --write
+//
+// --drafts (PLAN-GROWTH.md §4 C0): the content-sprint drafts, validated by
+// scripts/blog-drafts.ts — the same check blog:verify runs in CI — and
+// inserted as `draft` with no editorial date, so the owner reviews each one in
+// /admin/blog and the date is the day they publish it. A single failing draft
+// stops the whole run before anything is written.
 //
 // Written for the Väg A → Väg B cutover (PLAN-PHASE3-DRAFT.md §11). The three
 // published articles and the example draft were committed as content/blog/*.md
@@ -19,6 +27,7 @@ import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
 import { requireDatabaseUrl } from './require-db-url';
+import { checkDrafts, listDraftFiles, parseFrontmatter } from './blog-drafts';
 
 const BLOG_DIR = join(process.cwd(), 'content', 'blog');
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -37,23 +46,66 @@ const frontmatterSchema = z.object({
   relatedCity: z.string().optional(),
 });
 
-function parseFrontmatter(raw: string): { data: Record<string, string>; body: string } {
-  const match = raw.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
-  if (!match) throw new Error('Frontmatter faltante o mal formado');
-  const [, block, body] = match;
-  const data: Record<string, string> = {};
-  for (const line of block.split('\n')) {
-    if (!line.trim()) continue;
-    const idx = line.indexOf(':');
-    if (idx === -1) throw new Error(`Línea de frontmatter inválida: "${line}"`);
-    data[line.slice(0, idx).trim()] = line.slice(idx + 1).trim();
+async function importDrafts(write: boolean) {
+  const reports = await checkDrafts(listDraftFiles());
+  const failing = reports.filter((r) => r.errors.length > 0 || !r.draft);
+  if (failing.length > 0) {
+    for (const r of failing) console.error(`FAIL  ${r.file}\n        ${r.errors.join('\n        ')}`);
+    throw new Error(`${failing.length} draft(s) fail npm run blog:drafts — nothing was imported.`);
   }
-  return { data, body };
+
+  const { db } = await import('../lib/db/index');
+  const { blogPosts } = await import('../lib/db/schema');
+  const { eq } = await import('drizzle-orm');
+
+  let inserted = 0;
+  let skipped = 0;
+  for (const { draft } of reports) {
+    if (!draft) continue;
+    const [existing] = await db
+      .select({ id: blogPosts.id })
+      .from(blogPosts)
+      .where(eq(blogPosts.slug, draft.slug))
+      .limit(1);
+    if (existing) {
+      console.log(`skip    ${draft.slug} (already in blog_posts, id ${existing.id})`);
+      skipped += 1;
+      continue;
+    }
+    console.log(`${write ? 'insert ' : 'would  '} ${draft.slug} — ${draft.title} [${draft.category}, draft]`);
+    if (write) {
+      await db.insert(blogPosts).values({
+        slug: draft.slug,
+        title: draft.title,
+        description: draft.description,
+        body: draft.body,
+        category: draft.category,
+        status: 'draft',
+        relatedCategorySlug: draft.relatedCategory,
+        relatedCitySlug: draft.relatedCity,
+        publishedAt: null,
+        authorUserId: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      inserted += 1;
+    }
+  }
+  console.log(
+    write
+      ? `\n${inserted} inserted as drafts, ${skipped} skipped.`
+      : `\nDry run. ${reports.length - skipped} would be inserted as drafts, ${skipped} skipped. Re-run with --write.`,
+  );
 }
 
 async function main() {
   const write = process.argv.includes('--write');
   requireDatabaseUrl();
+
+  if (process.argv.includes('--drafts')) {
+    await importDrafts(write);
+    process.exit(0);
+  }
 
   if (!existsSync(BLOG_DIR)) {
     console.log('content/blog/ does not exist — nothing to import.');

@@ -10,6 +10,25 @@ Deleting them is safe once the import has run against production. They are kept
 for now because a one-time import is easier to re-run — or to check — while its
 input still exists.
 
+## Drafts from the content sprint (`drafts/`)
+
+`content/blog/drafts/` holds the C0 sprint (PLAN-GROWTH.md §4 C0): AI-written
+drafts for the owner to edit and publish. They are not read by the site either.
+Two ways in:
+
+- Paste one into `/admin/blog` → **+ Nuevo artículo** (frontmatter fields map
+  1:1 to the form; the body is everything below the second `---`).
+- Or all at once: `npm run blog:import -- --drafts` (dry run), then
+  `npm run blog:import -- --drafts --write`. Every file is inserted as
+  **Borrador** with no date; the date becomes the day you publish it. Existing
+  slugs are skipped, never overwritten. Needs `DATABASE_URL`, and migration
+  `0015` applied first (four of the seven categories do not exist before it).
+
+`npm run blog:drafts` checks every draft against the same rules the admin form
+enforces plus the content rules below; `blog:verify` runs it in CI.
+`derechos-laborales` drafts open with a **Revisión pendiente** line — remove it
+only after a lawyer has read the article (PLAN-GROWTH.md §7 D14).
+
 ## Writing an article now
 
 `/admin/blog` → **+ Nuevo artículo**. Fields, and what each one is for:
@@ -19,7 +38,7 @@ input still exists.
 | Título | The `<h1>` and the SERP title. |
 | Slug | Optional; generated from the title. Editing it on a **published** article creates a 301 from the old URL automatically — no manual redirect step. |
 | Descripción | The `<meta name="description">` and the share text. 50–160 characters, enforced. The form shows a Google preview as you type. |
-| Categoría | `noticias`, `analisis-laboral` or `consejos-cv`. Closed list. |
+| Categoría | One of the seven in `lib/blog-categories.ts` (`noticias`, `analisis-laboral` — shown as "Mercado laboral" —, `consejos-cv`, `entrevistas`, `derechos-laborales`, `guias-por-sector`, `para-empresas`). Closed list. A `guias-por-sector` article must set Empleos relacionados → categoría. |
 | Estado | `Borrador` is invisible everywhere — no route, not in the list, not in the sitemap. `Publicado` is live immediately. |
 | Fecha de publicación | The editorial date. Left empty, it is today. |
 | Empleos relacionados | A category and/or city; up to five published jobs are shown at the foot of the article. This is internal linking — it is most of the SEO value the blog has. |
