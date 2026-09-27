@@ -87,9 +87,40 @@ change; it does not connect to a database.
 writes two throwaway companies with a job and an applicant each, asserts that
 neither can see or modify the other through `lib/db/employer.ts`, and deletes
 them again. It refuses a non-local `DATABASE_URL` without `--force` — do not
-point it at production. Run it after touching anything in that module. It runs
+point it at production. Run it after touching anything in that module. CI runs
+the same assertions as case 4 of `npm run db:test` (below). It runs
 under `tsx --conditions=react-server` so that `server-only` resolves to its
 no-op build, the same way it does inside a React Server Component.
+
+`npm run db:test` is the DB-backed test suite, and the one `db:*` script that
+**never** runs against a real database. It applies every migration to an empty
+MySQL, writes its own fixtures, and exercises the real `lib/db/*` functions:
+public visibility through `lib/data.ts` (pending, rejected and expired jobs
+never surface), `createApplication` (refuses closed jobs; over-long phone and
+source page still insert), `deleteJob`'s redaction plus the orphan sweep in
+`lib/db/retention.ts`, employer scoping (it runs `verify-scoping.ts`'s
+assertions), and `acceptInvitation`'s rollback. CI runs it on every PR against
+a `mysql:8.0` service container. It refuses to start unless `DATABASE_URL`'s
+host is `localhost`/`127.0.0.1` **and** `DB_TEST_ALLOW_DESTRUCTIVE=1` is set,
+and it deliberately does not read `.env` — both values are passed on the
+command line, every time. To run it locally with Docker:
+
+```bash
+docker run -d --rm --name trabajo-test-mysql -p 127.0.0.1:3307:3306 \
+  -e MYSQL_ROOT_PASSWORD=test -e MYSQL_DATABASE=trabajo_test \
+  --tmpfs /var/lib/mysql mysql:8.0
+# ~15 s to initialise; the script waits up to 30 s for a connection itself.
+DB_TEST_ALLOW_DESTRUCTIVE=1 \
+DATABASE_URL='mysql://root:test@127.0.0.1:3307/trabajo_test' npm run db:test
+docker stop trabajo-test-mysql   # --rm + tmpfs: nothing is left behind
+```
+
+(PowerShell: set the two variables with `$env:DB_TEST_ALLOW_DESTRUCTIVE='1'`
+and `$env:DATABASE_URL='...'` first, then `npm run db:test`.) Port 3307 keeps
+it clear of a MySQL you may already run on 3306. It exits 0 with a pass count,
+or 1 with a list of every failed check prefixed by its case number (`[3 deleteJob
+redaction + orphan sweep] ...`). Add a case there when you fix a bug that only
+shows up when a query actually runs.
 
 `npm run storage:verify` is also local-only and needs neither a database nor a
 bucket: it round-trips the disk driver through a temp directory, asserts the
@@ -305,6 +336,52 @@ npm run alerts:send -- --verbose # also list every skipped alert
 - Retention is in `db:purge`: unconfirmed alerts go after 7 days, confirmed
   ones after 12 months without a send; both are a hard DELETE plus an appended
   `granted=false` consents row.
+
+### `npm run listings:confirm` — "¿Tu aviso sigue abierto?"
+
+Emails the employer users of every **published** listing whose `expires_at`
+falls within the next 7 days (`EXPIRY_WARNING_DAYS`) with two one-click links:
+**"Sí, sigue abierto"** renews it by 30 days (`LISTING_DAYS`, the same
+arithmetic as the admin renewal) and **"Ya lo cubrimos, cerralo"** archives it.
+Nobody answering is fine: the listing closes on its date, as it already does.
+Neither link can publish anything or touch `featured_until`.
+
+```bash
+npm run listings:confirm              # DRY RUN — lists what it would send
+npm run listings:confirm -- --apply   # sends, and records each send
+```
+
+Run it **daily**. Hostinger has no cron, so that is a person or a scheduled
+Claude Routine, same as `db:purge` — and like the purge, missing a day costs
+nothing but a day: each listing is asked once per expiry (the send is recorded
+in `activity_log` as `listing_confirm_sent` with the `expires_at` it asked
+about), so running it every day of the window, or twice in one day, sends one
+email per listing. A listing whose company has no active employer account is
+skipped and stays on `/admin` → "Avisos que vencen" for the WhatsApp route.
+
+What `--apply` checks first, and refuses to send without:
+
+- **`SESSION_SECRET` must be production's value.** The links are signed with a
+  key derived from it (`lib/listing-confirm.ts`), so a batch minted on a laptop
+  with a different secret is a batch of links the live site rejects. The script
+  prints `Key: fingerprint xxxxxxxx`; `/admin` → "Avisos que vencen" shows
+  production's (`clave xxxxxxxx`). **Compare them the first time** — they must
+  be equal. The fingerprint is not secret; the value behind it is, so put it in
+  your local `.env` only, never in a doc or a Routine prompt.
+- **`NEXT_PUBLIC_SITE_URL` must be the live https origin** (unset defaults to
+  `https://trabajo.com.py`). A local `.env` with `http://localhost:3000` would
+  mail dead links.
+- **`EMPLOYER_DASHBOARD_ENABLED=true`** in the environment it runs in, because
+  the links land on `/empresa/confirmar-aviso`, which 404s while the dashboard
+  is off in production.
+- **`RESEND_API_KEY` + `EMAIL_FROM`.** Without them nothing is delivered, and a
+  job is only recorded as asked after a delivery succeeded.
+
+Links are valid for 14 days and for one answer: the first click changes the
+row's `expires_at` or status, and every other link from that email stops
+matching it. The page itself never acts on GET — mail scanners open links —
+the employer presses a button. The last 30 days' sent / confirmed / closed
+counts are on `/admin` under "Avisos que vencen".
 
 ### `drizzle-kit` connecting does NOT mean your scripts will
 

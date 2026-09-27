@@ -45,6 +45,7 @@ import {
   EXPIRY_WARNING_DAYS,
   type ListingRenewalDays,
 } from '../listing-expiry';
+import { LISTING_CONFIRM_LOG } from '../listing-confirm';
 
 async function getDb() {
   return (await import('./index')).db;
@@ -833,6 +834,37 @@ export async function getRenewalQueue(): Promise<{
   const withDate = (rows: (Omit<RenewalQueueRow, 'dueAt'> & { dueAt: Date | null })[]) =>
     rows.filter((r): r is RenewalQueueRow => r.dueAt !== null);
   return { listings: withDate(listingRows), destacados: withDate(featuredRows) };
+}
+
+/**
+ * "Confirmaciones por correo" on /admin: how the "¿Tu aviso sigue abierto?"
+ * emails (scripts/listing-confirm.ts) are doing over the last 30 days — asked,
+ * renewed by the employer, closed by the employer. Counted from activity_log,
+ * where each of the three is written exactly once per event.
+ */
+export async function getListingConfirmationCounts(): Promise<{
+  sent: number;
+  renewed: number;
+  closed: number;
+}> {
+  const db = await getDb();
+  const rows = await db
+    .select({ action: activityLog.action, n: count() })
+    .from(activityLog)
+    .where(
+      and(
+        eq(activityLog.entityType, 'job'),
+        sql`${activityLog.action} IN (${LISTING_CONFIRM_LOG.sent}, ${LISTING_CONFIRM_LOG.open}, ${LISTING_CONFIRM_LOG.close})`,
+        sql`${activityLog.createdAt} > NOW() - INTERVAL 30 DAY`,
+      ),
+    )
+    .groupBy(activityLog.action);
+  const of = (action: string) => rows.find((r) => r.action === action)?.n ?? 0;
+  return {
+    sent: of(LISTING_CONFIRM_LOG.sent),
+    renewed: of(LISTING_CONFIRM_LOG.open),
+    closed: of(LISTING_CONFIRM_LOG.close),
+  };
 }
 
 export async function deleteJob(id: number, actorUserId: number) {

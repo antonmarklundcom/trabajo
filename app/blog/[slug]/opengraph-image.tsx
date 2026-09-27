@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og';
+import { ogFonts, ogText } from '@/lib/og-fonts';
 import { getBlogPost } from '@/lib/blog';
 
 export const alt = 'trabajo.com.py — Blog';
@@ -10,7 +11,8 @@ type Params = Promise<{ slug: string }>;
 export default async function OgImage({ params }: { params: Params }) {
   const { slug } = await params;
   const post = await getBlogPost(slug);
-  const title = post?.title ?? 'Blog';
+  // ogText(): an emoji in a title would send next/og to a CDN at render time.
+  const title = ogText(post?.title) || 'Blog';
 
   return new ImageResponse(
     (
@@ -54,6 +56,6 @@ export default async function OgImage({ params }: { params: Params }) {
         </div>
       </div>
     ),
-    { ...size },
+    { ...size, fonts: await ogFonts() },
   );
 }

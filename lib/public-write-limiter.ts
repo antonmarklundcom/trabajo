@@ -71,3 +71,21 @@ const jobViewLimiter = createRequestLimiter(1, JOB_VIEW_WINDOW_MS);
 export function isJobViewLimited(ip: string, slug: string): boolean {
   return jobViewLimiter.isLimited(`${ip}|${slug}`);
 }
+
+// ---------------------------------------------------------------------------
+// Listing confirmation links (POST /api/empresa/confirmar-aviso).
+//
+// Its own instance. The credential is an HMAC nobody can guess, so this is not
+// what stops forgery — it stops a script from hammering the verifier and the
+// database lookup behind it. The honest traffic is one or two clicks per
+// email, so the budget is small; it leaves room for a shared office NAT where
+// several colleagues answer their own listings in the same few minutes.
+const LISTING_CONFIRM_WINDOW_MS = 10 * 60 * 1000;
+const MAX_LISTING_CONFIRMS = 20;
+
+const listingConfirmLimiter = createRequestLimiter(MAX_LISTING_CONFIRMS, LISTING_CONFIRM_WINDOW_MS);
+
+/** Records the confirmation attempt and reports whether it is over the limit. */
+export function isListingConfirmLimited(ip: string): boolean {
+  return listingConfirmLimiter.isLimited(ip);
+}

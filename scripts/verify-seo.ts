@@ -30,6 +30,7 @@ import {
 import robots from '../app/robots';
 import { serializeJsonLd } from '../lib/json-ld';
 import { isHttpUrl } from '../lib/company-website';
+import { ogText } from '../lib/og-fonts';
 import { uniqueSlug } from '../lib/slug';
 
 const ROOT = process.cwd();
@@ -452,6 +453,87 @@ for (const file of publicPages) {
     `Disallow: ${disallow.join(', ')}`,
   );
 }
+
+// ---------------------------------------------------------------------------
+// 9. Share cards (opengraph-image).
+//
+//    What WhatsApp and Facebook show for a pasted job link. A card that reads
+//    the catalogue around the seam can show a listing the visibility predicate
+//    hides; a card that reaches the network at render time depends on a third
+//    party being up; and a card drawn without its fonts silently loses every
+//    font weight. All three still return a 200 image/png.
+// ---------------------------------------------------------------------------
+
+{
+  const OG_FILES = ['app/opengraph-image.tsx', 'app/empleos/[slug]/opengraph-image.tsx'];
+  const sources = new Map<string, string>();
+  for (const file of OG_FILES) {
+    let source = '';
+    try {
+      source = code(read(file));
+    } catch {
+      // reported below
+    }
+    check(`${file} exists`, source.length > 0);
+    sources.set(file, source);
+  }
+
+  const jobCard = sources.get('app/empleos/[slug]/opengraph-image.tsx') ?? '';
+  check(
+    'the job card reads the catalogue through lib/data.ts',
+    /from '@\/lib\/data'/.test(jobCard) && /\bgetJob\(/.test(jobCard),
+  );
+  check(
+    'the job card does not read lib/db or the seed JSON directly',
+    !/lib\/db\//.test(jobCard) && !/lib\/seed\//.test(jobCard) && !/\.json['"]/.test(jobCard),
+    'lib/data.ts is the only entry point for the public job catalogue (AGENTS.md).',
+  );
+  check(
+    'a closed listing gets its own card, not the open one',
+    /\bgetClosedJob\(/.test(jobCard) && jobCard.includes('Esta oferta ya no está disponible'),
+  );
+  check(
+    'every employer-typed string on the job card goes through ogText()',
+    ['ogText(card.title)', 'ogText(card.company)', 'ogText(card.city)'].every((s) => jobCard.includes(s)),
+    'next/og fetches a font or an emoji SVG from the network for any glyph the loaded fonts lack.',
+  );
+
+  const helpers = code(read('lib/og-fonts.ts'));
+  for (const [file, source] of [...sources, ['lib/og-fonts.ts', helpers] as const]) {
+    check(
+      `${file} makes no network request`,
+      !/\bfetch\(/.test(source) && !/https?:\/\//.test(source),
+      'Fonts and imagery come from disk; the build sandbox and the render path have no network to count on.',
+    );
+  }
+  for (const [file, source] of sources) {
+    check(
+      `${file} passes the committed fonts to ImageResponse`,
+      source.includes('fonts: await ogFonts()'),
+      'Without `fonts`, next/og draws in one regular weight and every fontWeight is ignored.',
+    );
+  }
+  for (const font of ['inter-latin-400-normal.woff', 'inter-latin-600-normal.woff', 'inter-latin-800-normal.woff']) {
+    let magic = '';
+    try {
+      magic = readFileSync(join(ROOT, 'assets/fonts', font)).subarray(0, 4).toString('latin1');
+    } catch {
+      // reported below
+    }
+    check(`assets/fonts/${font} is a committed WOFF file`, magic === 'wOFF', `Got magic "${magic}".`);
+  }
+
+  const spanish = 'Técnico/a de Señalización — ¿Año? ¡Sí! Gs. 4.500.000 – 6.000.000 · Asunción';
+  check('ogText() keeps Spanish text intact', ogText(spanish) === spanish, ogText(spanish));
+  // A single emoji, then a ZWJ sequence (man + ZERO WIDTH JOINER + cooking):
+  // the joiner is invisible and must not survive the emoji it glued.
+  const emoji = 'Chef \u{1F373} Principal \u{1F468}\u200D\u{1F373}';
+  check('ogText() drops emoji', ogText(emoji) === 'Chef Principal', ogText(emoji));
+  check('ogText() drops pictographs next/og routes to its emoji loader', ogText('Marca® Cola™ ©') === 'Marca Cola', ogText('Marca® Cola™ ©'));
+  check('ogText() drops scripts the committed fonts cannot draw', ogText('中文 Cajero/a') === 'Cajero/a', ogText('中文 Cajero/a'));
+  check('ogText() treats null as empty', ogText(null) === '');
+}
+
 
 // ---------------------------------------------------------------------------
 // Slugs always fit their column, suffix included.
