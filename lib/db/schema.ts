@@ -789,7 +789,7 @@ export const blogPosts = mysqlTable(
     index('status_published_idx').on(table.status, table.publishedAt),
     // The per-category archive (C2): published rows in one category, newest
     // first — the same shape as status_published_idx with category folded in,
-    // for the query queryPublishedPosts({ category }) will run once C2 ships.
+    // for queryPublishedPostPage({ category }) in lib/db/blog.ts (C2).
     index('category_published_idx').on(table.status, table.category, table.publishedAt),
   ],
 );

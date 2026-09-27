@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { BLOG_CATEGORIES, BLOG_CATEGORY_LABELS } from '@/lib/blog-categories';
+import { readingMinutes, seoChecklist, wordCount } from '@/lib/blog-editor';
 
 type TaxonomyOption = { id: number; slug: string; name: string };
 
@@ -30,7 +31,8 @@ export type BlogPostFormInitial = {
   relatedCategory: string;
   relatedCity: string;
   originalSlug?: string;
-  originalStatus?: string;
+  /** The saved row's date. Not null means the post was ever published. */
+  originalPublishedAt?: string | null;
 };
 
 const EMPTY: BlogPostFormInitial = {
@@ -50,9 +52,11 @@ type Props = {
   cities: TaxonomyOption[];
   initial?: BlogPostFormInitial;
   siteUrl: string;
+  /** Today in Paraguay (YYYY-MM-DD), from the server — the clock the public predicate uses. */
+  today: string;
 };
 
-export default function BlogPostForm({ categories, cities, initial, siteUrl }: Props) {
+export default function BlogPostForm({ categories, cities, initial, siteUrl, today }: Props) {
   const router = useRouter();
   const [values, setValues] = useState<BlogPostFormInitial>(initial ?? EMPTY);
   const [error, setError] = useState('');
@@ -134,6 +138,26 @@ export default function BlogPostForm({ categories, cities, initial, siteUrl }: P
     !!initial?.originalSlug && !!values.slug && values.slug !== initial.originalSlug;
   const descriptionLeft = DESCRIPTION_MAX - values.description.length;
 
+  // Recomputed on every keystroke in the body; both are linear scans of a
+  // string capped at 60 000 characters, so memoising on the inputs is enough.
+  const words = useMemo(() => wordCount(values.body), [values.body]);
+  const checks = useMemo(
+    () =>
+      seoChecklist({
+        title: values.title,
+        description: values.description,
+        body: values.body,
+        category: values.category,
+        relatedCategory: values.relatedCategory,
+      }),
+    [values.title, values.description, values.body, values.category, values.relatedCategory],
+  );
+  const checksPassed = checks.filter((c) => c.ok).length;
+  const isGuide = values.category === 'guias-por-sector';
+  // Scheduled: saved as published with a date after today (lib/db/blog.ts
+  // publishedPredicate() hides it until then).
+  const scheduled = values.status === 'published' && values.publishedAt !== '' && values.publishedAt > today;
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <Field label="Título" required>
@@ -159,9 +183,9 @@ export default function BlogPostForm({ categories, cities, initial, siteUrl }: P
         </p>
       </Field>
 
-      {slugChanged && initial?.originalStatus === 'published' && (
+      {slugChanged && initial?.originalPublishedAt && (
         <p className="text-sm text-ink-secondary bg-surface-2 rounded-[10px] px-4 py-3">
-          Este artículo está publicado. Al guardar, la URL anterior
+          Este artículo ya se publicó alguna vez. Al guardar, la URL anterior
           (<span className="font-medium">/blog/{initial.originalSlug}</span>) va a redirigir
           automáticamente con un 301 hacia la nueva — no hace falta configurar nada más.
         </p>
@@ -234,13 +258,25 @@ export default function BlogPostForm({ categories, cities, initial, siteUrl }: P
             onChange={(e) => setField('publishedAt', e.target.value)}
             className={inputCls()}
           />
-          <p className="text-xs text-ink-3 mt-1">Si se deja vacío, se usa la fecha de hoy.</p>
+          <p className="text-xs text-ink-3 mt-1">
+            Si se deja vacío, se usa la fecha de hoy. Una fecha futura con estado Publicado programa
+            el artículo.
+          </p>
         </Field>
       </div>
 
+      {scheduled && (
+        <p className="text-sm text-ink-secondary bg-surface-2 rounded-[10px] px-4 py-3 -mt-2">
+          <span className="font-semibold text-ink">Programado:</span> el artículo aparece en el sitio el{' '}
+          <span className="font-medium">{values.publishedAt}</span> (hora de Paraguay). Hasta ese día no
+          se muestra en el blog, en el sitemap ni en las páginas de empleos.
+        </p>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field label="Empleos relacionados — categoría">
+        <Field label="Empleos relacionados — categoría" required={isGuide}>
           <select
+            required={isGuide}
             value={values.relatedCategory}
             onChange={(e) => setField('relatedCategory', e.target.value)}
             className={inputCls()}
@@ -269,8 +305,9 @@ export default function BlogPostForm({ categories, cities, initial, siteUrl }: P
         </Field>
       </div>
       <p className="text-xs text-ink-3 -mt-3">
-        Se muestran hasta cinco empleos publicados al final del artículo. Sirve para enlazado
-        interno: el artículo pasa autoridad a las páginas de empleos.
+        Se muestran hasta cinco empleos publicados al final del artículo, y el artículo aparece en la
+        página de esa categoría y en sus avisos. Sirve para enlazado interno en los dos sentidos.
+        {isGuide && ' Una guía por sector necesita su categoría.'}
       </p>
 
       <Field label="Contenido (Markdown)" required>
@@ -287,7 +324,39 @@ export default function BlogPostForm({ categories, cities, initial, siteUrl }: P
           <code>[texto](/empleos)</code>, listas con <code>-</code>. El HTML pegado se muestra como
           texto, no se ejecuta.
         </p>
+        <p className="text-xs text-ink-secondary mt-1 tabular-nums" aria-live="polite">
+          {words} {words === 1 ? 'palabra' : 'palabras'} · {readingMinutes(words)} min de lectura
+        </p>
       </Field>
+
+      {/* Live SEO checklist (C3). Advice from the content brief, not a gate:
+          the server enforces the hard limits and none of these block a save. */}
+      <div className="rounded-[10px] border border-border bg-page-bg p-4">
+        <p className="text-xs uppercase tracking-wide text-ink-3 font-medium mb-3">
+          Lista SEO · {checksPassed}/{checks.length}
+        </p>
+        <ul className="space-y-2">
+          {checks.map((check) => (
+            <li key={check.id} className="flex gap-2.5 text-sm">
+              <span
+                aria-hidden="true"
+                className={`mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white ${
+                  check.ok ? 'bg-success' : 'bg-ink-3'
+                }`}
+              >
+                {check.ok ? '✓' : '·'}
+              </span>
+              <span>
+                <span className={check.ok ? 'text-ink' : 'text-ink-secondary'}>
+                  <span className="sr-only">{check.ok ? 'Cumplido: ' : 'Pendiente: '}</span>
+                  {check.label}
+                </span>
+                <span className="block text-xs text-ink-3">{check.hint}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
 
       <div>
         <button

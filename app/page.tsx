@@ -11,6 +11,8 @@ import FloatingWhatsApp from '@/components/FloatingWhatsApp';
 import Link from 'next/link';
 import { NandutiMotif } from '@/components/Logo';
 import JsonLd from '@/components/JsonLd';
+import BlogPostLinks from '@/components/BlogPostLinks';
+import { getLatestBlogPosts } from '@/lib/blog';
 
 // Cached reads are invalidated on demand by every admin mutation
 // (lib/cache.ts), so this timer is only the safety net for job expiry and
@@ -29,12 +31,13 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const [featured, recent, categories, cities, promo] = await Promise.all([
+  const [featured, recent, categories, cities, promo, latestPosts] = await Promise.all([
     getFeaturedJobs(6),
     getRecentJobs(6),
     getCategories(),
     getCities(),
     getLaunchPromoStatus(),
+    getLatestBlogPosts(3),
   ]);
   const promoActive = promo.enabled && promo.remaining > 0;
   // Every live listing has exactly one category, so the category counts
@@ -160,6 +163,20 @@ export default async function HomePage() {
             </div>
           </div>
         </section>
+      )}
+
+      {/* Blog (PLAN-GROWTH.md §4 C2 / D3 order): after the paid slot, before
+          the employer band. Absent until something is published. */}
+      {latestPosts.length > 0 && (
+        <div className="py-10 sm:py-12 px-4">
+          <BlogPostLinks
+            title="Consejos para conseguir trabajo"
+            posts={latestPosts}
+            moreHref="/blog"
+            moreLabel="Ver el blog"
+            className="max-w-7xl mx-auto"
+          />
+        </div>
       )}
 
       {/* CTA for employers */}

@@ -28,6 +28,8 @@ import { reportListingHref } from '@/lib/whatsapp';
 import JsonLd from '@/components/JsonLd';
 import { isHttpUrl } from '@/lib/company-website';
 import EmployerBand from '@/components/EmployerBand';
+import BlogPostLinks from '@/components/BlogPostLinks';
+import { getPostsForJobCategory } from '@/lib/blog';
 
 // Cached reads are invalidated on demand by every admin mutation
 // (lib/cache.ts), so this timer is only the safety net for job expiry and
@@ -115,7 +117,10 @@ export default async function JobDetailPage({ params }: { params: Params }) {
   // AND of both is empty for most postings outside Asunción, and an empty
   // block is what this is trying not to be. Nothing here reads candidate or
   // application data — it is the same public catalogue the page above it is.
-  const similarJobs = await findSimilarJobs(job);
+  const [similarJobs, blogPosts] = await Promise.all([
+    findSimilarJobs(job),
+    getPostsForJobCategory(job.categorySlug, 2, 'consejos-cv'),
+  ]);
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://trabajo.com.py';
   const jobUrl = `${siteUrl}/empleos/${job.slug}`;
@@ -514,6 +519,12 @@ export default async function JobDetailPage({ params }: { params: Params }) {
                 )}
               </p>
             )}
+
+            {/* Blog (PLAN-GROWTH.md §4 C2): posts written for this job's
+                category, topped up with the newest CV advice. Below the
+                similar jobs rather than under the description so it never
+                sits between a phone reader and the apply card. */}
+            <BlogPostLinks title="Consejos para postularte" posts={blogPosts} className="mt-10" />
 
             <EmployerBand />
           </div>
