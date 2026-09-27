@@ -133,7 +133,7 @@ export function teamToEmployerHref(
   kind: TeamToEmployerMessage,
   job: { title: string; url?: string },
 ): string | null {
-  const digits = number?.replace(/D/g, '');
+  const digits = number?.replace(/\D/g, '');
   if (!digits) return null;
   const message =
     kind === 'published'
@@ -142,6 +142,24 @@ export function teamToEmployerHref(
         ? `Hola, te escribimos de trabajo.com.py: tu aviso "${job.title}" vence pronto. ¿Querés que lo renovemos?`
         : `Hola, te escribimos de trabajo.com.py: el Destacado de tu aviso "${job.title}" vence pronto. ¿Querés renovarlo?`;
   return waHref(digits, message);
+}
+
+/**
+ * The team answering a /contacto message, from /admin/mensajes or the team
+ * email. The number is the one the person typed into the form — read back
+ * from their contact_messages row, or from the validated lead in the email —
+ * never a literal, the same rule as teamToEmployerHref(). The caller passes it through normalizePhone()
+ * (lib/leads.ts) first so a local "0981…" becomes "595981…"; that function is
+ * not imported here because this module ships to the browser and lib/leads.ts
+ * pulls in zod. Null when nothing dialable is left.
+ */
+export function teamToContactHref(
+  number: string | null | undefined,
+  name: string,
+): string | null {
+  const digits = number?.replace(/\D/g, '');
+  if (!digits) return null;
+  return waHref(digits, `Hola ${name}, te escribimos de trabajo.com.py por tu consulta…`);
 }
 
 /**

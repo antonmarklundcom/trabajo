@@ -38,6 +38,18 @@ export const CONSENT_RETENTION_MONTHS = 60;
 export const ACCESS_LOG_RETENTION_MONTHS = 24;
 
 /**
+ * `contact_messages` (/contacto): hard-deleted this long after they arrived.
+ *
+ * /privacidad states no period for contact messages — §2 and §3 say we collect
+ * them to answer the query, and nothing more — so this is the working default,
+ * chosen to match APPLICATION_REDACTION_MONTHS rather than invented afresh: a
+ * question answered a year ago has no remaining purpose. It is NOT yet quoted
+ * in /privacidad; the owner confirms it before it is (same §8 Q1 rule as the
+ * rest of this file).
+ */
+export const CONTACT_MESSAGE_RETENTION_MONTHS = 12;
+
+/**
  * `now` shifted back by whole months. Uses UTC parts rather than subtracting
  * milliseconds so "24 months ago" lands on the same day of the month, and
  * clamps day-of-month overflow (31 March minus 1 month is 28/29 February, not

@@ -8,8 +8,8 @@
 import 'server-only';
 
 import { emailUrl, type EmailMessage } from '../email';
-import { waHref } from '../whatsapp';
-import type { LeadInput } from '../leads';
+import { teamToContactHref, waHref } from '../whatsapp';
+import { normalizePhone, type LeadInput } from '../leads';
 import type { LaunchPromoStatus } from '../promo';
 
 const ADMIN_PENDING_QUEUE = () => emailUrl('/admin/empleos?status=pending');
@@ -59,7 +59,9 @@ export function employerLeadNotificationMessage(
   }
 
   if (lead.type === 'contact') {
-    const waLink = waHref(lead.phone, `Hola ${lead.name}, te escribimos de trabajo.com.py…`);
+    // Normalised: the form takes the number as typed ("0981 123-456"), and a
+    // wa.me link needs bare international digits.
+    const waLink = teamToContactHref(normalizePhone(lead.phone), lead.name);
     return {
       to,
       subject: `Nueva consulta de contacto: ${lead.name}`,
@@ -71,7 +73,8 @@ export function employerLeadNotificationMessage(
         'Mensaje:',
         lead.message,
         '',
-        `Abrir la conversación: ${waLink}`,
+        waLink ? `Abrir la conversación: ${waLink}` : null,
+        `Bandeja de mensajes: ${emailUrl('/admin/mensajes')}`,
       ]
         .filter((line): line is string => line !== null)
         .join('\n'),

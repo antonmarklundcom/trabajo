@@ -4,11 +4,13 @@ import { clientIpOrUnknown } from '@/lib/client-ip';
 import { isRateLimited } from '@/lib/public-write-limiter';
 import {
   HONEYPOT_FIELD,
+  hasLeadDeliveryChannel,
   isHoneypotFilled,
   leadSchema,
   processLead,
 } from '@/lib/leads';
 import { createApplication } from '@/lib/db/admin';
+import { createContactMessage } from '@/lib/db/contact-messages';
 import {
   notifyApplicantOfApplication,
   notifyEmployerOfApplication,
@@ -98,6 +100,35 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: 'Esta oferta ya no recibe postulaciones.' },
         { status: 410 },
+      );
+    }
+  }
+
+  // A /contacto message gets its own row BEFORE the fan-out, for the same
+  // reason an application does: without it the message exists only if a
+  // webhook or the team inbox accepted it. Unlike an application, a DB failure
+  // here is not always survivable — with no webhook and no team email
+  // configured, the fan-out below delivers to nobody, and a 201 would tell the
+  // person their message was sent when it exists nowhere. Same rule as
+  // /api/publicar: say so, and point them at WhatsApp.
+  if (lead.type === 'contact') {
+    let saved = false;
+    try {
+      await createContactMessage({
+        name: lead.name,
+        phone: lead.phone,
+        email: lead.email || null,
+        message: lead.message,
+        sourcePage: lead.sourcePage ?? null,
+      });
+      saved = true;
+    } catch (err) {
+      captureError('leads:contact-insert', err);
+    }
+    if (!saved && !hasLeadDeliveryChannel()) {
+      return NextResponse.json(
+        { error: 'No pudimos registrar tu mensaje. Intentá de nuevo en unos minutos o escribinos por WhatsApp.' },
+        { status: 503 },
       );
     }
   }

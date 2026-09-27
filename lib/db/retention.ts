@@ -26,6 +26,7 @@ import {
   applications,
   candidates,
   consents,
+  contactMessages,
   dataAccessLogs,
   deletionRequests,
   jobs,
@@ -363,5 +364,36 @@ export async function deleteAuthEvents(ids: number[]): Promise<number> {
   if (ids.length === 0) return 0;
   const db = await getDb();
   const [result] = await db.delete(authEvents).where(inArray(authEvents.id, ids));
+  return result.affectedRows;
+}
+
+// ---------------------------------------------------------------------------
+// 6. contact_messages — 12 months from arrival
+//
+// A /contacto message is someone asking the team a question: once it has been
+// answered, or has gone unanswered for a year, it has no purpose left. Hard
+// DELETE, not redaction — nothing else points at these rows, so there is no
+// husk worth keeping. The clock is created_at regardless of handled_at: an
+// unanswered message is not a reason to keep someone's phone number longer.
+// ---------------------------------------------------------------------------
+
+export type DueContactMessage = {
+  id: number;
+  createdAt: Date;
+};
+
+export async function findContactMessagesToDelete(cutoff: Date): Promise<DueContactMessage[]> {
+  const db = await getDb();
+  return db
+    .select({ id: contactMessages.id, createdAt: contactMessages.createdAt })
+    .from(contactMessages)
+    .where(lt(contactMessages.createdAt, cutoff))
+    .orderBy(asc(contactMessages.createdAt));
+}
+
+export async function deleteContactMessages(ids: number[]): Promise<number> {
+  if (ids.length === 0) return 0;
+  const db = await getDb();
+  const [result] = await db.delete(contactMessages).where(inArray(contactMessages.id, ids));
   return result.affectedRows;
 }

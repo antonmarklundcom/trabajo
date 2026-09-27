@@ -187,6 +187,13 @@ seteado (requiere `RESEND_API_KEY` + `EMAIL_FROM`). Sin la variable, el envío
 se omite y se loguea; el panel `/admin` muestra "Último pedido de
 publicación" para que un envío perdido no pase inadvertido.
 
+Los mensajes de `/contacto` se guardan además en la tabla `contact_messages`
+**antes** del fan-out, y se leen en `/admin/mensajes` (admin y editor), con la
+acción "Marcar como atendido". Si esa escritura falla y no hay ningún canal
+configurado (ni webhook ni correo al equipo), la API responde `503` en vez de
+un `201` falso. `npm run db:purge` los borra 12 meses después de recibidos
+(`CONTACT_MESSAGE_RETENTION_MONTHS` en `lib/retention.ts`).
+
 **Resumen semanal para empresas:** `npm run digest:employers` (dry run por
 defecto; `-- --apply` envía). Necesita `DATABASE_URL`, `RESEND_API_KEY` y
 `EMAIL_FROM`, y conviene tener `NEXT_PUBLIC_SITE_URL` y
