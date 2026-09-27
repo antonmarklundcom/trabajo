@@ -1,40 +1,65 @@
 import type { Metadata } from 'next';
-import { canonicalFor } from '@/lib/seo';
+import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getBlogPosts, BLOG_CATEGORY_LABELS } from '@/lib/blog';
+import { blogListingCanonical, canonicalFor, siteUrl } from '@/lib/seo';
+import { parsePageParam } from '@/lib/pagination';
+import { getBlogCategoryCounts, getBlogPostPage } from '@/lib/blog';
+import BlogPostCard from '@/components/BlogPostCard';
+import BlogCategoryNav from '@/components/BlogCategoryNav';
+import Pagination from '@/components/Pagination';
 import JsonLd from '@/components/JsonLd';
 
 // Five minutes, matching PUBLIC_CACHE_TTL_SECONDS in lib/cache-tags.ts.
 //
 // Freshness after an edit in /admin does NOT come from this timer — it comes
-// from invalidateBlogContent(). The timer covers the writes that happen OUTSIDE
-// a request and therefore have no revalidation hook to fire: `npm run
-// blog:import` at cutover, and any future one-off script. Without it this page
-// prerenders at build time (with no database, so: empty) and would keep serving
-// that until someone happened to edit an article.
+// from invalidateBlogContent(). The timer covers what happens OUTSIDE a
+// request: `npm run blog:import`, and a scheduled post reaching its date
+// (lib/db/blog.ts publishedPredicate()). Reading `?page=` makes this route
+// render per request (as the paginated taxonomy landings already do); the
+// queries underneath are still cached under the `public-blog` tag.
 export const revalidate = 300;
 
-export const metadata: Metadata = {
-  title: 'Blog',
-  description:
-    'Consejos de carrera, análisis del mercado laboral y novedades del portal de empleos de Paraguay.',
-  robots: { index: true, follow: true },
-  alternates: { canonical: canonicalFor('/blog') },
-};
+type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
 
-export default async function BlogIndexPage() {
-  const posts = await getBlogPosts();
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://trabajo.com.py';
+const DESCRIPTION =
+  'Consejos de carrera, análisis del mercado laboral y novedades del portal de empleos de Paraguay.';
+
+export async function generateMetadata({ searchParams }: { searchParams: SearchParams }): Promise<Metadata> {
+  const page = parsePageParam((await searchParams).page);
+  return {
+    title: page > 1 ? `Blog — página ${page}` : 'Blog',
+    description: DESCRIPTION,
+    robots: { index: true, follow: true },
+    alternates: { canonical: canonicalFor(blogListingCanonical('/blog', page)) },
+  };
+}
+
+export default async function BlogIndexPage({ searchParams }: { searchParams: SearchParams }) {
+  const sp = await searchParams;
+  const page = parsePageParam(sp.page);
+
+  const [{ posts, totalPages }, counts] = await Promise.all([
+    getBlogPostPage({ page }),
+    getBlogCategoryCounts(),
+  ]);
+
+  // Past the last page is a 404, not an empty indexable 200 — same rule as
+  // the taxonomy landings.
+  if (page > totalPages) notFound();
+
+  const site = siteUrl();
 
   const breadcrumbJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Inicio', item: siteUrl },
-      { '@type': 'ListItem', position: 2, name: 'Blog', item: `${siteUrl}/blog` },
+      { '@type': 'ListItem', position: 1, name: 'Inicio', item: site },
+      { '@type': 'ListItem', position: 2, name: 'Blog', item: `${site}/blog` },
     ],
   };
 
+  // This page's posts only — an ItemList describes the list on the page it
+  // is on, and with pagination that is no longer "every post".
   const itemListJsonLd = posts.length > 0 ? {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
@@ -43,7 +68,7 @@ export default async function BlogIndexPage() {
     itemListElement: posts.map((post, i) => ({
       '@type': 'ListItem',
       position: i + 1,
-      url: `${siteUrl}/blog/${post.slug}`,
+      url: `${site}/blog/${post.slug}`,
       name: post.title,
     })),
   } : null;
@@ -62,44 +87,35 @@ export default async function BlogIndexPage() {
           <span className="text-ink font-medium">Blog</span>
         </nav>
 
-        <h1 className="text-3xl font-bold text-ink">Blog</h1>
+        <h1 className="text-3xl font-bold text-ink">
+          Blog{page > 1 && <span className="text-ink-3 font-medium"> · página {page}</span>}
+        </h1>
         <p className="mt-2 text-ink-secondary">
           Consejos de carrera, análisis del mercado laboral y novedades de trabajo.com.py.
         </p>
 
+        <BlogCategoryNav counts={counts} />
+
         {posts.length === 0 ? (
-          <p className="mt-10 text-ink-secondary">Todavía no hay artículos publicados.</p>
+          <div className="mt-10 rounded-[10px] border border-border bg-white px-6 py-10 text-center">
+            <p className="text-ink-secondary">Todavía no hay artículos publicados.</p>
+            <Link href="/empleos" className="mt-3 inline-block text-sm font-medium text-brand hover:underline">
+              Mientras tanto, mirá los empleos publicados&nbsp;<span aria-hidden="true">→</span>
+            </Link>
+          </div>
         ) : (
-          <ul className="mt-10 flex flex-col gap-6">
-            {posts.map((post) => (
-              <li key={post.slug}>
-                <article className="bg-white rounded-[10px] border border-border p-6 hover:shadow-[0_4px_12px_-2px_rgba(30,27,23,.12)] transition-shadow">
-                  <Link href={`/blog/${post.slug}`} className="block">
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-surface-2 text-ink-secondary border border-border">
-                        {BLOG_CATEGORY_LABELS[post.category]}
-                      </span>
-                      <time dateTime={post.publishedAt} className="text-xs text-ink-3 uppercase tracking-wide font-medium">
-                        {formatDate(post.publishedAt)}
-                      </time>
-                    </div>
-                    <h2 className="mt-2 text-xl font-bold text-ink">{post.title}</h2>
-                    <p className="mt-2 text-ink-secondary">{post.description}</p>
-                  </Link>
-                </article>
-              </li>
-            ))}
-          </ul>
+          <>
+            <ul className="mt-8 flex flex-col gap-4 sm:gap-6">
+              {posts.map((post) => (
+                <li key={post.slug}>
+                  <BlogPostCard post={post} />
+                </li>
+              ))}
+            </ul>
+            <Pagination basePath="/blog" currentPage={page} totalPages={totalPages} searchParams={sp} />
+          </>
         )}
       </div>
     </>
   );
-}
-
-function formatDate(iso: string): string {
-  return new Date(`${iso}T00:00:00`).toLocaleDateString('es-PY', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
 }
