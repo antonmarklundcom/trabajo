@@ -5,12 +5,16 @@ import {
   getBlogPost,
   getBlogRedirect,
   getBlogSlugs,
+  getRelatedPosts,
+  blogCategoryPath,
   BLOG_CATEGORY_LABELS,
+  TOC_MIN_HEADINGS,
 } from '@/lib/blog';
 import { getJobs } from '@/lib/data';
 import JobCard from '@/components/JobCard';
 import ShareLinks from '@/components/ShareLinks';
 import JsonLd from '@/components/JsonLd';
+import BlogPostCard, { formatBlogDate } from '@/components/BlogPostCard';
 
 type Params = Promise<{ slug: string }>;
 
@@ -77,16 +81,20 @@ export default async function BlogPostPage({ params }: { params: Params }) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://trabajo.com.py';
   const postUrl = `${siteUrl}/blog/${post.slug}`;
 
-  const relatedJobs =
+  const [relatedJobs, relatedPosts] = await Promise.all([
     post.relatedCategory || post.relatedCity
-      ? (
-          await getJobs({
-            categoria: post.relatedCategory,
-            ciudad: post.relatedCity,
-            orden: 'recientes',
-          })
-        ).jobs.slice(0, 5)
-      : [];
+      ? getJobs({
+          categoria: post.relatedCategory,
+          ciudad: post.relatedCity,
+          orden: 'recientes',
+        }).then((result) => result.jobs.slice(0, 5))
+      : Promise.resolve([]),
+    getRelatedPosts(post, 3),
+  ]);
+
+  const categoryLabel = BLOG_CATEGORY_LABELS[post.category];
+  const categoryUrl = `${siteUrl}${blogCategoryPath(post.category)}`;
+  const toc = post.headings.length >= TOC_MIN_HEADINGS ? post.headings : [];
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -96,9 +104,19 @@ export default async function BlogPostPage({ params }: { params: Params }) {
     datePublished: post.publishedAt,
     dateModified: post.updatedAt,
     url: postUrl,
+    inLanguage: 'es-PY',
+    articleSection: categoryLabel,
     mainEntityOfPage: { '@type': 'WebPage', '@id': postUrl },
-    author: { '@type': 'Organization', name: 'trabajo.com.py' },
-    publisher: { '@type': 'Organization', name: 'trabajo.com.py' },
+    // The byline reads "Equipo de trabajo.com.py" (§7 D8); the structured
+    // author stays the Organization, which is what that byline is.
+    author: { '@type': 'Organization', name: 'trabajo.com.py', url: siteUrl },
+    publisher: {
+      '@type': 'Organization',
+      name: 'trabajo.com.py',
+      url: siteUrl,
+      // Same logo the homepage's Organization declares.
+      logo: { '@type': 'ImageObject', url: `${siteUrl}/icon.svg` },
+    },
     // Omitted entirely when there is no cover — an `image: null` is worse than
     // no field, because it asserts the article has no image rather than saying
     // nothing about one.
@@ -111,7 +129,8 @@ export default async function BlogPostPage({ params }: { params: Params }) {
     itemListElement: [
       { '@type': 'ListItem', position: 1, name: 'Inicio', item: siteUrl },
       { '@type': 'ListItem', position: 2, name: 'Blog', item: `${siteUrl}/blog` },
-      { '@type': 'ListItem', position: 3, name: post.title, item: postUrl },
+      { '@type': 'ListItem', position: 3, name: categoryLabel, item: categoryUrl },
+      { '@type': 'ListItem', position: 4, name: post.title, item: postUrl },
     ],
   };
 
@@ -126,7 +145,11 @@ export default async function BlogPostPage({ params }: { params: Params }) {
           <span aria-hidden="true">›</span>
           <Link href="/blog" className="hover:text-brand transition-colors">Blog</Link>
           <span aria-hidden="true">›</span>
-          <span className="text-ink font-medium truncate max-w-xs">{post.title}</span>
+          <Link href={blogCategoryPath(post.category)} className="hover:text-brand transition-colors shrink-0">
+            {categoryLabel}
+          </Link>
+          <span aria-hidden="true" className="hidden sm:inline">›</span>
+          <span className="hidden sm:inline text-ink font-medium truncate max-w-xs">{post.title}</span>
         </nav>
 
         <article className="bg-white rounded-[10px] border border-border p-6 sm:p-8">
@@ -144,16 +167,35 @@ export default async function BlogPostPage({ params }: { params: Params }) {
           )}
 
           <div className="flex items-center gap-3">
-            <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-surface-2 text-ink-secondary border border-border">
-              {BLOG_CATEGORY_LABELS[post.category]}
-            </span>
+            <Link
+              href={blogCategoryPath(post.category)}
+              className="text-xs font-medium px-2.5 py-1 rounded-full bg-surface-2 text-ink-secondary border border-border hover:border-brand hover:text-brand transition-colors"
+            >
+              {categoryLabel}
+            </Link>
             <time dateTime={post.publishedAt} className="text-xs text-ink-3 uppercase tracking-wide font-medium">
-              {formatDate(post.publishedAt)}
+              {formatBlogDate(post.publishedAt)}
             </time>
           </div>
           <h1 className="mt-2 text-2xl sm:text-3xl font-bold text-ink leading-tight">
             {post.title}
           </h1>
+          <p className="mt-2 text-sm text-ink-secondary">Por el Equipo de trabajo.com.py</p>
+
+          {toc.length > 0 && (
+            <nav aria-label="En esta nota" className="mt-6 rounded-[10px] border border-border bg-surface-2 px-5 py-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-ink-secondary">En esta nota</p>
+              <ol className="mt-2 space-y-1.5 text-sm list-decimal pl-5">
+                {toc.map((heading) => (
+                  <li key={heading.id}>
+                    <a href={`#${heading.id}`} className="text-ink hover:text-brand hover:underline">
+                      {heading.text}
+                    </a>
+                  </li>
+                ))}
+              </ol>
+            </nav>
+          )}
 
           <div
             className="prose-blog mt-6"
@@ -173,12 +215,27 @@ export default async function BlogPostPage({ params }: { params: Params }) {
             </div>
           </div>
         )}
+
+        {/* Same category first, then the newest of the rest (lib/db/blog.ts
+            queryRelatedPosts()); omitted when this is the only post. */}
+        {relatedPosts.length > 0 && (
+          <section className="mt-10">
+            <h2 className="text-lg font-bold text-ink mb-4">Artículos relacionados</h2>
+            <ul className="flex flex-col gap-4">
+              {relatedPosts.map((related) => (
+                <li key={related.slug}>
+                  <BlogPostCard post={related} headingLevel="h3" />
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
       </div>
 
       <style>{`
         .prose-blog p { margin-bottom: 1rem; color: #44403A; line-height: 1.75; }
-        .prose-blog h2 { font-size: 1.35rem; font-weight: 700; color: #1E1B17; margin: 1.75rem 0 0.75rem; }
-        .prose-blog h3 { font-size: 1.15rem; font-weight: 600; color: #1E1B17; margin: 1.5rem 0 0.5rem; }
+        .prose-blog h2 { font-size: 1.35rem; font-weight: 700; color: #1E1B17; margin: 1.75rem 0 0.75rem; scroll-margin-top: 5rem; }
+        .prose-blog h3 { font-size: 1.15rem; font-weight: 600; color: #1E1B17; margin: 1.5rem 0 0.5rem; scroll-margin-top: 5rem; }
         .prose-blog ul, .prose-blog ol { padding-left: 1.5rem; margin-bottom: 1rem; }
         .prose-blog ul { list-style: disc; }
         .prose-blog ol { list-style: decimal; }
@@ -193,12 +250,4 @@ export default async function BlogPostPage({ params }: { params: Params }) {
       `}</style>
     </>
   );
-}
-
-function formatDate(iso: string): string {
-  return new Date(`${iso}T00:00:00`).toLocaleDateString('es-PY', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
 }

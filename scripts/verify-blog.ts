@@ -20,9 +20,21 @@
 // DATABASE_URL *is* set, section 4 additionally walks the real articles.
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { getBlogPost, getBlogPosts, getBlogSlugs, renderMarkdown } from '../lib/blog';
-import { BLOG_CATEGORIES, BLOG_CATEGORY_LABELS, BLOG_CATEGORY_COPY } from '../lib/blog-categories';
+import { getBlogPost, getBlogPosts, getBlogSlugs, renderArticle, renderMarkdown } from '../lib/blog';
+import {
+  BLOG_CATEGORIES,
+  BLOG_CATEGORY_LABELS,
+  BLOG_CATEGORY_COPY,
+  blogCategoryPath,
+  isBlogCategory,
+  isReservedBlogSlug,
+} from '../lib/blog-categories';
 import { blogCategoryEnum } from '../lib/db/schema';
+import { paraguayToday, shouldMintRedirect } from '../lib/db/blog';
+import { blogArchiveRobots, blogArchivesForSitemap, blogListingCanonical } from '../lib/seo';
+import { parsePageParam } from '../lib/pagination';
+import { readingMinutes, seoChecklist, wordCount } from '../lib/blog-editor';
+import { blogPostSchema, unknownRelatedTaxonomy } from '../app/api/admin/blog/schema';
 
 let failures = 0;
 
@@ -151,7 +163,53 @@ async function main() {
   );
 
   const publicQueries = publicSection.match(/export async function \w+/g) ?? [];
-  check('the public section exports at least the three reads', publicQueries.length >= 3, publicQueries.join(', '));
+  // Named, not counted: the loop below proves every public export calls the
+  // predicate, and this proves the C2 reads are among the exports it walked —
+  // a read moved below the "Admin reads" divider would otherwise escape both.
+  const EXPECTED_PUBLIC_READS = [
+    'queryPublishedPosts',
+    'queryPublishedPostPage',
+    'queryPublishedCategoryCounts',
+    'queryRelatedPosts',
+    'queryPostsForJobCategory',
+    'queryPublishedPost',
+    'queryRedirectTarget',
+  ];
+  const publicNames = publicQueries.map((fn) => fn.replace('export async function ', ''));
+  const missingReads = EXPECTED_PUBLIC_READS.filter((name) => !publicNames.includes(name));
+  check(
+    'every public read (incl. the C2 archive, related and linking reads) is in the public section',
+    missingReads.length === 0,
+    `missing from the public section: ${missingReads.join(', ')}`,
+  );
+
+  // Scheduled publishing (C3): a published post dated in the future is not
+  // public yet. The bound lives inside the one predicate, so every read above
+  // inherits it — and the write path stamps the same clock it compares to.
+  const predicateBody = dbBlogSource.slice(
+    dbBlogSource.indexOf('function publishedPredicate('),
+    dbBlogSource.indexOf('\n}\n', dbBlogSource.indexOf('function publishedPredicate(')),
+  );
+  check(
+    'publishedPredicate() hides a post dated after today (scheduled publishing)',
+    /lte\(blogPosts\.publishedAt,\s*paraguayToday\(\)\)/.test(predicateBody),
+    'Without the bound, a post saved as published with a future date is public at once, dated in the future.',
+  );
+  const normalizeBody = dbBlogSource.slice(
+    dbBlogSource.indexOf('function normalizePublishedAt('),
+    dbBlogSource.indexOf('\n}\n', dbBlogSource.indexOf('function normalizePublishedAt(')),
+  );
+  check(
+    'the write path stamps paraguayToday(), the clock the predicate compares to',
+    normalizeBody.includes('paraguayToday()') && !normalizeBody.includes('toISOString'),
+    'A UTC stamp against a Paraguayan predicate hides a post published after 21:00 until the next day.',
+  );
+  check(
+    'paraguayToday() is the Paraguayan date, not the UTC one',
+    paraguayToday(new Date('2026-09-28T01:30:00Z')) === '2026-09-27' &&
+      paraguayToday(new Date('2026-09-28T12:00:00Z')) === '2026-09-28',
+    `${paraguayToday(new Date('2026-09-28T01:30:00Z'))} / ${paraguayToday(new Date('2026-09-28T12:00:00Z'))}`,
+  );
 
   for (const fn of publicQueries) {
     const name = fn.replace('export async function ', '');
@@ -273,6 +331,263 @@ async function main() {
     "the database enum is the same tuple as BLOG_CATEGORIES, not a copy",
     (blogCategoryEnum as readonly string[]) === (BLOG_CATEGORIES as readonly string[]),
   );
+
+  // -------------------------------------------------------------------------
+  // 3c. Heading ids (C2) without reopening the escape.
+  // -------------------------------------------------------------------------
+  // The heading renderer sits in the same marked.use() object as the escape
+  // and the link allowlist. These prove it adds ids AND that §1's properties
+  // still hold for markup inside a heading.
+  {
+    const rendered = renderArticle('## Hola mundo\n\ntexto\n\n## Hola mundo\n\n### Detalle **fino**');
+    check(
+      'an h2 gets a slugified id',
+      rendered.html.includes('<h2 id="hola-mundo">Hola mundo</h2>'),
+      rendered.html,
+    );
+    check('a repeated heading gets a unique id', rendered.html.includes('<h2 id="hola-mundo-2">'), rendered.html);
+    check('an h3 gets an id too', rendered.html.includes('<h3 id="detalle-fino">'), rendered.html);
+    check(
+      'renderArticle() lists the h2s, in order, with their ids',
+      JSON.stringify(rendered.headings) ===
+        JSON.stringify([
+          { id: 'hola-mundo', text: 'Hola mundo' },
+          { id: 'hola-mundo-2', text: 'Hola mundo' },
+        ]),
+      JSON.stringify(rendered.headings),
+    );
+    const hostile = renderMarkdown('## Hola <script>alert(1)</script> "x" onmouseover=y');
+    check('raw HTML inside a heading is still escaped', !/<script/i.test(hostile), hostile);
+    check(
+      'a heading id is [a-z0-9-] only — nothing can break out of the attribute',
+      /<h2 id="[a-z0-9-]+">/.test(hostile) && !/id="[^"]*[^a-z0-9-"][^"]*"/.test(hostile),
+      hostile,
+    );
+    check(
+      'state does not leak between renders (ids restart per article)',
+      renderMarkdown('## Hola mundo').includes('id="hola-mundo"'),
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // 3d. Archives and pagination (C2): the indexing rules.
+  // -------------------------------------------------------------------------
+  check('an empty category archive is noindex', blogArchiveRobots(0).index === false);
+  check('a category archive with a post is indexable', blogArchiveRobots(1).index === true);
+  check('an archive is always follow', blogArchiveRobots(0).follow === true && blogArchiveRobots(5).follow === true);
+  check(
+    'the sitemap lists exactly the non-empty archives',
+    JSON.stringify(
+      blogArchivesForSitemap([
+        { category: 'noticias', total: 0 },
+        { category: 'consejos-cv', total: 3 },
+        { category: 'entrevistas', total: 1 },
+      ]),
+    ) === JSON.stringify(['consejos-cv', 'entrevistas']),
+  );
+  check('page 1 canonicalises to the bare URL', blogListingCanonical('/blog', 1) === '/blog');
+  check('page N is self-canonical', blogListingCanonical('/blog/categoria/entrevistas', 3) === '/blog/categoria/entrevistas?page=3');
+  check(
+    'only a plain positive integer is a page number',
+    parsePageParam('2') === 2 &&
+      parsePageParam(undefined) === 1 &&
+      parsePageParam('0') === 1 &&
+      parsePageParam('abc') === 1 &&
+      parsePageParam('2.5') === 1 &&
+      parsePageParam('-3') === 1 &&
+      parsePageParam('1e3') === 1 &&
+      parsePageParam(['4', '5']) === 4,
+  );
+  check('the archive path is /blog/categoria/{slug}', blogCategoryPath('consejos-cv') === '/blog/categoria/consejos-cv');
+  check('an unknown category is not a category', !isBlogCategory('no-existe') && isBlogCategory('entrevistas'));
+  check("a post can never take the archive segment as its slug", isReservedBlogSlug('categoria'));
+  check(
+    'blogSlugExists() treats the reserved segment as taken',
+    /blogSlugExists[\s\S]*?isReservedBlogSlug\(slug\)/.test(dbBlogSource),
+  );
+
+  // The rules above are only true of the site if the pages use them.
+  {
+    const read = (f: string) => readFileSync(join(process.cwd(), f), 'utf8');
+    const archive = read('app/blog/categoria/[categoria]/page.tsx');
+    const index = read('app/blog/page.tsx');
+    const sitemap = read('app/sitemap.ts');
+
+    check('the archive takes its robots from blogArchiveRobots()', /robots:\s*blogArchiveRobots\(/.test(archive));
+    check('the archive 404s an unknown category', /!isBlogCategory\(categoria\)\)\s*notFound\(\)/.test(archive));
+    for (const [name, src] of [['/blog', index], ['the archive', archive]] as const) {
+      check(`${name} 404s a page past the last one`, /page > totalPages\)\s*notFound\(\)/.test(src));
+      check(`${name} takes its canonical from blogListingCanonical()`, src.includes('canonicalFor(blogListingCanonical('));
+      check(`${name} only renders pagination through <Pagination>`, src.includes('<Pagination') && src.includes('totalPages={totalPages}'));
+    }
+    check(
+      'the sitemap lists archives through blogArchivesForSitemap()',
+      /blogArchivesForSitemap\(blogCategoryCounts\)/.test(sitemap),
+    );
+
+    // -----------------------------------------------------------------------
+    // 3e. JSON-LD goes through components/JsonLd.tsx, and only there.
+    // -----------------------------------------------------------------------
+    // lib/json-ld.ts escapes `</script>` in the payload; a hand-rolled
+    // <script type="application/ld+json"> with JSON.stringify would not, and
+    // a post title is admin-typed text.
+    const withRawJsonLd = [...['app', 'components'].flatMap(walk)].filter(
+      (f) => f !== 'components/JsonLd.tsx' && read(f).includes('application/ld+json'),
+    );
+    check(
+      'no file but components/JsonLd.tsx writes a JSON-LD <script>',
+      withRawJsonLd.length === 0,
+      `found in: ${withRawJsonLd.join(', ')}`,
+    );
+    for (const [name, src] of [
+      ['/blog', index],
+      ['the archive', archive],
+      ['the article', read('app/blog/[slug]/page.tsx')],
+    ] as const) {
+      check(`${name} renders its structured data through <JsonLd>`, src.includes("import JsonLd from '@/components/JsonLd'") && src.includes('<JsonLd data={breadcrumbJsonLd} />'));
+    }
+    check(
+      'the archive declares BreadcrumbList and ItemList',
+      archive.includes("'@type': 'BreadcrumbList'") && archive.includes("'@type': 'ItemList'"),
+    );
+
+    // -----------------------------------------------------------------------
+    // 3f. Every page that embeds posts is refreshed by an article write.
+    // -----------------------------------------------------------------------
+    // The blog-side twin of cachekey:verify's job-page scan. Since C2 posts
+    // appear on job and landing pages; a page missing from BLOG_PATHS keeps
+    // showing an unpublished article until its own timer runs out.
+    const cacheSource = read('lib/cache.ts');
+    const listStart = cacheSource.indexOf('const BLOG_PATHS');
+    const listed = new Set(
+      [...cacheSource.slice(listStart, cacheSource.indexOf('];', listStart)).matchAll(/\['([^']+)'/g)].map((m) => m[1]),
+    );
+    const BLOG_READS = /\b(getBlogPosts|getBlogPost|getBlogSlugs|getBlogPostPage|getBlogCategoryCounts|getRelatedPosts|getLatestBlogPosts|getPostsForJobCategory)\b/;
+    const routeFiles = walk('app').filter(
+      (f) =>
+        (f.endsWith('/page.tsx') || f === 'app/sitemap.ts') &&
+        !f.startsWith('app/admin') &&
+        !f.startsWith('app/empresa/') &&
+        !f.startsWith('app/postulante'),
+    );
+    let blogPages = 0;
+    for (const file of routeFiles) {
+      const imported = read(file).match(/import\s*\{([^}]*)\}\s*from\s*'@\/lib\/blog'/);
+      if (!imported || !BLOG_READS.test(imported[1])) continue;
+      blogPages += 1;
+      const route =
+        file === 'app/sitemap.ts'
+          ? '/sitemap.xml'
+          : '/' +
+            file
+              .replace(/^app\//, '')
+              .replace(/\/?page\.tsx$/, '')
+              .split('/')
+              .filter((seg) => seg && !/^\(.*\)$/.test(seg))
+              .join('/');
+      check(`${route} is in lib/cache.ts BLOG_PATHS`, listed.has(route), `${file} reads blog posts but an article write never refreshes it`);
+    }
+    check(`the scan found the blog-reading pages (${blogPages})`, blogPages >= 10);
+  }
+
+  // -------------------------------------------------------------------------
+  // 3g. Admin rules (C3).
+  // -------------------------------------------------------------------------
+  const basePayload = {
+    title: 'Cómo conseguir trabajo en ventas en Paraguay',
+    description: 'Qué buscan los empleadores de ventas en Paraguay y cómo preparar tu postulación para destacar.',
+    body: 'x'.repeat(60),
+    status: 'draft',
+  };
+  check(
+    'a sector guide without a job category is rejected server-side',
+    !blogPostSchema.safeParse({ ...basePayload, category: 'guias-por-sector', relatedCategory: '' }).success,
+  );
+  check(
+    'a sector guide with a job category is accepted',
+    blogPostSchema.safeParse({ ...basePayload, category: 'guias-por-sector', relatedCategory: 'ventas' }).success,
+  );
+  check(
+    'other categories still accept no job category',
+    blogPostSchema.safeParse({ ...basePayload, category: 'consejos-cv', relatedCategory: null }).success,
+  );
+  const taxonomy = { categories: [{ slug: 'ventas' }], cities: [{ slug: 'asuncion' }] };
+  check(
+    'related slugs are checked against the taxonomy, not just their shape',
+    unknownRelatedTaxonomy({ relatedCategory: 'ventaz', relatedCity: null }, taxonomy) !== null &&
+      unknownRelatedTaxonomy({ relatedCategory: 'ventas', relatedCity: 'luqe' }, taxonomy) !== null &&
+      unknownRelatedTaxonomy({ relatedCategory: 'ventas', relatedCity: 'asuncion' }, taxonomy) === null &&
+      unknownRelatedTaxonomy({ relatedCategory: '', relatedCity: null }, taxonomy) === null,
+  );
+  check(
+    'renaming a post that was ever published mints a 301 (even while unpublished)',
+    shouldMintRedirect({ slug: 'viejo', publishedAt: '2026-01-10' }, 'nuevo'),
+  );
+  check(
+    'renaming a never-published draft does not',
+    !shouldMintRedirect({ slug: 'viejo', publishedAt: null }, 'nuevo'),
+  );
+  check('keeping the slug never mints one', !shouldMintRedirect({ slug: 'igual', publishedAt: '2026-01-10' }, 'igual'));
+  check(
+    'updateBlogPost() decides through shouldMintRedirect()',
+    /if \(shouldMintRedirect\(previous, input\.slug\)\)/.test(dbBlogSource),
+  );
+
+  // The editor's live counters and checklist.
+  check('word count ignores link targets and syntax', wordCount('## Hola\n\nUn [enlace](/empleos/abc-def) y **dos**.') === 5, String(wordCount('## Hola\n\nUn [enlace](/empleos/abc-def) y **dos**.')));
+  check('reading time is at least a minute', readingMinutes(0) === 1 && readingMinutes(1000) === 5);
+  {
+    const good = seoChecklist({
+      title: 'Cómo conseguir trabajo en ventas en Paraguay',
+      description: 'Qué buscan los empleadores de ventas en Paraguay y cómo preparar tu postulación para destacar.',
+      body: `Mirá los [empleos de ventas](/trabajo/ventas) publicados.\n\n## Qué buscan\n\n${'palabra '.repeat(720)}`,
+      category: 'guias-por-sector',
+      relatedCategory: 'ventas',
+    });
+    check('a brief-compliant article passes every check', good.every((c) => c.ok), JSON.stringify(good.filter((c) => !c.ok)));
+    const bad = seoChecklist({
+      title: 'Corto',
+      description: 'Muy corta.',
+      body: `${'palabra '.repeat(250)} [link](https://example.com) [empleos](/empleosx)`,
+      category: 'guias-por-sector',
+      relatedCategory: '',
+    });
+    const failed = new Set(bad.filter((c) => !c.ok).map((c) => c.id));
+    check(
+      'the checklist flags title, description, missing h2, missing landing link and missing guide category',
+      ['title-length', 'description-length', 'has-h2', 'landing-link', 'landing-link-early', 'length', 'guide-related-category'].every((id) =>
+        failed.has(id),
+      ),
+      [...failed].join(', '),
+    );
+    const late = seoChecklist({
+      title: 'x',
+      description: 'y',
+      body: `${'palabra '.repeat(250)} [empleos](/empleos)`,
+      category: 'consejos-cv',
+      relatedCategory: '',
+    });
+    check(
+      'a landing link after the first 200 words passes "has a link" but not "early"',
+      late.find((c) => c.id === 'landing-link')?.ok === true && late.find((c) => c.id === 'landing-link-early')?.ok === false,
+    );
+    const hasH2 = (body: string) =>
+      seoChecklist({ title: '', description: '', body, category: 'noticias', relatedCategory: '' }).find(
+        (c) => c.id === 'has-h2',
+      )?.ok;
+    check(
+      'only a real ## counts as a subtitle (not ###, # or a #hashtag)',
+      hasH2('texto\n\n## Subtítulo') === true &&
+        hasH2('### Solo h3') === false &&
+        hasH2('# Título') === false &&
+        hasH2('texto con #hashtag') === false,
+    );
+    check(
+      'a city landing and an absolute production URL count as landing links',
+      seoChecklist({ title: '', description: '', body: '[a](/trabajo-en/luque)', category: 'noticias', relatedCategory: '' }).find((c) => c.id === 'landing-link')?.ok === true &&
+        seoChecklist({ title: '', description: '', body: '[a](https://trabajo.com.py/empleos?q=x)', category: 'noticias', relatedCategory: '' }).find((c) => c.id === 'landing-link')?.ok === true,
+    );
+  }
 
   // -------------------------------------------------------------------------
   // 4. With a database configured, the real articles too.

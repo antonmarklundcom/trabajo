@@ -9,6 +9,8 @@ import { JOBS_PAGE_SIZE } from '@/lib/pagination';
 import JobCard from '@/components/JobCard';
 import Pagination from '@/components/Pagination';
 import JsonLd from '@/components/JsonLd';
+import BlogPostLinks from '@/components/BlogPostLinks';
+import { getPostsForJobCategory } from '@/lib/blog';
 
 // Cached reads are invalidated on demand by every admin mutation
 // (lib/cache.ts), so this timer is only the safety net for job expiry and
@@ -78,13 +80,16 @@ export default async function CategoriaciudadPage({
   const sp = await searchParams;
   const page = pageFromSearchParams(sp);
 
-  const [category, city, { jobs, total }, taxonomyCounts] = await Promise.all([
+  const [category, city, { jobs, total }, taxonomyCounts, guides] = await Promise.all([
     getCategory(categoria),
     getCity(ciudad),
     getJobs({ categoria, ciudad, orden: 'recientes', page }),
     // Sibling cities for "Otras ciudades" — every city with a job in this
     // category, same seam S5 adds for the parent category page.
     getTaxonomyCounts({ categoria }),
+    // Same block as the parent category page (C2): the guides are about the
+    // trade, not the city.
+    getPostsForJobCategory(categoria, 3),
   ]);
 
   if (!category || !city) notFound();
@@ -191,6 +196,12 @@ export default async function CategoriaciudadPage({
             />
           </>
         )}
+
+        <BlogPostLinks
+          title={`Cómo conseguir trabajo en ${category.name}`}
+          posts={guides}
+          className="mt-10"
+        />
 
         {/* Cross-links (PLAN-GROWTH.md §4 S5) */}
         {(otherCities.length > 0 || (copy && copy.related.length > 0)) && (
