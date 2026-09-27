@@ -1,4 +1,6 @@
-import type { Job, Category, City, ClosedJob, JobFilters } from './types';
+import type { Job, Category, City, ClosedJob, Company, JobFilters } from './types';
+import { slugify } from './slug';
+import { isHttpUrl } from './company-website';
 
 /**
  * Per-city and per-category job counts, each optionally narrowed by the
@@ -19,8 +21,20 @@ import rawCities from './seed/cities.json';
 // `images` did not exist when lib/seed/jobs.json was written, so every row
 // needs a default rather than a cast masking `undefined` — an absent array
 // there would fail the seed↔db parity check the moment a DB job has photos.
-const seedJobs = (rawJobs as Job[]).map((job) => ({
+/**
+ * The seed file's stand-in for `companies.slug`, and the ONLY place a seed
+ * company slug is derived. lib/seed/jobs.json carries company names, not
+ * company rows; scripts/seed-import.ts mints `companies.slug` from the same
+ * name with the same slugify(), so a seed job and its imported DB row agree on
+ * `/empresas/{slug}` (and `npm run db:parity` compares the field).
+ */
+function seedCompanySlug(job: Pick<Job, 'company'> & { companySlug?: string }): string {
+  return job.companySlug || slugify(job.company);
+}
+
+const seedJobs = (rawJobs as Array<Omit<Job, 'companySlug'> & { companySlug?: string }>).map((job) => ({
   ...job,
+  companySlug: seedCompanySlug(job),
   images: job.images ?? [],
   // Both fields postdate lib/seed/jobs.json, so both default rather than being
   // cast from `undefined` — an absent value here would fail the seed↔db parity
@@ -59,6 +73,7 @@ function matchesFilters(job: Job, filters: JobFilters): boolean {
   if (filters.tipo && job.contractType !== filters.tipo) return false;
   if (filters.nivel && job.seniority !== filters.nivel) return false;
   if (filters.modality && job.modality !== filters.modality) return false;
+  if (filters.empresa && job.companySlug !== filters.empresa) return false;
   if (filters.salarioMin != null) {
     if (job.salaryHidden || job.salaryMin == null) return false;
     if (job.salaryMin < filters.salarioMin) return false;
@@ -162,6 +177,26 @@ async function seedGetClosedJob(slug: string): Promise<ClosedJob | null> {
     categorySlug: job.categorySlug,
     citySlug: job.citySlug,
     closedAt: job.expiresAt,
+  };
+}
+
+/**
+ * The seed side of `queryCompany()`. Every seed row is `published`, so any
+ * company that appears in the file at all is a listed company (the DB side's
+ * companyListedPredicate()); `jobCount` counts only the visible ones. The seed
+ * has no company description, and a website only where a row carries one.
+ */
+async function seedGetCompany(slug: string): Promise<Company | null> {
+  const rows = seedJobs.filter((j) => j.companySlug === slug);
+  if (rows.length === 0) return null;
+  const [first] = rows;
+  return {
+    slug,
+    name: first.company,
+    logo: first.companyLogo,
+    description: null,
+    website: first.companyWebsite,
+    jobCount: rows.filter(isVisible).length,
   };
 }
 
@@ -290,6 +325,25 @@ export async function getClosedJob(slug: string): Promise<ClosedJob | null> {
   return seedGetClosedJob(slug);
 }
 
+/**
+ * A company's public page data (PLAN-GROWTH.md §4 D5), or null — a 404 — for
+ * an unknown slug or a company no human has ever approved a listing for (see
+ * companyListedPredicate() in lib/db/queries.ts for why that is a 404 too).
+ *
+ * The website is re-checked with isHttpUrl HERE, once, for both sources: rows
+ * written before companyWebsiteSchema existed were never validated, and this
+ * value becomes an `href` and a JSON-LD `sameAs`.
+ */
+export async function getCompany(slug: string): Promise<Company | null> {
+  const company =
+    getSource() === 'db' ? await (await getDbModule()).getCompany(slug) : await seedGetCompany(slug);
+  if (!company) return null;
+  return {
+    ...company,
+    website: company.website && isHttpUrl(company.website) ? company.website : null,
+  };
+}
+
 export async function getFeaturedJobs(limit = 6): Promise<Job[]> {
   if (getSource() === 'db') return (await getDbModule()).getFeaturedJobs(limit);
   return seedGetFeaturedJobs(limit);
@@ -312,14 +366,26 @@ export async function getRecentJobs(limit = 8): Promise<Job[]> {
  * Runs on the sitemap's hourly timer and at build. It is not a page read.
  */
 export async function getAllPublishedJobSummaries(): Promise<Job[]> {
-  const first = await getJobs({ orden: 'recientes', page: 1 });
+  return getAllJobs({ orden: 'recientes' });
+}
+
+/**
+ * Every public job of one company, in the catalogue's default order — the
+ * list on `/empresas/[slug]`. The same page walk as the sitemap's, narrowed by
+ * the `empresa` filter, so a company with more than one page of listings still
+ * shows all of them on its one static URL.
+ */
+export async function getCompanyJobs(companySlug: string): Promise<Job[]> {
+  return getAllJobs({ empresa: companySlug, orden: 'recientes' });
+}
+
+async function getAllJobs(filters: Omit<JobFilters, 'page'>): Promise<Job[]> {
+  const first = await getJobs({ ...filters, page: 1 });
   const totalPages = Math.ceil(first.total / PAGE_SIZE);
   if (totalPages <= 1) return first.jobs;
 
   const rest = await Promise.all(
-    Array.from({ length: totalPages - 1 }, (_, i) =>
-      getJobs({ orden: 'recientes', page: i + 2 }),
-    ),
+    Array.from({ length: totalPages - 1 }, (_, i) => getJobs({ ...filters, page: i + 2 })),
   );
   return [...first.jobs, ...rest.flatMap((page) => page.jobs)];
 }

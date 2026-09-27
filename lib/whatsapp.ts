@@ -143,3 +143,18 @@ export function teamToEmployerHref(
         : `Hola, te escribimos de trabajo.com.py: el Destacado de tu aviso "${job.title}" vence pronto. ¿Querés renovarlo?`;
   return waHref(digits, message);
 }
+
+/**
+ * "Reportar este aviso" on a job page: a chat with the team, prefilled with
+ * the listing, so a seeker who smells a scam (a fee to apply, a request for
+ * documents up front) can say so in one tap. Null when the site number is not
+ * configured — the link is omitted rather than pointed at nobody.
+ */
+export function reportListingHref(jobTitle: string, url: string): string | null {
+  const number = siteWhatsAppNumber();
+  if (!number) return null;
+  return waHref(
+    number,
+    `Hola, quiero reportar un aviso de trabajo.com.py que me parece sospechoso: "${jobTitle}" ${url}`,
+  );
+}

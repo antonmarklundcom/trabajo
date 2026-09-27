@@ -48,7 +48,7 @@ export default function CompanyAvatar({ company, logo, size = 48, className = ''
           height={size}
           loading="lazy"
           decoding="async"
-          className="w-full h-full object-cover"
+          className="w-full h-full object-contain p-0.5"
         />
       </div>
     );

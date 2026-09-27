@@ -47,8 +47,13 @@ export async function POST(request: Request) {
 
   const passwordHash = await hashPassword(parsed.data.password);
   // Also drops every other outstanding token for this account, including a
-  // reset link an attacker may have requested minutes earlier.
-  await setCandidatePassword(redeemed.candidateId, passwordHash);
+  // reset link an attacker may have requested minutes earlier, and bumps the
+  // session version in the same write, so every cookie issued before this
+  // reset stops working. Null when the account no longer exists (purged).
+  const sessionVersion = await setCandidatePassword(redeemed.candidateId, passwordHash);
+  if (sessionVersion === null) {
+    return Response.json({ error: LINK_ERRORS.invalid }, { status: 410 });
+  }
 
   await recordAuthEvent({
     surface: 'postulante',
@@ -59,6 +64,7 @@ export async function POST(request: Request) {
 
   // Signing them in is the point of having proved control of the inbox; making
   // them retype the password they just chose would be theatre.
-  await createCandidateSession(redeemed.candidateId);
+  // Sealed with the NEW version: the one session that survives the reset.
+  await createCandidateSession(redeemed.candidateId, sessionVersion);
   return Response.json({ ok: true, redirectTo: '/postulante/perfil' });
 }

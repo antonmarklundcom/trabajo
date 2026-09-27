@@ -46,6 +46,14 @@ export const users = mysqlTable('users', {
   // gate. It exists so a reviewer can see whether the address was confirmed.
   emailVerifiedAt: datetime('email_verified_at'),
   lastLoginAt: datetime('last_login_at'),
+  // Copied into the session cookie at sign-in and compared on every lookup
+  // (lib/auth.ts getSessionUser). Every write of password_hash increments it
+  // in the SAME statement, so a password reset ends every session issued
+  // before it — including one an attacker is holding, which otherwise stays
+  // valid for the cookie's full 7-day TTL. A cookie that predates this column
+  // carries no version and is read as 0, which is why the default is 0: the
+  // deploy that added it logged nobody out.
+  sessionVersion: int('session_version').notNull().default(0),
   createdAt: datetime('created_at').notNull(),
   updatedAt: datetime('updated_at').notNull(),
 });
@@ -351,6 +359,10 @@ export const candidates = mysqlTable('candidates', {
   // descartaron" notice would do candidates more harm than good
   // (PLAN-NEXT.md §3 N3), so this flag governs one message, not a category.
   notifyOnStatusChange: boolean('notify_on_status_change').notNull().default(true),
+  // Same mechanism as users.session_version, for the 30-day candidate cookie
+  // (lib/auth-candidate.ts getCandidate). Bumped in the statement that writes
+  // password_hash; a cookie without a version reads as 0.
+  sessionVersion: int('session_version').notNull().default(0),
   createdAt: datetime('created_at').notNull(),
   updatedAt: datetime('updated_at').notNull(),
 });

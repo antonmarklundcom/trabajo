@@ -26,7 +26,13 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { getIronSession, type SessionOptions } from 'iron-session';
 
-import { AuthError, DUMMY_HASH, hashPassword, verifyPassword } from './auth';
+import {
+  AuthError,
+  DUMMY_HASH,
+  hashPassword,
+  NEW_ACCOUNT_SESSION_VERSION,
+  verifyPassword,
+} from './auth';
 import { createAttemptLimiter, LOGIN_LIMITS } from './rate-limit';
 
 /**
@@ -37,10 +43,17 @@ import { createAttemptLimiter, LOGIN_LIMITS } from './rate-limit';
  * name would decrypt successfully. It would carry no `userId`, so the staff
  * path already resolves it to null — and this field makes the reverse direction
  * fail just as closed instead of relying on that asymmetry.
+ *
+ * `sessionVersion` is the candidate twin of lib/auth.ts's: a revocation marker
+ * compared against `candidates.session_version`, which every password write
+ * increments in the same statement. It matters more here than for staff — the
+ * cookie lives 30 days, so a reset that left it valid left an attacker a
+ * month. A cookie sealed before the column existed has none and reads as 0.
  */
 export type CandidateSessionData = {
   candidateId?: number;
   kind?: 'candidate';
+  sessionVersion?: number;
 };
 
 /** The request-scoped candidate, loaded fresh from the DB. Never the hash. */
@@ -110,6 +123,7 @@ async function getSession() {
 export const getCandidate = cache(async (): Promise<CandidateUser | null> => {
   const session = await getSession();
   if (session.kind !== 'candidate' || !session.candidateId) return null;
+  const sessionVersion = session.sessionVersion ?? 0;
 
   const { db, schema } = await getDb();
   const { eq, and } = await import('drizzle-orm');
@@ -128,8 +142,16 @@ export const getCandidate = cache(async (): Promise<CandidateUser | null> => {
     .from(schema.candidates)
     // isActive is part of the lookup rather than a post-check, and a deleted
     // candidate has no row at all — the ARCO purge is a hard delete
-    // (PLAN-PHASE2.md §4.4), so this returns null the moment it runs.
-    .where(and(eq(schema.candidates.id, session.candidateId), eq(schema.candidates.isActive, true)))
+    // (PLAN-PHASE2.md §4.4), so this returns null the moment it runs. The
+    // version check is in the WHERE for the same reason: a cookie issued
+    // before the latest password write matches no row.
+    .where(
+      and(
+        eq(schema.candidates.id, session.candidateId),
+        eq(schema.candidates.isActive, true),
+        eq(schema.candidates.sessionVersion, sessionVersion),
+      ),
+    )
     .limit(1);
 
   return rows[0] ?? null;
@@ -162,10 +184,19 @@ export async function requireApiCandidate(): Promise<CandidateUser> {
 // cookies, which Next 16 forbids during Server Component render).
 // ---------------------------------------------------------------------------
 
-export async function createCandidateSession(candidateId: number): Promise<void> {
+/**
+ * `sessionVersion` is passed in, never re-read here, for the reason
+ * lib/auth.ts createSession() gives: the version sealed must be the one the
+ * caller authenticated against.
+ */
+export async function createCandidateSession(
+  candidateId: number,
+  sessionVersion: number,
+): Promise<void> {
   const session = await getSession();
   session.candidateId = candidateId;
   session.kind = 'candidate';
+  session.sessionVersion = sessionVersion;
   await session.save();
 }
 
@@ -179,7 +210,10 @@ export async function destroyCandidateSession(): Promise<void> {
 // ---------------------------------------------------------------------------
 
 /** Re-exported so callers never reach for bcrypt directly and pick a cost. */
-export { hashPassword };
+export { hashPassword, NEW_ACCOUNT_SESSION_VERSION };
+
+/** authenticateCandidate()'s result: the candidate plus the version to seal. */
+export type AuthenticatedCandidate = CandidateUser & { sessionVersion: number };
 
 /**
  * Looks the candidate up, checks the password in constant-ish time, creates
@@ -192,7 +226,7 @@ export { hashPassword };
 export async function authenticateCandidate(
   email: string,
   password: string,
-): Promise<CandidateUser | null> {
+): Promise<AuthenticatedCandidate | null> {
   const { db, schema } = await getDb();
   const { eq } = await import('drizzle-orm');
 
@@ -208,6 +242,7 @@ export async function authenticateCandidate(
       notifyOnStatusChange: schema.candidates.notifyOnStatusChange,
       isActive: schema.candidates.isActive,
       passwordHash: schema.candidates.passwordHash,
+      sessionVersion: schema.candidates.sessionVersion,
     })
     .from(schema.candidates)
     .where(eq(schema.candidates.email, email.trim().toLowerCase()))
@@ -236,6 +271,7 @@ export async function authenticateCandidate(
     headline: row.headline,
     emailVerifiedAt: row.emailVerifiedAt,
     notifyOnStatusChange: row.notifyOnStatusChange,
+    sessionVersion: row.sessionVersion,
   };
 }
 

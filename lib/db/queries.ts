@@ -7,7 +7,7 @@ import { JOBS_PAGE_SIZE as PAGE_SIZE } from '../pagination';
 import { cachedOrRaw } from '../cached-or-raw';
 import { imagePublicUrl } from '../image-storage';
 import { companyLogoSrc } from '../company-logo';
-import type { Job, Category, City, ClosedJob, JobFilters } from '../types';
+import type { Job, Category, City, ClosedJob, Company, JobFilters } from '../types';
 import { isCacheable } from './job-cache-key';
 
 
@@ -59,6 +59,31 @@ function closedPredicate() {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Which companies have a public page at all (PLAN-GROWTH.md §4 D5).
+//
+// A company whose listings have ALL expired keeps its page — it has inbound
+// links, and it renders `noindex, follow` until it has a live job again. But a
+// company that NEVER had a listing approved gets no page: self-serve signup
+// creates a company row from nothing more than a verified email, and a public
+// page for it would publish an employer-typed name, description and website
+// link that no human has looked at — the moderation gate (AGENTS.md) walked
+// around through the company profile instead of through a job.
+//
+// So: at least one job in `published`, expired or not. `published` is only
+// ever set by /admin approval (scripts/verify-moderation.ts). NOT `archived`:
+// an admin can archive a submission straight from `pending`, so an archived
+// row does not prove a human ever approved it.
+//
+// Used as a JOIN condition in queryCompany() only, and never to select a job
+// row — the jobs a visitor sees still come from visiblePredicate().
+// scripts/verify-moderation.ts asserts both.
+// ---------------------------------------------------------------------------
+
+function companyListedPredicate() {
+  return eq(jobs.status, 'published');
+}
+
 function isFeaturedSql() {
   return sql<number>`CASE WHEN ${jobs.featuredUntil} IS NOT NULL AND ${jobs.featuredUntil} > NOW() THEN 0 ELSE 1 END`;
 }
@@ -73,6 +98,7 @@ const jobSelection = {
   slug: jobs.slug,
   title: jobs.title,
   company: companies.name,
+  companySlug: companies.slug,
   companyLogoKey: companies.logoKey,
   companyLogoUrl: companies.logoUrl,
   categorySlug: categories.slug,
@@ -97,6 +123,7 @@ type JobRow = {
   slug: string;
   title: string;
   company: string;
+  companySlug: string;
   companyLogoKey: string | null;
   companyLogoUrl: string | null;
   categorySlug: string;
@@ -121,6 +148,7 @@ function toJob(row: JobRow, images: string[]): Job {
     slug: row.slug,
     title: row.title,
     company: row.company,
+    companySlug: row.companySlug,
     companyLogo: companyLogoSrc(row.companyLogoKey, row.companyLogoUrl),
     categorySlug: row.categorySlug,
     citySlug: row.citySlug,
@@ -196,6 +224,9 @@ async function queryJobs(filters: JobFilters): Promise<{ jobs: Job[]; total: num
   if (filters.tipo) conditions.push(eq(jobs.contractType, filters.tipo as Job['contractType']));
   if (filters.nivel) conditions.push(eq(jobs.seniority, filters.nivel as Job['seniority']));
   if (filters.modality) conditions.push(eq(jobs.modality, filters.modality as Job['modality']));
+  // Appended to the same array visiblePredicate() opens, so a company's page
+  // lists exactly the jobs the rest of the site would show for it.
+  if (filters.empresa) conditions.push(eq(companies.slug, filters.empresa));
   if (filters.salarioMin != null) {
     conditions.push(eq(jobs.salaryHidden, false));
     conditions.push(sql`${jobs.salaryMin} IS NOT NULL AND ${jobs.salaryMin} >= ${filters.salarioMin}`);
@@ -267,6 +298,41 @@ async function queryClosedJob(slug: string): Promise<ClosedJob | null> {
     categorySlug: row.categorySlug,
     citySlug: row.citySlug,
     closedAt: closedAt ? closedAt.toISOString() : null,
+  };
+}
+
+/**
+ * One company's public profile plus its live-job count (PLAN-GROWTH.md §4 D5).
+ *
+ * The INNER JOIN on companyListedPredicate() is what makes a never-approved
+ * company a 404 (see the predicate's comment); the count inside it is
+ * visiblePredicate(), so `jobCount` agrees with what getJobs({ empresa })
+ * returns. Selects no contact column — whatsapp is deliberately absent.
+ */
+async function queryCompany(slug: string): Promise<Company | null> {
+  const [row] = await db
+    .select({
+      slug: companies.slug,
+      name: companies.name,
+      logoKey: companies.logoKey,
+      logoUrl: companies.logoUrl,
+      description: companies.description,
+      website: companies.website,
+      jobCount: sql<number>`COALESCE(SUM(CASE WHEN ${visiblePredicate()} THEN 1 ELSE 0 END), 0)`.mapWith(Number),
+    })
+    .from(companies)
+    .innerJoin(jobs, and(eq(jobs.companyId, companies.id), companyListedPredicate()))
+    .where(eq(companies.slug, slug))
+    .groupBy(companies.id)
+    .limit(1);
+  if (!row) return null;
+  return {
+    slug: row.slug,
+    name: row.name,
+    logo: companyLogoSrc(row.logoKey, row.logoUrl),
+    description: row.description,
+    website: row.website,
+    jobCount: row.jobCount,
   };
 }
 
@@ -486,6 +552,16 @@ const cachedClosedJob = unstable_cache(
   cacheOptions([CACHE_TAGS.jobs]),
 );
 
+// Tagged `jobs`: its count moves with every job write, and every company write
+// (admin edit, employer profile, logo) calls invalidatePublicContent(), which
+// expires this tag too — company name and logo were already joined onto every
+// job read, so a company edit was always a public-content write.
+const cachedCompany = unstable_cache(
+  (slug: string) => queryCompany(slug),
+  ['db', 'companies', 'detail'],
+  cacheOptions([CACHE_TAGS.jobs]),
+);
+
 const cachedFeaturedJobs = unstable_cache(
   (limit: number) => queryFeaturedJobs(limit),
   ['db', 'jobs', 'featured'],
@@ -558,6 +634,10 @@ export async function getJob(slug: string): Promise<Job | null> {
 
 export async function getClosedJob(slug: string): Promise<ClosedJob | null> {
   return cachedOrRaw(() => cachedClosedJob(slug), () => queryClosedJob(slug));
+}
+
+export async function getCompany(slug: string): Promise<Company | null> {
+  return cachedOrRaw(() => cachedCompany(slug), () => queryCompany(slug));
 }
 
 export async function getFeaturedJobs(limit = 6): Promise<Job[]> {

@@ -60,6 +60,6 @@ export async function POST(request: Request) {
     candidateId: candidate.id,
     ip: trustedIp,
   });
-  await createCandidateSession(candidate.id);
+  await createCandidateSession(candidate.id, candidate.sessionVersion);
   return Response.json({ ok: true, redirectTo: '/postulante/perfil' });
 }

@@ -224,7 +224,7 @@ a renewal link, and — on listings not already featured — one Destacado line.
 No applicant data, ever; `npm run digest:verify` asserts that in CI.
 
 **`npm run db:migrate` first — before, or together with, the deploy that ships
-this.** Migration `0018_long_dark_phoenix` adds `companies.notify_weekly_digest`,
+this.** Migration `0019_puzzling_the_captain` adds `companies.notify_weekly_digest`,
 `companies.last_digest_sent_at` and `jobs.view_count_at_digest` (all additive,
 with defaults). Until it has run, every query that selects a whole `jobs` or
 `companies` row — the company profile and job editor in `/empresa`, the admin

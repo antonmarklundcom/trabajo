@@ -41,7 +41,8 @@
     "seo:verify": "tsx scripts/verify-seo.ts",
     "whatsapp:verify": "tsx scripts/verify-whatsapp.ts",
     "digest:verify": "tsx --conditions=react-server scripts/verify-digest.ts",
-    "sentry:verify": "tsx scripts/verify-sentry-scrub.ts"
+    "sentry:verify": "tsx scripts/verify-sentry-scrub.ts",
+    "accounts:verify": "tsx scripts/verify-accounts.ts"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.70.0",

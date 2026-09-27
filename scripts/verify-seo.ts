@@ -20,7 +20,14 @@
 // No database, no env, no network.
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { listingIndexRule, canonicalFor, siteUrl } from '../lib/seo';
+import {
+  listingIndexRule,
+  canonicalFor,
+  siteUrl,
+  companyRobots,
+  companiesWithPublicJobs,
+} from '../lib/seo';
+import robots from '../app/robots';
 import { serializeJsonLd } from '../lib/json-ld';
 import { isHttpUrl } from '../lib/company-website';
 
@@ -346,6 +353,103 @@ for (const file of publicPages) {
       'A free-text website ends up in hiringOrganization.sameAs on every job of that company.',
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// 8. Company pages, /empresas/[slug] (PLAN-GROWTH.md §4 D5).
+//
+//    Same invisibility as everything above: an indexable empty profile is a
+//    thin page Google learns to distrust, a sitemap that lists one sends Search
+//    Console a contradictory signal, and a followed link to an employer-typed
+//    website is an endorsement nobody decided to give. None changes a pixel.
+// ---------------------------------------------------------------------------
+
+{
+  check('a company with zero public jobs is noindex', companyRobots(0).index === false);
+  check('a company with zero public jobs is still follow', companyRobots(0).follow === true,
+    'The page still links to the catalogue; nofollow would cut that path for nothing.');
+  check('a company with one public job is indexable', companyRobots(1).index === true);
+  check('a company with many public jobs is indexable', companyRobots(12).index === true);
+
+  const listed = companiesWithPublicJobs([
+    { companySlug: 'kia-paraguay', updatedAt: '2026-06-01T00:00:00Z' },
+    { companySlug: 'kia-paraguay', updatedAt: '2026-06-09T00:00:00Z' },
+    { companySlug: 'banco-continental', updatedAt: '2026-05-01T00:00:00Z' },
+  ]);
+  check(
+    'the sitemap company set is exactly the companies with a public job',
+    listed.size === 2 && listed.has('kia-paraguay') && listed.has('banco-continental'),
+    `Got: ${[...listed.keys()].join(', ')}`,
+  );
+  check(
+    "a company's sitemap lastmod is its latest job update",
+    listed.get('kia-paraguay')?.toISOString() === '2026-06-09T00:00:00.000Z',
+    String(listed.get('kia-paraguay')?.toISOString()),
+  );
+  check('no public jobs means no company in the sitemap', companiesWithPublicJobs([]).size === 0);
+
+  const page = code(read('app/empresas/[slug]/page.tsx'));
+  check(
+    '/empresas/[slug] takes robots from companyRobots(company.jobCount)',
+    /robots:\s*companyRobots\(company\.jobCount\)/.test(page),
+    'A second copy of the rule inside generateMetadata is a second rule.',
+  );
+  check(
+    '/empresas/[slug] canonical is the company slug',
+    page.includes('canonicalFor(`/empresas/${company.slug}`)'),
+  );
+
+  const websiteAnchor = page.match(/<a\b[^>]*href=\{company\.website\}[^>]*>/)?.[0] ?? '';
+  check('the company website link is inspectable', websiteAnchor.length > 0,
+    'Could not find <a href={company.website}> in app/empresas/[slug]/page.tsx.');
+  const rel = websiteAnchor.match(/rel="([^"]*)"/)?.[1].split(/\s+/) ?? [];
+  check(
+    'the company website link carries rel=nofollow',
+    rel.includes('nofollow'),
+    `Got rel="${rel.join(' ')}". The address is employer-typed; the site does not vouch for it.`,
+  );
+  check(
+    'the company website link carries noopener noreferrer with target=_blank',
+    rel.includes('noopener') && rel.includes('noreferrer') && websiteAnchor.includes('target="_blank"'),
+    websiteAnchor,
+  );
+  check(
+    'the Organization JSON-LD goes through <JsonLd>',
+    page.includes("'@type': 'Organization'") && page.includes('<JsonLd data={organizationJsonLd} />'),
+  );
+
+  const dataSource = code(read('lib/data.ts'));
+  const getCompanyBody = dataSource.slice(dataSource.indexOf('export async function getCompany('));
+  check(
+    'getCompany() re-checks the website with isHttpUrl for both sources',
+    /isHttpUrl\(company\.website\)/.test(getCompanyBody.slice(0, getCompanyBody.indexOf('\n}'))),
+    'The website becomes an href and a sameAs; rows older than companyWebsiteSchema were never validated.',
+  );
+
+  const sitemap = code(read('app/sitemap.ts'));
+  check(
+    'the sitemap lists companies only through companiesWithPublicJobs()',
+    sitemap.includes('companiesWithPublicJobs(jobs)') &&
+      (sitemap.match(/\/empresas\//g) ?? []).length === 1 &&
+      !sitemap.includes('getCompany'),
+    'Listing companies from anywhere but the public-job walk can list one with nothing to index.',
+  );
+
+  const rules = robots().rules;
+  const disallow = (Array.isArray(rules) ? rules : [rules]).flatMap((rule) =>
+    rule.disallow === undefined ? [] : Array.isArray(rule.disallow) ? rule.disallow : [rule.disallow],
+  );
+  check(
+    'robots.txt does not disallow /empresas/',
+    !disallow.some((prefix) => '/empresas/kia-paraguay'.startsWith(prefix)),
+    `Disallow: ${disallow.join(', ')}. robots.txt matches by prefix, so '/empresa' without its ` +
+      'trailing slash would hide every public company page.',
+  );
+  check(
+    'robots.txt still disallows the employer panel /empresa/',
+    disallow.some((prefix) => '/empresa/empleos'.startsWith(prefix)),
+    `Disallow: ${disallow.join(', ')}`,
+  );
 }
 
 if (failures > 0) {

@@ -7,9 +7,10 @@
 // reads of candidate data go through lib/db/candidates-admin.ts, which logs.
 import 'server-only';
 
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, sql } from 'drizzle-orm';
 
 import { candidateExperiences, candidates, consents } from './schema';
+import { isDuplicateKeyOn } from './duplicate-key';
 
 async function getDb() {
   return (await import('./index')).db;
@@ -34,9 +35,20 @@ export type RegisterCandidateResult =
   | { ok: false; reason: 'email_taken' };
 
 /**
- * Creates the candidate row and the `profile_storage` consent row in the same
- * call, because a candidate row with no consent row is an impossible state in
- * production (PLAN-PHASE2.md §4.1 — signup is blocking on this consent).
+ * Creates the candidate row and the `profile_storage` consent row in ONE
+ * transaction, because a candidate row with no consent row is an impossible
+ * state in production (PLAN-PHASE2.md §4.1 — signup is blocking on this
+ * consent). The consent row is the proof that storing this profile was
+ * authorised; as two separate statements, a failure between them left an
+ * account holding data nobody could show consent for, and the user's retry
+ * then failed with "email taken" — so the gap could not even heal itself.
+ *
+ * Consents stay append-only: this is the same single INSERT it always was,
+ * only now inside the transaction. Nothing here updates a consent row.
+ *
+ * The caller sends the verification email only after this returns, i.e. after
+ * COMMIT — never from inside the callback, where a rollback would leave a
+ * delivered link to an account that does not exist.
  */
 export async function registerCandidate(
   input: RegisterCandidateInput,
@@ -45,6 +57,8 @@ export async function registerCandidate(
   const db = await getDb();
   const email = input.email.trim().toLowerCase();
 
+  // Friendly answer for the common case. The UNIQUE index on candidates.email
+  // is the actual guarantee — two requests can pass this read at once.
   const existing = await db
     .select({ id: candidates.id })
     .from(candidates)
@@ -53,31 +67,45 @@ export async function registerCandidate(
   if (existing.length > 0) return { ok: false, reason: 'email_taken' };
 
   const now = new Date();
-  const [result] = await db.insert(candidates).values({
-    email,
-    passwordHash: input.passwordHash,
-    name: input.name,
-    phone: input.phone,
-    cityId: input.cityId,
-    isActive: true,
-    createdAt: now,
-    updatedAt: now,
-  });
+  try {
+    const candidateId = await db.transaction(async (tx) => {
+      const [result] = await tx.insert(candidates).values({
+        email,
+        passwordHash: input.passwordHash,
+        name: input.name,
+        phone: input.phone,
+        cityId: input.cityId,
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+      });
 
-  await db.insert(consents).values({
-    subjectType: 'candidate',
-    subjectId: result.insertId,
-    purpose: 'profile_storage',
-    granted: true,
-    policyVersion: POLICY_VERSION,
-    relatedCompanyId: null,
-    relatedJobId: null,
-    ip: input.ip,
-    userAgent: input.userAgent,
-    createdAt: now,
-  });
+      await tx.insert(consents).values({
+        subjectType: 'candidate',
+        subjectId: result.insertId,
+        purpose: 'profile_storage',
+        granted: true,
+        policyVersion: POLICY_VERSION,
+        relatedCompanyId: null,
+        relatedJobId: null,
+        ip: input.ip,
+        userAgent: input.userAgent,
+        createdAt: now,
+      });
 
-  return { ok: true, candidateId: result.insertId };
+      return result.insertId;
+    });
+    return { ok: true, candidateId };
+  } catch (err) {
+    // The racing twin of the pre-check above: a concurrent signup for the same
+    // address committed first, and InnoDB rejected this INSERT on the unique
+    // index. Caught OUTSIDE the callback so the transaction has already rolled
+    // back when we answer — the loser leaves nothing behind — and answered
+    // exactly as the pre-check would have, so the outcome does not depend on
+    // which millisecond the second request arrived in.
+    if (isDuplicateKeyOn(err, 'candidates_email_unique')) return { ok: false, reason: 'email_taken' };
+    throw err;
+  }
 }
 
 /**
@@ -110,25 +138,52 @@ export async function findActiveCandidateByEmail(
 }
 
 /**
- * Sets a new password hash and drops every outstanding token for the account.
+ * Sets a new password hash, ends every existing session, and drops every
+ * outstanding token for the account.
  *
  * The invalidation is the point as much as the new hash: whoever just proved
  * control of the inbox should end any other reset link that is still in flight,
- * including one an attacker requested minutes earlier.
+ * including one an attacker requested minutes earlier — and any session an
+ * attacker already holds. `session_version` is incremented in the SAME UPDATE
+ * that writes the hash (lib/auth-candidate.ts CandidateSessionData), so there
+ * is no moment where the password has changed and an old cookie still works.
+ *
+ * Returns the new session version for the caller to seal into the cookie it
+ * issues next, or null when the row no longer exists (an ARCO purge between
+ * redeeming the token and getting here). Read back inside the transaction
+ * because MySQL has no RETURNING; the UPDATE's row lock makes it this write's
+ * value. Token invalidation stays the separate call it always was, after the
+ * commit (it lives in lib/db/candidate-tokens.ts, which owns that table).
  */
 export async function setCandidatePassword(
   candidateId: number,
   passwordHash: string,
-): Promise<void> {
+): Promise<number | null> {
   const db = await getDb();
   const { invalidateCandidateTokens } = await import('./candidate-tokens');
 
-  await db
-    .update(candidates)
-    .set({ passwordHash, updatedAt: new Date() })
-    .where(eq(candidates.id, candidateId));
+  const sessionVersion = await db.transaction(async (tx) => {
+    const [result] = await tx
+      .update(candidates)
+      .set({
+        passwordHash,
+        sessionVersion: sql`${candidates.sessionVersion} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(eq(candidates.id, candidateId));
+    if (result.affectedRows === 0) return null;
+
+    const [row] = await tx
+      .select({ sessionVersion: candidates.sessionVersion })
+      .from(candidates)
+      .where(eq(candidates.id, candidateId))
+      .limit(1);
+    if (!row) throw new Error(`setCandidatePassword: candidate ${candidateId} vanished mid-transaction`);
+    return row.sessionVersion;
+  });
 
   await invalidateCandidateTokens(candidateId);
+  return sessionVersion;
 }
 
 /**

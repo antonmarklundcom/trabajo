@@ -13,9 +13,11 @@
 //     production with no staging, so they are deliberately not used.
 //
 // Design rules from ARCHITECTURE.md §5:
-//   - The cookie holds ONLY `userId`. Role and active-status are read from the
-//     DB on every request, so demoting or disabling a user takes effect
-//     immediately rather than whenever their cookie happens to expire.
+//   - The cookie holds ONLY `userId` and `sessionVersion`. Role and
+//     active-status are read from the DB on every request, so demoting or
+//     disabling a user takes effect immediately rather than whenever their
+//     cookie happens to expire. The version is there for the same reason, for
+//     a password change (see SessionData).
 //   - bcrypt cost 12.
 //   - Every mutating handler re-checks authorization server-side.
 import 'server-only';
@@ -27,9 +29,25 @@ import { getIronSession, type SessionOptions } from 'iron-session';
 
 export type Role = 'admin' | 'editor' | 'employer';
 
-/** What the encrypted cookie carries. Deliberately nothing but the id. */
+/**
+ * What the encrypted cookie carries. Deliberately nothing but the id and the
+ * account's session version at sign-in.
+ *
+ * `sessionVersion` is not an authorization input by itself — it is a
+ * revocation marker. Every write of `users.password_hash` increments
+ * `users.session_version` in the same statement, and the lookup below only
+ * accepts a cookie whose version still equals the row's. Without it a
+ * password reset changed the hash and burned the reset links but left every
+ * existing cookie working for its full 7-day TTL — including the one held by
+ * whoever the owner was resetting the password to lock out.
+ *
+ * Optional because every cookie issued before the column existed has none;
+ * those read as 0, which is the column default, so the deploy that introduced
+ * it logged nobody out. The first password change after it does.
+ */
 export type SessionData = {
   userId?: number;
+  sessionVersion?: number;
 };
 
 /** The request-scoped user, loaded fresh from the DB. Never the password hash. */
@@ -132,6 +150,8 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const session = await getSession();
   const userId = session.userId;
   if (!userId) return null;
+  // Missing = a cookie sealed before session_version existed (see SessionData).
+  const sessionVersion = session.sessionVersion ?? 0;
 
   const { db, schema } = await getDb();
   const { eq, and } = await import('drizzle-orm');
@@ -148,8 +168,16 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
     .from(schema.users)
     // isActive is part of the lookup, not a post-check: a disabled user must
     // stop authenticating the moment the flag flips, without needing their
-    // cookie to expire.
-    .where(and(eq(schema.users.id, userId), eq(schema.users.isActive, true)))
+    // cookie to expire. sessionVersion is in the WHERE for the same reason: a
+    // cookie issued before the latest password write matches no row, so it
+    // resolves to "not signed in" on its very next request.
+    .where(
+      and(
+        eq(schema.users.id, userId),
+        eq(schema.users.isActive, true),
+        eq(schema.users.sessionVersion, sessionVersion),
+      ),
+    )
     .limit(1);
 
   return rows[0] ?? null;
@@ -288,11 +316,27 @@ export function authErrorResponse(err: unknown): Response | null {
 // These write cookies, which Next 16 forbids during Server Component render.
 // ---------------------------------------------------------------------------
 
-export async function createSession(userId: number): Promise<void> {
+/**
+ * `sessionVersion` is required rather than looked up here, so that the version
+ * sealed into the cookie is the one the caller actually authenticated against
+ * (the row authenticate() read, or the value a password write just produced).
+ * Re-reading it at this point would let a login that raced a password reset
+ * mint a cookie carrying the NEW version on the strength of the OLD password.
+ */
+export async function createSession(userId: number, sessionVersion: number): Promise<void> {
   const session = await getSession();
   session.userId = userId;
+  session.sessionVersion = sessionVersion;
   await session.save();
 }
+
+/**
+ * The version a freshly inserted `users` or `candidates` row starts at — the
+ * column default in lib/db/schema.ts. For the sign-in that immediately follows
+ * account creation (signup, invitation acceptance), where no password write has
+ * happened yet that could have moved it.
+ */
+export const NEW_ACCOUNT_SESSION_VERSION = 0;
 
 export async function destroySession(): Promise<void> {
   const session = await getSession();
@@ -322,6 +366,9 @@ export async function verifyPassword(plain: string, hash: string): Promise<boole
   return bcrypt.compare(plain, hash);
 }
 
+/** authenticate()'s result: the session user plus the version to seal. */
+export type AuthenticatedUser = SessionUser & { sessionVersion: number };
+
 /**
  * The single login entry point: looks the user up, checks the password in
  * constant-ish time, and creates the session. Returns null on ANY failure —
@@ -331,7 +378,10 @@ export async function verifyPassword(plain: string, hash: string): Promise<boole
  * Rate limiting is the caller's job (see `checkLoginRateLimit`), because only
  * the route handler knows the client IP.
  */
-export async function authenticate(email: string, password: string): Promise<SessionUser | null> {
+export async function authenticate(
+  email: string,
+  password: string,
+): Promise<AuthenticatedUser | null> {
   const { db, schema } = await getDb();
   const { eq } = await import('drizzle-orm');
 
@@ -345,6 +395,7 @@ export async function authenticate(email: string, password: string): Promise<Ses
       emailVerifiedAt: schema.users.emailVerifiedAt,
       isActive: schema.users.isActive,
       passwordHash: schema.users.passwordHash,
+      sessionVersion: schema.users.sessionVersion,
     })
     .from(schema.users)
     .where(eq(schema.users.email, email.trim().toLowerCase()))
@@ -368,6 +419,7 @@ export async function authenticate(email: string, password: string): Promise<Ses
     role: row.role,
     companyId: row.companyId,
     emailVerifiedAt: row.emailVerifiedAt,
+    sessionVersion: row.sessionVersion,
   };
 }
 

@@ -1,5 +1,7 @@
 'use client';
 
+import { sanitizePageLocation } from './analytics-location';
+
 /**
  * Thin GA4 event helper. No-ops when GA is not loaded (NEXT_PUBLIC_GA_ID
  * unset) so callers never need to guard.
@@ -39,5 +41,15 @@ export function track(
   params?: Record<string, string | number | boolean | undefined>,
 ): void {
   if (typeof window === 'undefined') return;
-  window.gtag?.('event', event, params);
+  // page_location is stated on the event rather than left to gtag, which would
+  // otherwise attach the raw `document.location` — query string and all. The
+  // AnalyticsPageViews component already pins the same sanitized value with
+  // gtag('set'); repeating it here means this helper is safe on its own, even
+  // on a page where that component has not run yet. This adds a parameter,
+  // not an event: the vocabulary is still exactly the two names above.
+  const { origin, pathname, search } = window.location;
+  window.gtag?.('event', event, {
+    ...params,
+    page_location: sanitizePageLocation(origin, pathname, search),
+  });
 }

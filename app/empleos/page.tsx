@@ -5,6 +5,8 @@ import { notFound } from 'next/navigation';
 import { getJobs, getCategories, getCities } from '@/lib/data';
 import { canonicalFor, listingIndexRule, type ListingParams } from '@/lib/seo';
 import { categoryLabel, cityLabel } from '@/lib/labels';
+import { contractTypeLabel, modalityLabel, seniorityLabel } from '@/lib/formatters';
+import type { ContractType, Modality, Seniority } from '@/lib/types';
 import type { Category, City, JobFilters } from '@/lib/types';
 import JobCard from '@/components/JobCard';
 import FilterPanel from '@/components/FilterPanel';
@@ -206,21 +208,12 @@ export default async function EmpleosPage({
             <SortControl currentOrden={filters.orden ?? 'recientes'} total={total} />
           </Suspense>
 
+          <ActiveFilters sp={sp} />
+
+          <h2 className="sr-only">Resultados</h2>
           <div className="mt-4 space-y-3">
             {jobs.length === 0 ? (
-              <div className="text-center py-16 bg-white rounded-[10px] border border-border">
-                <div className="text-5xl mb-4">🔍</div>
-                <h3 className="text-lg font-semibold text-ink mb-2">
-                  No encontramos empleos con esos filtros
-                </h3>
-                <p className="text-sm text-ink-secondary">
-                  Intentá con otros criterios o{' '}
-                  <Link href="/empleos" className="text-brand hover:underline">
-                    ver todos los empleos
-                  </Link>
-                  .
-                </p>
-              </div>
+              <EmptyResults sp={sp} />
             ) : (
               jobs.map((job) => <JobCard key={job.slug} job={job} />)
             )}
@@ -292,3 +285,116 @@ function TaxonomyLinks({ categories, cities }: { categories: Category[]; cities:
 
 const chipCls =
   'inline-flex items-center gap-2 px-3.5 py-2 rounded-full border border-border bg-white text-sm text-ink-secondary hover:border-brand hover:text-brand transition-colors';
+
+// ---------------------------------------------------------------------------
+// Active filters and the empty state (PLAN-GROWTH.md §4 D4).
+//
+// Both are server-rendered LINKS to the current URL minus one parameter, not
+// client state: removing a filter is one tap on a phone without opening the
+// drawer, it works before hydration, and a crawler can follow filter removal
+// as well as filter addition. `page` is always dropped — page 3 of a wider
+// result set is not where anyone expects to land.
+// ---------------------------------------------------------------------------
+
+/** The filter params a visitor can remove, in display order. */
+const REMOVABLE = ['q', 'categoria', 'ciudad', 'tipo', 'nivel', 'modalidad', 'salario_min'] as const;
+type Removable = (typeof REMOVABLE)[number];
+
+function hrefWithout(sp: SearchParams, drop: readonly string[]): string {
+  const next = new URLSearchParams();
+  for (const [key, value] of Object.entries(sp)) {
+    if (typeof value !== 'string' || !value || key === 'page' || drop.includes(key)) continue;
+    next.set(key, value);
+  }
+  const qs = next.toString();
+  return qs ? `/empleos?${qs}` : '/empleos';
+}
+
+function filterLabel(key: Removable, value: string): string {
+  switch (key) {
+    case 'q':
+      return `"${value}"`;
+    case 'categoria':
+      return categoryLabel(value);
+    case 'ciudad':
+      return cityLabel(value);
+    case 'tipo':
+      return contractTypeLabel(value as ContractType) ?? value;
+    case 'nivel':
+      return seniorityLabel(value as Seniority) ?? value;
+    case 'modalidad':
+      return modalityLabel(value as Modality) ?? value;
+    case 'salario_min': {
+      const n = Number(value);
+      return Number.isFinite(n) && n > 0
+        ? `Desde Gs. ${new Intl.NumberFormat('es-PY').format(n)}`
+        : value;
+    }
+  }
+}
+
+function ActiveFilters({ sp }: { sp: SearchParams }) {
+  const active = REMOVABLE.flatMap((key) => {
+    const value = param(sp, key);
+    return value ? [{ key, value }] : [];
+  });
+  if (active.length === 0) return null;
+
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2" aria-label="Filtros activos">
+      {active.map(({ key, value }) => (
+        <Link
+          key={key}
+          href={hrefWithout(sp, [key])}
+          className="inline-flex items-center gap-1.5 min-h-9 pl-3 pr-2 rounded-full bg-brand-tint text-brand text-sm font-medium border border-brand/20 hover:bg-brand hover:text-white transition-colors"
+          aria-label={`Quitar filtro ${filterLabel(key, value)}`}
+        >
+          {filterLabel(key, value)}
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+          </svg>
+        </Link>
+      ))}
+      {active.length > 1 && (
+        <Link href={hrefWithout(sp, REMOVABLE)} className="text-sm font-medium text-ink-secondary hover:text-brand underline-offset-2 hover:underline px-1">
+          Limpiar todo
+        </Link>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Zero results is where a seeker gives up, so this offers the three ways out
+ * that are most likely to have jobs behind them — widen the place, widen the
+ * field, drop the search words — as real links, most specific first.
+ */
+function EmptyResults({ sp }: { sp: SearchParams }) {
+  const ciudad = param(sp, 'ciudad');
+  const categoria = param(sp, 'categoria');
+  const q = param(sp, 'q');
+  const suggestions: { href: string; label: string }[] = [];
+  if (ciudad) suggestions.push({ href: hrefWithout(sp, ['ciudad']), label: 'Buscar en todo Paraguay' });
+  if (categoria) suggestions.push({ href: hrefWithout(sp, ['categoria']), label: 'Ver todas las categorías' });
+  if (q) suggestions.push({ href: hrefWithout(sp, ['q']), label: `Quitar la búsqueda "${q}"` });
+  suggestions.push({ href: '/empleos', label: 'Ver todos los empleos' });
+
+  return (
+    <div className="text-center py-12 px-6 bg-surface rounded-card border border-border">
+      <h3 className="text-lg font-semibold text-ink">No hay empleos con estos filtros</h3>
+      <p className="mt-1 text-sm text-ink-secondary">Probá ampliando la búsqueda:</p>
+      <ul className="mt-5 flex flex-col sm:flex-row sm:flex-wrap sm:justify-center gap-2">
+        {suggestions.slice(0, 3).map((s) => (
+          <li key={s.href}>
+            <Link
+              href={s.href}
+              className="flex sm:inline-flex items-center justify-center min-h-11 px-4 rounded-[10px] border border-border-strong text-sm font-semibold text-ink hover:border-brand hover:text-brand"
+            >
+              {s.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}

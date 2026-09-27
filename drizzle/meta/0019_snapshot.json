@@ -1,8 +1,8 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "a8d2548f-380d-44bc-92bc-d5cc59906592",
-  "prevId": "c3cd7ffc-5cfc-47f8-99ea-e6ce26a8ab29",
+  "id": "3f8576a9-e470-4a6c-91a1-523637715fee",
+  "prevId": "a8d2548f-380d-44bc-92bc-d5cc59906592",
   "tables": {
     "activity_log": {
       "name": "activity_log",
@@ -1097,6 +1097,21 @@
           "autoincrement": false,
           "default": true
         },
+        "notify_weekly_digest": {
+          "name": "notify_weekly_digest",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        },
+        "last_digest_sent_at": {
+          "name": "last_digest_sent_at",
+          "type": "datetime",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "created_via": {
           "name": "created_via",
           "type": "enum('admin','self_serve')",
@@ -1868,6 +1883,14 @@
         },
         "view_count": {
           "name": "view_count",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "view_count_at_digest": {
+          "name": "view_count_at_digest",
           "type": "int",
           "primaryKey": false,
           "notNull": true,

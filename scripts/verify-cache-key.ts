@@ -30,6 +30,8 @@ check('any free-text search is not', { q: 'ingeniero' }, false);
 check('a one-character search is not', { q: 'a' }, false);
 check('an empty q is still a plain browse', { q: '' }, true);
 check('the other free-text input is not cached either', { salarioMin: 3_000_000 }, false);
+check('a company filter is not cached (open set, no membership list)', { empresa: 'kia-paraguay' }, false);
+check('an empty company filter is still a plain browse', { empresa: '' }, true);
 
 console.log('\n— the key space is finite —');
 check('a known category is cacheable', { categoria: 'tecnologia' }, true);

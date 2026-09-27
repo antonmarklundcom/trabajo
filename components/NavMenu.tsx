@@ -2,20 +2,79 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Wordmark, NandutiMotif } from './Logo';
 import WhatsAppCta from './WhatsAppCta';
 
-const links = [
+// Desktop keeps "Publicá tu empleo" out of the text links: the gold
+// "Publicar empleo" button beside them goes to the same page, and two links to
+// one place in one bar read as two different things. The mobile menu lists it,
+// because there the buttons sit at the bottom of a long screen.
+const seekerLinks = [
   { href: '/empleos', label: 'Empleos' },
-  { href: '/publicar', label: 'Publicá tu empleo' },
+  { href: '/blog', label: 'Consejos' },
+];
+const employerLinks = [
   { href: '/planes', label: 'Planes' },
   { href: '/contacto', label: 'Contacto' },
 ];
 
-export default function NavMenu() {
+type Props = {
+  /** Show "Ingresar" (employer panel login). Off while the panel is dark. */
+  employerLogin: boolean;
+};
+
+export default function NavMenu({ employerLogin }: Props) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const openButtonRef = useRef<HTMLButtonElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  const mobileLinks = [
+    ...seekerLinks,
+    { href: '/publicar', label: 'Publicá tu empleo' },
+    ...employerLinks,
+    ...(employerLogin ? [{ href: '/empresa/login', label: 'Ingresar (empresas)' }] : []),
+  ];
+
+  // Keyboard behaviour of a modal dialog: focus moves into it on open, Tab
+  // cycles inside it, Escape closes it, and focus returns to the button that
+  // opened it. Without these a keyboard or switch user tabbed straight past
+  // the overlay into the page hidden underneath it.
+  useEffect(() => {
+    if (!open) return;
+    closeButtonRef.current?.focus();
+    const opener = openButtonRef.current;
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setOpen(false);
+        return;
+      }
+      if (e.key !== 'Tab' || !dialogRef.current) return;
+      const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      opener?.focus();
+    };
+  }, [open]);
 
   // Lock body scroll while the full-screen menu is open, and flag it on
   // <body> so FloatingWhatsApp (rendered from the page, not from Header) can
@@ -38,12 +97,15 @@ export default function NavMenu() {
   return (
     <>
       {/* Desktop nav */}
-      <nav className="hidden md:flex items-center gap-1">
-        {links.map((l) => (
+      <nav className="hidden md:flex items-center gap-1" aria-label="Principal">
+        {[...seekerLinks, ...employerLinks].map((l) => (
           <Link
             key={l.href}
             href={l.href}
-            className={`px-3 py-2 rounded-[10px] text-sm font-medium transition-colors ${
+            aria-current={pathname.startsWith(l.href) ? 'page' : undefined}
+            // Contacto drops out between md and lg, where the bar is too narrow
+            // for every link and the gold button; the footer carries it there.
+            className={`${l.href === '/contacto' ? 'hidden lg:inline-flex' : ''} px-3 py-2 rounded-[10px] text-sm font-medium whitespace-nowrap transition-colors ${
               pathname.startsWith(l.href)
                 ? 'bg-brand-tint text-brand'
                 : 'text-ink-secondary hover:bg-surface-2 hover:text-ink'
@@ -52,9 +114,17 @@ export default function NavMenu() {
             {l.label}
           </Link>
         ))}
+        {employerLogin && (
+          <Link
+            href="/empresa/login"
+            className="ml-1 px-3 py-2 rounded-[10px] text-sm font-medium whitespace-nowrap text-ink-secondary hover:bg-surface-2 hover:text-ink transition-colors"
+          >
+            Ingresar
+          </Link>
+        )}
         <Link
           href="/publicar"
-          className="ml-2 px-4 py-2 rounded-[10px] bg-gold text-white text-sm font-semibold hover:bg-gold-strong transition-colors"
+          className="ml-2 px-4 py-2 rounded-[10px] bg-gold text-white text-sm font-semibold whitespace-nowrap hover:bg-gold-strong transition-colors"
         >
           Publicar empleo
         </Link>
@@ -62,7 +132,8 @@ export default function NavMenu() {
 
       {/* Mobile hamburger — top right on every page */}
       <button
-        className="md:hidden flex items-center justify-center w-10 h-10 rounded-[10px] text-ink-secondary hover:bg-surface-2 transition-colors"
+        ref={openButtonRef}
+        className="md:hidden flex items-center justify-center w-11 h-11 -mr-1.5 rounded-[10px] text-ink-secondary hover:bg-surface-2 transition-colors"
         onClick={() => setOpen(true)}
         aria-label="Abrir menú"
         aria-expanded={open}
@@ -74,7 +145,13 @@ export default function NavMenu() {
 
       {/* Full-screen mobile menu */}
       {open && (
-        <div className="fixed inset-0 z-50 md:hidden bg-brand-hover text-white flex flex-col overflow-hidden">
+        <div
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Menú"
+          className="fixed inset-0 z-50 md:hidden bg-brand-hover text-white flex flex-col overflow-y-auto"
+        >
           <NandutiMotif className="pointer-events-none absolute -right-24 -top-16 w-80 h-80 text-white opacity-[0.12]" />
 
           {/* Menu header */}
@@ -83,7 +160,8 @@ export default function NavMenu() {
               <Wordmark tone="dark" size={28} markClassName="text-[#E6B25A]" />
             </Link>
             <button
-              className="flex items-center justify-center w-10 h-10 rounded-[10px] bg-white/12 text-white hover:bg-white/20 transition-colors"
+              ref={closeButtonRef}
+              className="flex items-center justify-center w-11 h-11 rounded-[10px] bg-white/12 text-white hover:bg-white/20 transition-colors"
               onClick={() => setOpen(false)}
               aria-label="Cerrar menú"
             >
@@ -94,13 +172,13 @@ export default function NavMenu() {
           </div>
 
           {/* Links */}
-          <nav className="relative flex-1 px-5 py-4 flex flex-col">
-            {links.map((l) => (
+          <nav className="relative flex-1 px-5 py-4 flex flex-col" aria-label="Principal">
+            {mobileLinks.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
                 onClick={() => setOpen(false)}
-                className="flex items-center justify-between py-4 border-b border-white/12 text-2xl font-extrabold tracking-[-0.01em]"
+                className="flex items-center justify-between py-3.5 border-b border-white/12 text-[1.375rem] font-extrabold tracking-[-0.01em]"
               >
                 {l.label}
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="text-white/60" aria-hidden="true">

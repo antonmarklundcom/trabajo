@@ -11,6 +11,7 @@
 // after the next copy tweak, is for there to be one pattern.
 import { waHref } from '@/lib/whatsapp';
 import CopyLinkButton from './CopyLinkButton';
+import NativeShareButton from './NativeShareButton';
 
 type Props = {
   /** Prefixed to the URL in the WhatsApp message, where a bare link reads as spam. */
@@ -24,7 +25,8 @@ export default function ShareLinks({ title, url, className = '' }: Props) {
   return (
     <div className={`bg-white rounded-[10px] border border-border p-6 ${className}`}>
       <h2 className="text-sm font-bold text-ink mb-3">Compartir</h2>
-      <div className="flex flex-wrap gap-4 text-sm">
+      <div className="flex flex-wrap gap-x-5 gap-y-3 text-sm">
+        <NativeShareButton title={title} url={url} />
         <a
           href={waHref(null, `${title} ${url}`)}
           target="_blank"

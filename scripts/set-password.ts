@@ -50,7 +50,7 @@ async function main() {
 
   const { db } = await import('../lib/db');
   const schema = await import('../lib/db/schema');
-  const { eq } = await import('drizzle-orm');
+  const { eq, sql } = await import('drizzle-orm');
 
   const rows = await db
     .select({
@@ -86,13 +86,19 @@ async function main() {
     .update(schema.users)
     .set({
       passwordHash,
+      // Bumped in the same UPDATE as the hash, like every other password write
+      // (lib/auth.ts SessionData): every cookie this account already holds —
+      // on any device, held by anyone — stops working on its next request.
+      // This script is the staff reset path, so it is exactly the case where
+      // a stolen session must not outlive the new password.
+      sessionVersion: sql`${schema.users.sessionVersion} + 1`,
       updatedAt: new Date(),
       ...(activate ? { isActive: true } : {}),
     })
     .where(eq(schema.users.id, user.id));
 
   console.log(`Password updated for ${email}${activate ? ' (account activated)' : ''}.`);
-  console.log('Existing sessions stay valid — the cookie holds only a user id.');
+  console.log('Every existing session for this account has been signed out.');
   process.exit(0);
 }
 

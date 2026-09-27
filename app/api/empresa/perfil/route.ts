@@ -3,6 +3,7 @@ import { COMPANY_WEBSITE_ERROR, companyWebsiteSchema } from '@/lib/company-websi
 import { authErrorResponse, requireApiCompanyScope } from '@/lib/auth';
 import { employerDashboardEnabled } from '@/lib/flags';
 import { updateEmployerCompany } from '@/lib/db/employer';
+import { invalidatePublicContent } from '@/lib/cache';
 
 // Deliberately no `name` or `slug` here — the company slug is a public SEO
 // URL and the name is what the platform vouched for at invitation time.
@@ -36,7 +37,11 @@ export async function PATCH(request: Request) {
       );
     }
 
-    await updateEmployerCompany(companyId, user.id, parsed.data);
+    const changed = await updateEmployerCompany(companyId, user.id, parsed.data);
+    // The website feeds hiringOrganization.sameAs on every job of this company,
+    // and the description and website are shown on /empresas/[slug] — so a
+    // profile edit is a public-content write, same as the admin company edit.
+    if (changed) invalidatePublicContent();
     return Response.json({ ok: true });
   } catch (err) {
     return authErrorResponse(err) ?? Response.json({ error: 'Error interno.' }, { status: 500 });
