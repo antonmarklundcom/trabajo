@@ -1,7 +1,7 @@
 // Render precedence + upload mechanics shared by the employer and admin logo
 // routes (PLAN-IMAGES.md §5, PR 19). One place for the "which column wins"
 // decision so it is not re-derived at every CompanyAvatar call site, and one
-// place for the store-then-delete replacement order so both auth paths (
+// place for the store → save → delete replacement order so both auth paths (
 // employer, admin) can't drift apart on it.
 import 'server-only';
 
@@ -29,7 +29,8 @@ export type LogoUploadResult =
   | { ok: false; status: 400 | 413; error: string };
 
 /**
- * Read the raw body, store the new object, then delete the old one (if any).
+ * Read the raw body, store the new object, point the row at it, then delete
+ * the old one (if any).
  * Store first, delete second: a rejected upload must never touch the live
  * logo, so the old object is only removed once the new one has passed
  * validation and been written to the store. A failed delete of the old
@@ -40,6 +41,8 @@ export type LogoUploadResult =
 export async function uploadCompanyLogo(
   request: Request,
   existingLogoKey: string | null,
+  /** Writes the new key to the row. Runs after the store, before the old object is deleted. */
+  savePointer: (key: string) => Promise<void>,
 ): Promise<LogoUploadResult> {
   const body = await readLimitedImageBody(request);
   if (!body.ok) {
@@ -57,6 +60,20 @@ export async function uploadCompanyLogo(
     return { ok: false, status: 400, error: IMAGE_REJECTION_MESSAGES[stored.reason] };
   }
 
+  // The row moves to the new key BEFORE the old object goes. The other order
+  // deleted the live logo first, so a failed row write left the row pointing
+  // at an object that no longer existed — a broken image on a public page.
+  // If the row write fails now, the NEW object is the one cleaned up and the
+  // old logo stays exactly as it was; the error still fails the request.
+  try {
+    await savePointer(stored.key);
+  } catch (err) {
+    await deleteImage(stored.key).catch((cleanupErr) =>
+      console.error('[company-logo] failed to clean up unsaved logo object', stored.key, cleanupErr),
+    );
+    throw err;
+  }
+
   if (existingLogoKey) {
     try {
       await deleteImage(existingLogoKey);
@@ -68,7 +85,17 @@ export async function uploadCompanyLogo(
   return { ok: true, key: stored.key, url: imagePublicUrl(stored.key) };
 }
 
-/** Delete the object backing a logo. Callers clear `logoKey` afterward. */
-export async function removeCompanyLogoObject(logoKey: string): Promise<void> {
-  await deleteImage(logoKey);
+/**
+ * Clears the row first, then deletes the object — same rule as the upload
+ * path: one orphaned object (invisible, costs a few KB) beats a row pointing
+ * at a deleted image (a broken image on a public page). A failed delete is
+ * logged, not thrown: the logo is already gone from every page.
+ */
+export async function removeCompanyLogo(key: string, clearPointer: () => Promise<void>): Promise<void> {
+  await clearPointer();
+  try {
+    await deleteImage(key);
+  } catch (err) {
+    console.error('[company-logo] failed to delete removed logo object', key, err);
+  }
 }
