@@ -4,7 +4,7 @@
 // one is not scoped by session companyId, it takes `id` from the URL like
 // every other admin company route.
 import { authErrorResponse, requireApiSession, requireRole } from '@/lib/auth';
-import { uploadCompanyLogo, removeCompanyLogoObject } from '@/lib/company-logo';
+import { uploadCompanyLogo, removeCompanyLogo } from '@/lib/company-logo';
 import { getAdminCompany, updateCompanyLogo } from '@/lib/db/admin';
 import { invalidatePublicContent } from '@/lib/cache';
 
@@ -25,12 +25,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const company = await getAdminCompany(id);
     if (!company) return Response.json({ error: 'Empresa no encontrada.' }, { status: 404 });
 
-    const result = await uploadCompanyLogo(request, company.logoKey);
+    const result = await uploadCompanyLogo(request, company.logoKey, (key) =>
+      updateCompanyLogo(id, key, user.id),
+    );
     if (!result.ok) {
       return Response.json({ error: result.error }, { status: result.status });
     }
-
-    await updateCompanyLogo(id, result.key, user.id);
     invalidatePublicContent();
 
     return Response.json({ key: result.key, url: result.url }, { status: 201 });
@@ -52,8 +52,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     if (!company) return Response.json({ error: 'Empresa no encontrada.' }, { status: 404 });
 
     if (company.logoKey) {
-      await removeCompanyLogoObject(company.logoKey);
-      await updateCompanyLogo(id, null, user.id);
+      await removeCompanyLogo(company.logoKey, () => updateCompanyLogo(id, null, user.id));
       invalidatePublicContent();
     }
 

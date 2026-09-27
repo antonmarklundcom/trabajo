@@ -20,10 +20,14 @@
 //      refused before decode, and animations are refused.
 //   5. Disk driver round trip, idempotent delete, and a site-relative public URL
 //      that is exactly the key.
+//   5b. Replacing a logo points the row at the new object before deleting the
+//      old one, and removing one clears the row before deleting the object —
+//      so a failed database write never leaves a row pointing at nothing.
 //   6. R2 driver: public URLs on the configured domain, malformed keys refused,
 //      and a missing public base URL fails at construction rather than later.
 import { crc32 } from 'node:zlib';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
+import { mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -43,7 +47,10 @@ import {
   processImage,
   readLimitedImageBody,
   assertImageKey,
+  getImageStorage,
+  resetImageStorageForTesting,
 } from '../lib/image-storage';
+import { removeCompanyLogo, uploadCompanyLogo } from '../lib/company-logo';
 
 let failures = 0;
 let checks = 0;
@@ -531,6 +538,80 @@ async function main(): Promise<void> {
   process.env.IMAGE_STORAGE_DIR = dir;
 
   await rm(dir, { recursive: true, force: true });
+
+  // -------------------------------------------------------------------------
+  console.log('\n5b. Replacing and removing a logo: the row moves before the bytes do');
+  // Runs the real lib/company-logo.ts helpers against the disk driver.
+  // lib/blog-cover.ts is the same shape (a deliberate copy, see its header) and
+  // is asserted from source below rather than run twice.
+  const replaceDir = await mkdtemp(join(tmpdir(), 'trabajo-img-replace-'));
+  process.env.IMAGE_STORAGE_DIR = replaceDir;
+  process.env.IMAGE_STORAGE_DRIVER = 'disk';
+  resetImageStorageForTesting();
+  const objects = async () =>
+    (await readdir(replaceDir, { recursive: true })).filter((f) => String(f).endsWith('.webp')).length;
+
+  let rowKey: string | null = null;
+  const first = await uploadCompanyLogo(request(PNG), null, async (k) => {
+    rowKey = k;
+  });
+  check('a first logo upload stores one object and points the row at it', first.ok && rowKey === (first.ok ? first.key : '') && (await objects()) === 1);
+  const liveKey = rowKey as string | null;
+
+  let failedSave = false;
+  try {
+    await uploadCompanyLogo(request(PNG), liveKey, async () => {
+      throw new Error('simulated DB failure');
+    });
+  } catch {
+    failedSave = true;
+  }
+  check('a failed row write fails the upload', failedSave);
+  check('…the live logo object still exists', (await objects()) === 1 && rowKey === liveKey);
+  let liveStillReadable = true;
+  try {
+    await getImageStorage().getStream(liveKey as string);
+  } catch {
+    liveStillReadable = false;
+  }
+  check('…and is still readable (the old order deleted it first)', liveStillReadable);
+
+  const second = await uploadCompanyLogo(request(PNG), liveKey, async (k) => {
+    rowKey = k;
+  });
+  check('a successful replacement leaves exactly the new object', second.ok && rowKey !== liveKey && (await objects()) === 1);
+
+  let failedClear = false;
+  try {
+    await removeCompanyLogo(rowKey as unknown as string, async () => {
+      throw new Error('simulated DB failure');
+    });
+  } catch {
+    failedClear = true;
+  }
+  check('a failed row clear fails the removal and keeps the image', failedClear && (await objects()) === 1);
+  await removeCompanyLogo(rowKey as unknown as string, async () => {
+    rowKey = null;
+  });
+  check('a successful removal clears the row, then deletes the object', rowKey === null && (await objects()) === 0);
+
+  for (const [file, saveFn, clearFn] of [
+    ['lib/company-logo.ts', 'savePointer(', 'clearPointer('],
+    ['lib/blog-cover.ts', 'savePointer(', 'clearPointer('],
+  ] as const) {
+    const src = readFileSync(file, 'utf8').replace(/\/\/[^\n]*/g, '');
+    const save = src.indexOf(`await ${saveFn}`);
+    const deleteOld = src.indexOf('await deleteImage(existing');
+    const clear = src.indexOf(`await ${clearFn}`);
+    const deleteRemoved = src.indexOf('await deleteImage(key)');
+    check(`${file}: the row is saved before the old object is deleted`, save !== -1 && deleteOld !== -1 && save < deleteOld);
+    check(`${file}: the row is cleared before the object is deleted`, clear !== -1 && deleteRemoved !== -1 && clear < deleteRemoved);
+  }
+
+  resetImageStorageForTesting();
+  delete process.env.IMAGE_STORAGE_DRIVER;
+  process.env.IMAGE_STORAGE_DIR = dir;
+  await rm(replaceDir, { recursive: true, force: true });
 
   console.log('\n6. R2 driver');
   process.env.IMAGE_R2_ACCOUNT_ID = 'account';

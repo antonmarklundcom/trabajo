@@ -49,6 +49,8 @@ import { CACHE_TAGS } from './cache-tags';
 /**
  * Public routes whose rendered output is derived from job or company data.
  * Kept next to the tags so adding a public route means updating one list.
+ * `npm run cachekey:verify` finds every page that reads jobs through
+ * lib/data.ts and fails if its route is missing here.
  */
 const PUBLIC_PATHS: ReadonlyArray<readonly [path: string, type?: 'page' | 'layout']> = [
   ['/'],
@@ -56,6 +58,13 @@ const PUBLIC_PATHS: ReadonlyArray<readonly [path: string, type?: 'page' | 'layou
   ['/empleos/[slug]', 'page'],
   ['/trabajo/[categoria]', 'page'],
   ['/trabajo/[categoria]/[ciudad]', 'page'],
+  // The city landing lists that city's jobs. It was missing here, so a job
+  // approval or an expiry reached /trabajo/... at once but /trabajo-en/... only
+  // on its 300s timer — two landings for the same city disagreeing.
+  ['/trabajo-en/[ciudad]', 'page'],
+  // An article lists related jobs ("Empleos relacionados"), so a job write
+  // changes it too. Also in BLOG_PATHS, for article writes.
+  ['/blog/[slug]', 'page'],
   // Company pages list the company's jobs AND show its profile, so both a job
   // write and a company write (admin edit, employer profile, logo) change them.
   ['/empresas/[slug]', 'page'],
