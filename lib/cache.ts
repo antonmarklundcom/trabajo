@@ -56,6 +56,9 @@ const PUBLIC_PATHS: ReadonlyArray<readonly [path: string, type?: 'page' | 'layou
   ['/empleos/[slug]', 'page'],
   ['/trabajo/[categoria]', 'page'],
   ['/trabajo/[categoria]/[ciudad]', 'page'],
+  // Company pages list the company's jobs AND show its profile, so both a job
+  // write and a company write (admin edit, employer profile, logo) change them.
+  ['/empresas/[slug]', 'page'],
   ['/sitemap.xml'],
 ];
 

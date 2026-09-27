@@ -6,6 +6,7 @@ import {
   getCategory,
   getCity,
   getClosedJob,
+  getCompany,
   getJob,
   getJobs,
 } from '@/lib/data';
@@ -26,6 +27,7 @@ import MobileApplyBar from '@/components/MobileApplyBar';
 import { reportListingHref } from '@/lib/whatsapp';
 import JsonLd from '@/components/JsonLd';
 import { isHttpUrl } from '@/lib/company-website';
+import EmployerBand from '@/components/EmployerBand';
 
 // Cached reads are invalidated on demand by every admin mutation
 // (lib/cache.ts), so this timer is only the safety net for job expiry and
@@ -96,10 +98,14 @@ export default async function JobDetailPage({ params }: { params: Params }) {
     notFound();
   }
 
-  const [category, city] = await Promise.all([
+  // getCompany() is one cached aggregate row; its jobCount decides whether
+  // "Ver otros empleos de {company}" has anything to link to.
+  const [category, city, company] = await Promise.all([
     getCategory(job.categorySlug),
     getCity(job.citySlug),
+    getCompany(job.companySlug),
   ]);
+  const hasOtherCompanyJobs = (company?.jobCount ?? 0) > 1;
 
   // U3 — "empleos similares". Read through lib/data.ts like every other job
   // read on this page, so it follows DATA_SOURCE and the visibility predicate
@@ -282,7 +288,14 @@ export default async function JobDetailPage({ params }: { params: Params }) {
                     <h1 className="text-[1.625rem] sm:text-3xl font-bold text-ink leading-[1.15] tracking-tight text-balance">
                       {job.title}
                     </h1>
-                    <p className="mt-1.5 text-base sm:text-lg text-ink-secondary">{job.company}</p>
+                    <p className="mt-1.5 text-base sm:text-lg text-ink-secondary">
+                      <Link
+                        href={`/empresas/${job.companySlug}`}
+                        className="underline decoration-border-strong underline-offset-4 hover:text-brand hover:decoration-brand"
+                      >
+                        {job.company}
+                      </Link>
+                    </p>
                   </div>
                 </div>
 
@@ -474,6 +487,14 @@ export default async function JobDetailPage({ params }: { params: Params }) {
               </section>
             )}
 
+            {hasOtherCompanyJobs && (
+              <p className="mt-6 text-sm">
+                <Link href={`/empresas/${job.companySlug}`} className="text-brand font-medium hover:underline">
+                  Ver otros empleos de {job.company} <span aria-hidden="true">→</span>
+                </Link>
+              </p>
+            )}
+
             {category && (
               <p className="mt-6 text-sm text-ink-secondary">
                 Más empleos en{' '}
@@ -494,20 +515,7 @@ export default async function JobDetailPage({ params }: { params: Params }) {
               </p>
             )}
 
-            {/* The other audience. Every job page is also read by people who
-                hire; this is where the site's free listing is offered to them. */}
-            <section className="mt-10 rounded-card bg-ink text-white p-6 sm:p-8">
-              <h2 className="text-lg sm:text-xl font-bold">¿Tu empresa está contratando?</h2>
-              <p className="mt-2 text-sm text-white/75 max-w-md">
-                Publicá tu empleo gratis. Los postulantes te escriben directo a tu WhatsApp.
-              </p>
-              <Link
-                href="/publicar"
-                className="mt-5 inline-flex items-center justify-center min-h-11 px-5 rounded-[10px] bg-white text-ink font-semibold hover:bg-surface-2"
-              >
-                Publicar un empleo gratis
-              </Link>
-            </section>
+            <EmployerBand />
           </div>
         </div>
       </div>

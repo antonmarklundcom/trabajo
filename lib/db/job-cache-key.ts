@@ -85,6 +85,12 @@ export function isCacheable(
 ): boolean {
   if (filters.q !== undefined && filters.q !== '') return false;
   if (filters.salarioMin !== undefined) return false;
+  // A company slug is an open set too: there is no cached company list to
+  // check membership against, and this module will not guess one. The only
+  // caller, /empresas/[slug], is an ISR page that renders after getCompany()
+  // has 404'd unknown slugs, so the uncached read runs once per regeneration,
+  // not once per visit.
+  if (filters.empresa !== undefined && filters.empresa !== '') return false;
 
   const { page } = filters;
   if (page !== undefined) {
