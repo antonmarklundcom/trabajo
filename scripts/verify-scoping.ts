@@ -208,6 +208,19 @@ export async function runScopingChecks(): Promise<number> {
       `dashboard counts only own applications (got ${stats.applicationCount})`,
     );
 
+    // The weekly summary (scripts/employer-digest.ts): own public listing only,
+    // with its application COUNT — and B's listing nowhere in it.
+    const digest = await employer.getEmployerDigest(a.companyId, now);
+    assert(
+      digest !== null &&
+        digest.listings.length === 1 &&
+        digest.listings[0].jobId === a.jobId &&
+        digest.listings[0].applicationsInPeriod === 1,
+      `weekly summary lists only own public jobs with own application counts (got ${JSON.stringify(
+        digest?.listings.map((l) => [l.jobId, l.applicationsInPeriod]),
+      )})`,
+    );
+
     // -----------------------------------------------------------------------
     // Writes: A's mutations against B's rows must affect zero rows, and B's
     // data must be byte-for-byte unchanged afterwards.
@@ -252,6 +265,16 @@ export async function runScopingChecks(): Promise<number> {
       .from(schema.applications)
       .where(eq(schema.applications.id, b.applicationId));
     assert(appAfter.status === 'new', "another company's application status is unchanged on disk");
+
+    await employer.recordEmployerDigestSent(a.companyId, now, [{ jobId: b.jobId, viewCount: 999 }]);
+    const [snapshotAfter] = await db
+      .select({ viewCountAtDigest: schema.jobs.viewCountAtDigest })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, b.jobId));
+    assert(
+      snapshotAfter.viewCountAtDigest === 0,
+      "recordEmployerDigestSent cannot move another company's view snapshot",
+    );
 
     // -----------------------------------------------------------------------
     // The positive control. Without this, every assertion above would also

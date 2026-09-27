@@ -244,6 +244,17 @@ jobs:
       - name: Verify WhatsApp module and event vocabulary
         run: npm run whatsapp:verify
 
+      # The weekly employer summary (scripts/employer-digest.ts). The two ways
+      # it fails are both beyond undoing once they happen: an applicant's name
+      # or phone in an email (a candidate's data leaving the only channel
+      # authorized to carry it), and a run that mails every employer without
+      # --apply or twice in one week. Renders the email from fixtures with
+      # sentinel applicant data attached, evaluates the skip window and the
+      # argument parser, and reads the sender's wiring from source. No
+      # database, no network, no email provider.
+      - name: Verify employer weekly summary
+        run: npm run digest:verify
+
       # O1's promise is that no event leaving this app carries a credential or
       # a data subject, and a scrubber that misses a field looks exactly like
       # one that doesn't: errors still arrive, the issues still read correctly,

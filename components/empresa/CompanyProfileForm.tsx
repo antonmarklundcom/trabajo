@@ -12,6 +12,7 @@ export type CompanyProfileFormInitial = {
   website: string;
   description: string;
   notifyOnApplication: boolean;
+  notifyWeeklyDigest: boolean;
 };
 
 type EditableFields = Omit<CompanyProfileFormInitial, 'logoSrc' | 'logoKey'>;
@@ -40,6 +41,7 @@ export default function CompanyProfileForm({ initial }: { initial: CompanyProfil
       website: values.website || null,
       description: values.description || null,
       notifyOnApplication: values.notifyOnApplication,
+      notifyWeeklyDigest: values.notifyWeeklyDigest,
     };
 
     try {
@@ -127,6 +129,21 @@ export default function CompanyProfileForm({ initial }: { initial: CompanyProfil
             <span className="block text-xs text-ink-3 mt-0.5">
               Les llega a todos los usuarios activos de la empresa. El aviso no incluye los
               datos del postulante — esos se ven solo en el panel.
+            </span>
+          </span>
+        </label>
+        <label className="mt-3 flex items-start gap-3 text-sm text-ink">
+          <input
+            type="checkbox"
+            checked={values.notifyWeeklyDigest}
+            onChange={(e) => setField('notifyWeeklyDigest', e.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-border accent-brand"
+          />
+          <span>
+            Recibir un resumen semanal de mis avisos por email
+            <span className="block text-xs text-ink-3 mt-0.5">
+              Visitas y cantidad de postulaciones de cada aviso publicado, una vez por semana. Solo
+              números: nunca datos de los postulantes.
             </span>
           </span>
         </label>

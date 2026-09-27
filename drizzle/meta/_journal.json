@@ -134,6 +134,13 @@
       "when": 1790468295031,
       "tag": "0018_common_the_liberteens",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "5",
+      "when": 1790469318055,
+      "tag": "0019_puzzling_the_captain",
+      "breakpoints": true
     }
   ]
 }

@@ -187,6 +187,13 @@ seteado (requiere `RESEND_API_KEY` + `EMAIL_FROM`). Sin la variable, el envío
 se omite y se loguea; el panel `/admin` muestra "Último pedido de
 publicación" para que un envío perdido no pase inadvertido.
 
+**Resumen semanal para empresas:** `npm run digest:employers` (dry run por
+defecto; `-- --apply` envía). Necesita `DATABASE_URL`, `RESEND_API_KEY` y
+`EMAIL_FROM`, y conviene tener `NEXT_PUBLIC_SITE_URL` y
+`NEXT_PUBLIC_WHATSAPP_LEADS` en el mismo entorno. Correr `npm run db:migrate`
+antes del primer uso y programarlo una vez por semana — ver `DEPLOY.md`
+§"`npm run digest:employers`".
+
 ---
 
 ## Lead routing — campos enviados, variables de entorno, cómo configurar GHL/Sheets

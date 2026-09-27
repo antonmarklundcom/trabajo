@@ -86,10 +86,13 @@ function employerIntentMessage(intent: EmployerIntent, options: EmployerIntentOp
         : `Hola, quiero publicar un empleo en trabajo.com.py.${contextSuffix(context)}`;
     case 'destacado':
       // Kept identical to the /planes message shipped in PR #78; only the
-      // promo suffix is new.
+      // promo suffix is new. The context suffix is empty for /planes (it
+      // passes none) and names the listing when the weekly summary
+      // (lib/emails/employer.ts) offers Destacado for one specific aviso, so
+      // the team knows which one the chat is about.
       return promoActive
-        ? 'Hola, quiero destacar un empleo en trabajo.com.py. ¿Cuánto sale? (promoción de lanzamiento)'
-        : 'Hola, quiero destacar un empleo en trabajo.com.py. ¿Cuánto sale?';
+        ? `Hola, quiero destacar un empleo en trabajo.com.py. ¿Cuánto sale? (promoción de lanzamiento)${contextSuffix(context)}`
+        : `Hola, quiero destacar un empleo en trabajo.com.py. ¿Cuánto sale?${contextSuffix(context)}`;
     case 'empresa':
       return 'Hola, quiero consultar por el plan Empresa (varios avisos por mes) en trabajo.com.py.';
     case 'contacto':

@@ -91,6 +91,17 @@ export const companies = mysqlTable('companies', {
   // Defaults on — an employer who was invited to receive applications is not
   // helped by silence.
   notifyOnApplication: boolean('notify_on_application').notNull().default(true),
+  // The weekly "Resumen semanal" (scripts/employer-digest.ts). Per company for
+  // the same reason as notifyOnApplication above: one switch, one meaning, for
+  // every active employer user of the company. Defaults on — the digest is
+  // counts about the company's own listings, the thing it is paying attention
+  // to or should be, and an opt-in nobody finds is a feature nobody gets.
+  notifyWeeklyDigest: boolean('notify_weekly_digest').notNull().default(true),
+  // When the last digest went out, written only after a send succeeded. The
+  // sender skips a company whose value is within DIGEST_MIN_INTERVAL_DAYS, so a
+  // cron that fires twice, or an operator re-running it by hand, cannot mail
+  // the same summary again. NULL = never sent.
+  lastDigestSentAt: datetime('last_digest_sent_at'),
   createdVia: mysqlEnum('created_via', companyOriginEnum).notNull().default('admin'),
   createdAt: datetime('created_at').notNull(),
   updatedAt: datetime('updated_at').notNull(),
@@ -173,6 +184,12 @@ export const jobs = mysqlTable(
     // company on its own dashboard — the number that tells an employer with no
     // applications yet whether the listing is being seen at all.
     viewCount: int('view_count').notNull().default(0),
+    // `view_count` as it stood when the company's last weekly digest was sent
+    // (scripts/employer-digest.ts). "Views this week" is the difference, which
+    // keeps the counter itself a plain aggregate: no per-day table, no row per
+    // view. Written only on a successful send, so a failed week rolls its
+    // views into the next summary instead of losing them.
+    viewCountAtDigest: int('view_count_at_digest').notNull().default(0),
     createdBy: int('created_by'),
     updatedBy: int('updated_by'),
     createdAt: datetime('created_at').notNull(),
