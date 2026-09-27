@@ -61,9 +61,8 @@ export const JOB_ALERT_UNCONFIRMED_DAYS = 7;
  * Confirmed `job_alerts` with no successful send for this long are
  * hard-deleted. The clock is the last send (or the confirmation, for an alert
  * that never matched anything): a filter that has produced nothing in a year
- * is an address kept for no purpose. Same working-default status as
- * CONTACT_MESSAGE_RETENTION_MONTHS: the owner confirms it before /privacidad
- * quotes it.
+ * is an address kept for no purpose. Quoted in /privacidad §10, together with
+ * JOB_ALERT_UNCONFIRMED_DAYS: changing either changes the published policy.
  */
 export const JOB_ALERT_INACTIVITY_MONTHS = 12;
 
