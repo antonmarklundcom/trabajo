@@ -1,6 +1,12 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { getDashboardStats, getRenewalQueue, type RenewalQueueRow } from '@/lib/db/admin';
+import {
+  getDashboardStats,
+  getListingConfirmationCounts,
+  getRenewalQueue,
+  type RenewalQueueRow,
+} from '@/lib/db/admin';
+import { listingConfirmKeyFingerprint } from '@/lib/listing-confirm';
 import { getOpsConfig } from '@/lib/ops-config';
 import { daysUntil } from '@/lib/listing-expiry';
 import { teamToEmployerHref, type TeamToEmployerMessage } from '@/lib/whatsapp';
@@ -30,6 +36,11 @@ const ACTION_LABELS: Record<string, string> = {
   employer_update: 'actualizó (empleador)',
   status_change: 'cambió el estado de',
   invite_employer: 'invitó a un usuario para',
+  // "¿Tu aviso sigue abierto?" (scripts/listing-confirm.ts). No actor on any of
+  // the three — the feed shows "Sistema".
+  listing_confirm_sent: 'pidió por correo a la empresa que confirme',
+  listing_confirm_open: 'renovó (la empresa confirmó por correo)',
+  listing_confirm_close: 'archivó (la empresa lo cerró por correo)',
 };
 
 const ENTITY_LABELS: Record<string, string> = {
@@ -40,11 +51,12 @@ const ENTITY_LABELS: Record<string, string> = {
 };
 
 export default async function AdminDashboardPage() {
-  const [stats, lastPurgeRun, promo, renewals] = await Promise.all([
+  const [stats, lastPurgeRun, promo, renewals, confirmations] = await Promise.all([
     getDashboardStats(),
     getLastPurgeRun(),
     getLaunchPromoStatus(),
     getRenewalQueue(),
+    getListingConfirmationCounts(),
   ]);
   const opsConfig = getOpsConfig();
 
@@ -97,6 +109,7 @@ export default async function AdminDashboardPage() {
         empty="Ningún aviso vence en los próximos días."
         rows={renewals.listings}
         kind="listing_renewal"
+        footer={<ConfirmationCounts counts={confirmations} />}
       />
       <RenewalQueue
         title="Destacados que vencen"
@@ -224,11 +237,13 @@ function RenewalQueue({
   empty,
   rows,
   kind,
+  footer,
 }: {
   title: string;
   empty: string;
   rows: RenewalQueueRow[];
   kind: TeamToEmployerMessage;
+  footer?: React.ReactNode;
 }) {
   return (
     <div className="bg-white rounded-[10px] border border-border">
@@ -273,7 +288,32 @@ function RenewalQueue({
           })}
         </ul>
       )}
+      {footer}
     </div>
+  );
+}
+
+/**
+ * "Confirmaciones por correo" — the "¿Tu aviso sigue abierto?" emails
+ * (scripts/listing-confirm.ts), last 30 days. The key fingerprint is here so
+ * the person running the script can compare it with the one the script prints:
+ * links signed with a different SESSION_SECRET are all invalid on this site,
+ * and nothing else would show it before an employer clicked one.
+ */
+function ConfirmationCounts({ counts }: { counts: { sent: number; renewed: number; closed: number } }) {
+  let fingerprint: string | null = null;
+  try {
+    fingerprint = listingConfirmKeyFingerprint();
+  } catch {
+    fingerprint = null;
+  }
+  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+  return (
+    <p className="px-5 py-3 border-t border-border text-xs text-ink-secondary">
+      Confirmaciones por correo (últimos 30 días): {plural(counts.sent, 'enviada')} ·{' '}
+      {plural(counts.renewed, 'confirmada')} · {plural(counts.closed, 'cerrada')}
+      <span className="text-ink-3"> · clave {fingerprint ?? 'sin configurar'}</span>
+    </p>
   );
 }
 

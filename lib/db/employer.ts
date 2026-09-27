@@ -46,6 +46,8 @@ import {
 import { slugify, uniqueSlug } from '../slug';
 import { deleteImage } from '../image-storage';
 import { LAUNCH_PROMO_CHANNEL } from '../featured';
+import { computeRenewedExpiry, LISTING_DAYS } from '../listing-expiry';
+import { LISTING_CONFIRM_LOG } from '../listing-confirm';
 
 async function getDb() {
   return (await import('./index')).db;
@@ -407,6 +409,100 @@ export async function updateEmployerJob(
   const changed = result.affectedRows > 0;
   if (changed) await logEmployerActivity(actorUserId, 'job', jobId, 'employer_update');
   return changed;
+}
+
+// ---------------------------------------------------------------------------
+// "¿Tu aviso sigue abierto?" — the two one-click answers in the listing
+// confirmation email (lib/listing-confirm.ts, scripts/listing-confirm.ts).
+//
+// The route that calls these has no session: its credential is a signed token
+// naming a job, and it reads that job's companyId (lib/db/listing-confirm.ts)
+// to pass here. So the company scope is not what authorizes the write — the
+// token is — but it is still in every WHERE clause, because that is this
+// file's contract and because it costs nothing to keep true.
+//
+// What makes a link single-use is the other condition in the WHERE clause:
+// `expires_at` must still equal the value the link was minted for. Both
+// answers change the row (a new expiry, or a status that is no longer
+// published), so a second click — or a mail scanner replaying the POST —
+// matches nothing. It is a compare-and-swap, not a check-then-write.
+//
+// Neither function can publish anything. Both require the job to be
+// `published` ALREADY (an admin approved it), neither writes `featured_until`,
+// and the renewal writes no status at all. scripts/verify-listing-confirm.ts
+// asserts all of that from source, and scripts/verify-moderation.ts still
+// sees exactly one 'published' write in this file.
+// ---------------------------------------------------------------------------
+
+/**
+ * "Sí, sigue abierto": extends the listing by LISTING_DAYS through the same
+ * arithmetic as the admin renewal (lib/listing-expiry.ts). Returns the new
+ * expiry, or null when nothing matched (already answered, renewed by other
+ * means, no longer published, or not this company's).
+ */
+export async function renewEmployerListingFromEmail(
+  companyId: number,
+  jobId: number,
+  signedExpiresAt: Date,
+): Promise<{ expiresAt: Date } | null> {
+  const db = await getDb();
+  const now = new Date();
+  const expiresAt = computeRenewedExpiry(now, signedExpiresAt, LISTING_DAYS);
+
+  const [result] = await db
+    .update(jobs)
+    .set({ expiresAt, updatedAt: now })
+    .where(
+      and(
+        eq(jobs.id, jobId),
+        ownedByCompany(companyId),
+        eq(jobs.status, 'published'),
+        eq(jobs.expiresAt, signedExpiresAt),
+      ),
+    );
+  if (result.affectedRows === 0) return null;
+
+  await logEmployerActivity(null, 'job', jobId, LISTING_CONFIRM_LOG.open, {
+    days: LISTING_DAYS,
+    previousExpiresAt: signedExpiresAt.toISOString(),
+    expiresAt: expiresAt.toISOString(),
+    via: 'email_link',
+  });
+  return { expiresAt };
+}
+
+/**
+ * "Ya lo cubrimos, cerralo": the same transition /admin's "archive" makes —
+ * status `archived`, `updated_at` stamped (lib/db/retention.ts dates an
+ * archived job's closure from it, so it is load-bearing here). The expiry is
+ * left as it was. Returns false when nothing matched.
+ */
+export async function closeEmployerListingFromEmail(
+  companyId: number,
+  jobId: number,
+  signedExpiresAt: Date,
+): Promise<boolean> {
+  const db = await getDb();
+  const now = new Date();
+
+  const [result] = await db
+    .update(jobs)
+    .set({ status: 'archived', updatedAt: now })
+    .where(
+      and(
+        eq(jobs.id, jobId),
+        ownedByCompany(companyId),
+        eq(jobs.status, 'published'),
+        eq(jobs.expiresAt, signedExpiresAt),
+      ),
+    );
+  if (result.affectedRows === 0) return false;
+
+  await logEmployerActivity(null, 'job', jobId, LISTING_CONFIRM_LOG.close, {
+    expiresAt: signedExpiresAt.toISOString(),
+    via: 'email_link',
+  });
+  return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -861,8 +957,11 @@ export async function listEmployerAccountRecipients(
 // something the team may later have to explain to them.
 // ---------------------------------------------------------------------------
 
+// `actorUserId` is null only for the listing confirmation links above: the
+// click is authorized by a token that proves someone at the company opened the
+// email, not which of its users did, and naming one would be a guess.
 async function logEmployerActivity(
-  actorUserId: number,
+  actorUserId: number | null,
   entityType: string,
   entityId: number,
   action: string,
