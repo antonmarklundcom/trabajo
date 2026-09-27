@@ -119,7 +119,8 @@ def main(paths):
         if not k:
             return False
         if k in rows:
-            merged += 1
+            if rows[k][0] != row[0]:
+                merged += 1  # a real variant, not the same phrase seen again
             if row[1] > rows[k][1]:
                 rows[k] = row
             return False

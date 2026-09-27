@@ -64,3 +64,16 @@ Villarrica 80. Bold = no city landing yet → PLAN-SEO S2.
 Not in this export (still to download): salaries, CV/interviews, labour rights,
 job titles — PLAN-SEO blocks 4, 6, 7, 8.
 
+## Company careers and cities exports (2026-09-27, `raw/…-companies.csv`, `raw/…-cities.csv`)
+
+- Company careers searches now total **10.630/mo** over 128 phrases. Named
+  employers: Biggie 590, Itaú 320 (+110 "banco itau"), Stock 260 (+50/+40),
+  Tigo 260, Banco Continental 260, Superseis 110. Public sector: "ips
+  concurso" 260 (+70 "concurso ips"), "concursos publicos paraguay" 50, "ande
+  concurso" 40, "petropar concurso" 10. → PLAN-SEO S1: company pages must
+  carry "{empresa} trabaja con nosotros"; the public "concursos" searches are
+  a blog/guide topic, not ours to host.
+- Cities, updated totals: San Lorenzo 1.580, Luque 1.510, Capiatá 410,
+  Caaguazú 330, Mariano Roque Alonso 280, Ñemby 240, Caacupé 220, Coronel
+  Oviedo 210, Pedro Juan Caballero 180, Limpio 160, Itauguá 120, Villarrica 80.
+
