@@ -4,13 +4,26 @@ import { marked } from 'marked';
 import { CACHE_TAGS, PUBLIC_CACHE_TTL_SECONDS } from './cache-tags';
 import { cachedOrRaw } from './cached-or-raw';
 import {
+  queryPostsForJobCategory,
+  queryPublishedCategoryCounts,
   queryPublishedPost,
+  queryPublishedPostPage,
   queryPublishedPosts,
   queryRedirectTarget,
-  type BlogPostRow,
+  queryRelatedPosts,
+  type BlogPostListRow,
 } from './db/blog';
 import { imagePublicUrl } from './image-storage';
-import { BLOG_CATEGORIES, BLOG_CATEGORY_LABELS, BLOG_CATEGORY_COPY, type BlogCategory } from './blog-categories';
+import { slugify } from './slug';
+import { BLOG_PAGE_SIZE } from './pagination';
+import {
+  BLOG_CATEGORIES,
+  BLOG_CATEGORY_LABELS,
+  BLOG_CATEGORY_COPY,
+  blogCategoryPath,
+  isBlogCategory,
+  type BlogCategory,
+} from './blog-categories';
 
 // The only read path for blog content, exactly as it was when the content was
 // Markdown files on disk (PLAN-PHASE3-DRAFT.md §7.2). No page, component or
@@ -97,6 +110,38 @@ function hasSafeScheme(href: string, allowed: string[]): boolean {
 
 marked.setOptions({ gfm: true });
 
+/** One `##` heading of an article, for the "En esta nota" contents list. */
+export type BlogHeading = { id: string; text: string };
+
+// Per-render heading state. renderMarkdown() is synchronous (`async: false`),
+// so one module-level slot cannot be shared by two renders at once; it is set
+// right before marked.parse() and cleared right after.
+let headingState: { seen: Map<string, number>; h2: BlogHeading[] } | null = null;
+
+type InlineToken = { type?: string; text?: string; tokens?: InlineToken[] };
+
+/** The visible text of a heading's inline tokens: `**Hola** \`x\`` → `Hola x`. */
+function plainText(tokens: InlineToken[]): string {
+  return tokens
+    .map((token) => (token.tokens ? plainText(token.tokens) : (token.text ?? '')))
+    .join('');
+}
+
+/**
+ * A stable, unique fragment id for a heading. slugify() is the same function
+ * that mints post slugs, so the id is always `[a-z0-9-]` — safe inside an
+ * attribute without escaping, and incapable of carrying anything the escape
+ * above would have to catch. Repeats get `-2`, `-3`, the way GitHub does it.
+ */
+function headingId(text: string): string {
+  const base = slugify(text).slice(0, 80).replace(/-+$/, '');
+  if (!base) return '';
+  if (!headingState) return base;
+  const n = (headingState.seen.get(base) ?? 0) + 1;
+  headingState.seen.set(base, n);
+  return n === 1 ? base : `${base}-${n}`;
+}
+
 // One `use()` call, extending the renderer rather than replacing it. §13.4
 // named the risk precisely: the raw-HTML escape below lives in this same
 // object, and an override that replaces where it should extend would switch it
@@ -119,6 +164,17 @@ marked.use({
       return `<a href="${escapeHtml(href.trim())}"${titleAttr}>${text}</a>`;
     },
 
+    // Heading ids for deep links and the contents list (PLAN-GROWTH.md §4 C2).
+    // Added to this same renderer object, not a second marked.use(), for the
+    // reason the comment above gives: the escape lives here.
+    heading({ tokens, depth }) {
+      const inner = this.parser.parseInline(tokens);
+      const text = plainText(tokens as InlineToken[]).trim();
+      const id = headingId(text);
+      if (id && depth === 2 && headingState) headingState.h2.push({ id, text });
+      return id ? `<h${depth} id="${id}">${inner}</h${depth}>\n` : `<h${depth}>${inner}</h${depth}>\n`;
+    },
+
     image({ href, title, text }) {
       // Alt text survives a rejected image for the same reason.
       if (!hasSafeScheme(href, SAFE_IMAGE_SCHEMES)) return escapeHtml(text);
@@ -137,8 +193,25 @@ marked.use({
  * through. The test has to go through the same function the pages do.
  */
 export function renderMarkdown(body: string): string {
-  return marked.parse(body, { async: false });
+  return renderArticle(body).html;
 }
+
+/** renderMarkdown() plus the article's `##` headings, in document order. */
+export function renderArticle(body: string): { html: string; headings: BlogHeading[] } {
+  headingState = { seen: new Map(), h2: [] };
+  try {
+    const html = marked.parse(body, { async: false });
+    return { html, headings: headingState.h2 };
+  } finally {
+    headingState = null;
+  }
+}
+
+/**
+ * The contents list is shown only on a long article (≥4 `##` sections). Below
+ * that, a list of two or three links above the text is clutter, not a map.
+ */
+export const TOC_MIN_HEADINGS = 4;
 
 // Re-exported from the single source (C1) rather than defined here: this
 // file is the public read path, but BlogPostForm.tsx ('use client') and
@@ -163,14 +236,20 @@ export type BlogPostMeta = {
   coverAlt?: string;
 };
 
-export type BlogPost = BlogPostMeta & { html: string };
+export type BlogPost = BlogPostMeta & {
+  html: string;
+  /** The article's `##` headings, each with the id its <h2> carries. */
+  headings: BlogHeading[];
+};
 
 /** `/img/blog/{uuid}.webp`. One function, so a storage move is one edit. */
 export function blogCoverUrl(coverImageKey: string): string {
   return imagePublicUrl(coverImageKey);
 }
 
-function toMeta(row: BlogPostRow): BlogPostMeta {
+export { blogCategoryPath, isBlogCategory, BLOG_PAGE_SIZE };
+
+function toMeta(row: BlogPostListRow): BlogPostMeta {
   return {
     slug: row.slug,
     title: row.title,
@@ -202,6 +281,31 @@ const cachedPost = unstable_cache(
 const cachedRedirect = unstable_cache(
   (slug: string) => queryRedirectTarget(slug),
   ['db', 'blog', 'redirect'],
+  cacheOptions,
+);
+// unstable_cache folds the call's arguments into the key, so each
+// (category, page) pair, each article's related list and each job category's
+// posts is its own entry — a bounded set: seven categories, a page count that
+// grows by one per twelve posts, one entry per article, ten job categories.
+const cachedPostPage = unstable_cache(
+  (category: BlogCategory | null, page: number) =>
+    queryPublishedPostPage({ category: category ?? undefined, page, pageSize: BLOG_PAGE_SIZE }),
+  ['db', 'blog', 'page'],
+  cacheOptions,
+);
+const cachedCategoryCounts = unstable_cache(
+  () => queryPublishedCategoryCounts(),
+  ['db', 'blog', 'category-counts'],
+  cacheOptions,
+);
+const cachedRelated = unstable_cache(
+  (slug: string, category: BlogCategory, limit: number) => queryRelatedPosts(slug, category, limit),
+  ['db', 'blog', 'related'],
+  cacheOptions,
+);
+const cachedForJobCategory = unstable_cache(
+  (relatedCategorySlug: string, limit: number) => queryPostsForJobCategory(relatedCategorySlug, limit),
+  ['db', 'blog', 'for-job-category'],
   cacheOptions,
 );
 
@@ -236,7 +340,101 @@ export async function getBlogPost(slug: string): Promise<BlogPost | null> {
   if (!hasDatabase()) return null;
   const row = await cachedOrRaw(() => cachedPost(slug), () => queryPublishedPost(slug));
   if (!row) return null;
-  return { ...toMeta(row), html: renderMarkdown(row.body) };
+  const { html, headings } = renderArticle(row.body);
+  return { ...toMeta(row), html, headings };
+}
+
+export type BlogPostPage = {
+  posts: BlogPostMeta[];
+  total: number;
+  /** At least 1, so "page 1 of an empty list" is a page and not a 404. */
+  totalPages: number;
+};
+
+/**
+ * One page of `/blog`, or of a category archive when `category` is given.
+ * The caller 404s a `page` past `totalPages`; this function only answers.
+ */
+export async function getBlogPostPage(options: {
+  category?: BlogCategory;
+  page: number;
+}): Promise<BlogPostPage> {
+  if (!hasDatabase()) return { posts: [], total: 0, totalPages: 1 };
+  const category = options.category ?? null;
+  const { posts, total } = await cachedOrRaw(
+    () => cachedPostPage(category, options.page),
+    () =>
+      queryPublishedPostPage({
+        category: options.category,
+        page: options.page,
+        pageSize: BLOG_PAGE_SIZE,
+      }),
+  );
+  return {
+    posts: posts.map(toMeta),
+    total,
+    totalPages: Math.max(1, Math.ceil(total / BLOG_PAGE_SIZE)),
+  };
+}
+
+/**
+ * Published post count for every category, zeros included, in the canonical
+ * category order. One read feeds the /blog chips, the archive's robots rule
+ * and the sitemap, so the three cannot disagree about which archive exists.
+ */
+export async function getBlogCategoryCounts(): Promise<Array<{ category: BlogCategory; total: number }>> {
+  const rows = hasDatabase()
+    ? await cachedOrRaw(() => cachedCategoryCounts(), () => queryPublishedCategoryCounts())
+    : [];
+  const byCategory = new Map(rows.map((row) => [row.category, row.total]));
+  return BLOG_CATEGORIES.map((category) => ({ category, total: byCategory.get(category) ?? 0 }));
+}
+
+/** "Artículos relacionados": same category first, then the most recent; never itself. */
+export async function getRelatedPosts(post: BlogPostMeta, limit = 3): Promise<BlogPostMeta[]> {
+  if (!hasDatabase()) return [];
+  const rows = await cachedOrRaw(
+    () => cachedRelated(post.slug, post.category, limit),
+    () => queryRelatedPosts(post.slug, post.category, limit),
+  );
+  return rows.map(toMeta);
+}
+
+/** The newest posts, optionally of one category — homepage and employer pages. */
+export async function getLatestBlogPosts(limit: number, category?: BlogCategory): Promise<BlogPostMeta[]> {
+  if (limit < 1) return [];
+  const { posts } = await getBlogPostPage({ category, page: 1 });
+  return posts.slice(0, limit);
+}
+
+/**
+ * Posts written for one job category — the sector guide first — topped up
+ * from `fallback` (newest first) when there are fewer than `limit`. Returns
+ * an empty list rather than filler when neither has anything: every caller
+ * omits its block entirely in that case.
+ */
+export async function getPostsForJobCategory(
+  jobCategorySlug: string | undefined,
+  limit: number,
+  fallback?: BlogCategory,
+): Promise<BlogPostMeta[]> {
+  if (!hasDatabase() || limit < 1) return [];
+  const matched =
+    jobCategorySlug && SLUG_PATTERN.test(jobCategorySlug)
+      ? (
+          await cachedOrRaw(
+            () => cachedForJobCategory(jobCategorySlug, limit),
+            () => queryPostsForJobCategory(jobCategorySlug, limit),
+          )
+        ).map(toMeta)
+      : [];
+  if (matched.length >= limit || !fallback) return matched;
+
+  const seen = new Set(matched.map((post) => post.slug));
+  const extra = (await getLatestBlogPosts(limit + matched.length, fallback)).filter(
+    (post) => !seen.has(post.slug),
+  );
+  return [...matched, ...extra].slice(0, limit);
 }
 
 /**

@@ -9,6 +9,13 @@ import EmployerForm from '@/components/EmployerForm';
 import WhatsAppCta from '@/components/WhatsAppCta';
 import FloatingWhatsApp from '@/components/FloatingWhatsApp';
 import LaunchPromoStrip from '@/components/LaunchPromoStrip';
+import BlogPostLinks from '@/components/BlogPostLinks';
+import { blogCategoryPath, getLatestBlogPosts } from '@/lib/blog';
+
+// The "Leé más" row reads published posts. An article write refreshes this
+// page (lib/cache.ts BLOG_PATHS); the timer covers the one change with no
+// write behind it — a scheduled post reaching its date.
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: 'Publicá tu empleo gratis en Paraguay — por WhatsApp o formulario',
@@ -18,10 +25,11 @@ export const metadata: Metadata = {
 };
 
 export default async function PublicarPage() {
-  const [categories, cities, promo] = await Promise.all([
+  const [categories, cities, promo, employerPosts] = await Promise.all([
     getCategories(),
     getCities(),
     getLaunchPromoStatus(),
+    getLatestBlogPosts(2, 'para-empresas'),
   ]);
   const promoActive = promo.enabled && promo.remaining > 0;
   // Both flags, same reasoning as the route handler: /empresa/* 404s while the
@@ -78,6 +86,17 @@ export default async function PublicarPage() {
           </div>
         )}
       </div>
+
+      {/* A quiet "Leé más" row under the cards (PLAN-GROWTH.md §4 C2) —
+          the employer articles' way in from the page employers land on. */}
+      <BlogPostLinks
+        title="Leé más"
+        posts={employerPosts}
+        tone="quiet"
+        moreHref={blogCategoryPath('para-empresas')}
+        moreLabel="Más para empresas"
+        className="mt-10"
+      />
     </div>
     <FloatingWhatsApp />
     </>

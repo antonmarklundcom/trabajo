@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { getAllPublishedJobSummaries, getCategories, getCities } from '@/lib/data';
-import { getBlogPosts } from '@/lib/blog';
-import { companiesWithPublicJobs } from '@/lib/seo';
+import { blogCategoryPath, getBlogCategoryCounts, getBlogPosts } from '@/lib/blog';
+import { blogArchivesForSitemap, companiesWithPublicJobs } from '@/lib/seo';
 
 // Left at an hour on purpose: a new listing reaches the sitemap immediately
 // because every admin mutation revalidates '/sitemap.xml' (lib/cache.ts), so
@@ -15,11 +15,12 @@ export const revalidate = 3600;
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://trabajo.com.py';
 
-  const [jobs, categories, cities, posts] = await Promise.all([
+  const [jobs, categories, cities, posts, blogCategoryCounts] = await Promise.all([
     getAllPublishedJobSummaries(),
     getCategories(),
     getCities(),
     getBlogPosts(),
+    getBlogCategoryCounts(),
   ]);
 
   // Category/city pairs that actually have a published job — the taxonomy
@@ -119,6 +120,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }),
   );
 
+  // Blog category archives (PLAN-GROWTH.md §4 C2) — only the ones with a
+  // published post, by the same rule that makes an empty archive noindex
+  // (lib/seo.ts blogArchiveRobots()). lastModified is the newest edit among
+  // the archive's posts, from the post list already in hand.
+  const latestUpdateByBlogCategory = new Map<string, Date>();
+  for (const post of posts) {
+    const updated = new Date(post.updatedAt);
+    const seen = latestUpdateByBlogCategory.get(post.category);
+    if (!seen || updated > seen) latestUpdateByBlogCategory.set(post.category, updated);
+  }
+  const blogArchivePages: MetadataRoute.Sitemap = blogArchivesForSitemap(blogCategoryCounts).map(
+    (category) => ({
+      url: `${siteUrl}${blogCategoryPath(category)}`,
+      lastModified: latestUpdateByBlogCategory.get(category),
+      changeFrequency: 'weekly' as const,
+      priority: 0.5,
+    }),
+  );
+
   const blogPages: MetadataRoute.Sitemap = posts.map((post) => ({
     url: `${siteUrl}/blog/${post.slug}`,
     lastModified: new Date(post.updatedAt),
@@ -133,6 +153,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...cityPages,
     ...landingPages,
     ...companyPages,
+    ...blogArchivePages,
     ...blogPages,
   ];
 }

@@ -11,6 +11,8 @@ import Pagination from '@/components/Pagination';
 import JsonLd from '@/components/JsonLd';
 import JobAlertForm from '@/components/JobAlertForm';
 import { jobAlertsEnabled } from '@/lib/flags';
+import BlogPostLinks from '@/components/BlogPostLinks';
+import { getPostsForJobCategory } from '@/lib/blog';
 
 // Cached reads are invalidated on demand by every admin mutation
 // (lib/cache.ts), so this timer is only the safety net for job expiry and
@@ -71,12 +73,14 @@ export default async function CategoriaPage({
   const sp = await searchParams;
   const page = pageFromSearchParams(sp);
 
-  const [category, { jobs, total }, taxonomyCounts] = await Promise.all([
+  const [category, { jobs, total }, taxonomyCounts, guides] = await Promise.all([
     getCategory(categoria),
     getJobs({ categoria, orden: 'recientes', page }),
     // Every city with a job in this category, not just the ones on this
     // page — the seam function S5 adds specifically to fix that (§3.6).
     getTaxonomyCounts({ categoria }),
+    // Posts written for this category, the sector guide first (C2).
+    getPostsForJobCategory(categoria, 3),
   ]);
 
   if (!category) notFound();
@@ -194,6 +198,11 @@ export default async function CategoriaPage({
         {jobAlertsEnabled() && (
           <JobAlertForm categorySlug={category.slug} categoryName={category.name} />
         )}
+        <BlogPostLinks
+          title={`Cómo conseguir trabajo en ${category.name}`}
+          posts={guides}
+          className="mt-10"
+        />
 
         {/* Cross-links (PLAN-GROWTH.md §4 S5) */}
         {copy && copy.related.length > 0 && (
