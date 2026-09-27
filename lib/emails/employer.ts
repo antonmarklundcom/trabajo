@@ -185,3 +185,49 @@ export function employerPasswordResetMessage(to: string, name: string, token: st
     ].join('\n'),
   };
 }
+
+/**
+ * "¿Tu aviso sigue abierto?" — sent by scripts/listing-confirm.ts a few days
+ * before a listing's `expires_at` (lib/listing-confirm.ts).
+ *
+ * The two links are the whole point: the stale-listing problem is an employer
+ * who filled the post and never told anyone, and the cheapest possible answer
+ * is one tap. Each link opens a page with a button rather than acting on the
+ * click, because mail scanners open links too — so the copy says "tocá" and the
+ * page asks once more.
+ *
+ * Honest about the default: doing nothing is a valid answer, the listing simply
+ * closes on its date. This email is not a threat and not an upsell.
+ */
+export function listingConfirmMessage(
+  to: string,
+  name: string,
+  job: { title: string; expiresAt: Date; listingDays: number; openUrl: string; closeUrl: string },
+  formatDate: (date: Date) => string,
+): EmailMessage {
+  const until = formatDate(job.expiresAt);
+  return {
+    to,
+    subject: `¿Tu aviso «${job.title}» sigue abierto?`,
+    text: [
+      `Hola ${name},`,
+      '',
+      `Tu aviso «${job.title}» está publicado en trabajo.com.py hasta el ${until}.`,
+      '¿Sigue abierto? Tocá la opción que corresponda:',
+      '',
+      `Sí, sigue abierto (lo mantenemos publicado ${job.listingDays} días más):`,
+      job.openUrl,
+      '',
+      'Ya lo cubrimos, cerralo (deja de aparecer en el sitio):',
+      job.closeUrl,
+      '',
+      `Si no confirmás, el aviso deja de publicarse solo el ${until}. No hace falta que hagas nada más.`,
+      'Los enlaces sirven por 14 días y para una sola respuesta.',
+      '',
+      'También podés gestionar tus avisos desde tu panel:',
+      emailUrl('/empresa/empleos'),
+      '',
+      '— trabajo.com.py',
+    ].join('\n'),
+  };
+}
