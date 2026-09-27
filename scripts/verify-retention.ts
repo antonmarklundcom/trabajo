@@ -16,6 +16,7 @@ import {
   CANDIDATE_INACTIVITY_MONTHS,
   CANDIDATE_WARNING_MONTHS,
   CONSENT_RETENTION_MONTHS,
+  CONTACT_MESSAGE_RETENTION_MONTHS,
   monthsAgo,
 } from '../lib/retention';
 
@@ -42,6 +43,7 @@ check('warning comes before the purge', CANDIDATE_WARNING_MONTHS < CANDIDATE_INA
 check('application redaction is 12 months', APPLICATION_REDACTION_MONTHS, 12);
 check('consent retention is 5 years', CONSENT_RETENTION_MONTHS, 60);
 check('access log retention is 24 months', ACCESS_LOG_RETENTION_MONTHS, 24);
+check('contact message retention is 12 months', CONTACT_MESSAGE_RETENTION_MONTHS, 12);
 
 console.log('');
 
@@ -131,6 +133,7 @@ check('monthsAgo does not mutate its input', iso(original), '2026-08-09T12:00:00
     { table: 'consents', finder: 'findConsentsToDelete', executor: 'retention.deleteConsents(' },
     { table: 'data_access_logs', finder: 'findAccessLogsToDelete', executor: 'retention.deleteAccessLogs(' },
     { table: 'auth_events', finder: 'findAuthEventsToDelete', executor: 'retention.deleteAuthEvents(' },
+    { table: 'contact_messages', finder: 'findContactMessagesToDelete', executor: 'retention.deleteContactMessages(' },
   ] as const;
 
   for (const { table, finder, executor } of swept) {
@@ -141,6 +144,87 @@ check('monthsAgo does not mutate its input', iso(original), '2026-08-09T12:00:00
       true,
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// contact_messages: the sweep is a hard DELETE on created_at alone.
+//
+// Two ways to get this wrong that nothing else would notice: keying the clock
+// on handled_at (an unanswered message would then live forever, since it is
+// never handled), or turning the delete into a "mark purged" UPDATE — AGENTS.md
+// forbids new soft-delete flags, and a flagged row still holds the phone
+// number. Source-level; the alternative needs a database.
+// ---------------------------------------------------------------------------
+{
+  const retentionSource = readFileSync(join(process.cwd(), 'lib', 'db', 'retention.ts'), 'utf8');
+  const fnBody = (name: string): string => {
+    const start = retentionSource.indexOf(`export async function ${name}`);
+    if (start === -1) return '';
+    const rest = retentionSource.slice(start);
+    const end = rest.indexOf('\n}');
+    return end === -1 ? rest : rest.slice(0, end);
+  };
+  const finder = fnBody('findContactMessagesToDelete');
+  const deleter = fnBody('deleteContactMessages');
+  check(
+    'contact message cutoff is on created_at, not handled_at',
+    finder.includes('lt(contactMessages.createdAt, cutoff)') && !finder.includes('handledAt'),
+    true,
+  );
+  check(
+    'contact messages are hard-deleted, not flagged',
+    deleter.includes('.delete(contactMessages)') && !deleter.includes('.update('),
+    true,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// contact_messages: a /contacto message exists before the person is told it
+// was sent, and only staff can act on the inbox.
+//
+// The defect this table closes was a 201 for a message that lived nowhere once
+// every webhook failed. So: the insert must sit before the after() fan-out and
+// before the route's final 201, and a failed insert with no delivery channel
+// must be a 503 rather than a success. And the one mutation must re-check the
+// role itself, because hiding the button is not authorization (AGENTS.md).
+// ---------------------------------------------------------------------------
+{
+  const route = readFileSync(join(process.cwd(), 'app', 'api', 'v1', 'leads', 'route.ts'), 'utf8');
+  const insertAt = route.indexOf('await createContactMessage(');
+  const afterAt = route.indexOf('after(async');
+  const finalOkAt = route.lastIndexOf('{ status: 201 }');
+  const guard = route.slice(insertAt, afterAt === -1 ? undefined : afterAt);
+  check(
+    'leads route inserts the contact message before the fan-out and the 201',
+    insertAt !== -1 && afterAt !== -1 && insertAt < afterAt && insertAt < finalOkAt,
+    true,
+  );
+  check(
+    'leads route returns 503 when the insert failed and no delivery channel exists',
+    /!saved && !hasLeadDeliveryChannel\(\)/.test(guard) && guard.includes('status: 503'),
+    true,
+  );
+
+  const patch = readFileSync(
+    join(process.cwd(), 'app', 'api', 'admin', 'mensajes', '[id]', 'route.ts'),
+    'utf8',
+  );
+  const roleAt = patch.indexOf("requireRole(user, ['admin', 'editor'])");
+  const writeAt = patch.indexOf('markContactMessageHandled(');
+  check(
+    'PATCH /api/admin/mensajes/[id] checks the role before writing',
+    patch.includes('requireApiSession()') && roleAt !== -1 && writeAt !== -1 && roleAt < writeAt,
+    true,
+  );
+  const page = readFileSync(
+    join(process.cwd(), 'app', 'admin', '(dashboard)', 'mensajes', 'page.tsx'),
+    'utf8',
+  );
+  check(
+    '/admin/mensajes re-checks the role in the page',
+    page.includes("requireSessionWithRole(['admin', 'editor'])"),
+    true,
+  );
 }
 
 // ---------------------------------------------------------------------------

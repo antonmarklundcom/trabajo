@@ -95,6 +95,13 @@ const NO_PARENT_DELETE: { child: string; parent: string; why: string }[] = [
     parent: 'users',
     why: 'a staff/employer account is deactivated, never destroyed — no delete site exists to clean up after',
   },
+  {
+    // "Atendido por" on /admin/mensajes. The message row itself is hard-deleted
+    // on its own 12-month clock (lib/db/retention.ts), never with the user.
+    child: 'contactMessages',
+    parent: 'users',
+    why: 'handled_by_user_id names the staff member who answered; staff accounts are deactivated, never destroyed',
+  },
 ];
 
 /**

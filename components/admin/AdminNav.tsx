@@ -11,6 +11,9 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/admin', label: 'Panel', roles: ['admin', 'editor'] },
   { href: '/admin/empleos', label: 'Empleos', roles: ['admin', 'editor'] },
   { href: '/admin/postulaciones', label: 'Postulaciones', roles: ['admin', 'editor'] },
+  // /contacto messages to the team (contact_messages). Not candidate data, so
+  // admin + editor like Postulaciones; the page and PATCH handler re-check.
+  { href: '/admin/mensajes', label: 'Mensajes', roles: ['admin', 'editor'] },
   { href: '/admin/empresas', label: 'Empresas', roles: ['admin', 'editor'] },
   { href: '/admin/blog', label: 'Blog', roles: ['admin', 'editor'] },
   { href: '/admin/estadisticas', label: 'Estadísticas', roles: ['admin', 'editor'] },

@@ -141,6 +141,13 @@
       "when": 1790469318055,
       "tag": "0019_puzzling_the_captain",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "5",
+      "when": 1790472238677,
+      "tag": "0020_acoustic_riptide",
+      "breakpoints": true
     }
   ]
 }

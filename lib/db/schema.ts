@@ -989,3 +989,47 @@ export const paymentEvents = mysqlTable(
     index('processor_received_idx').on(table.processor, table.receivedAt),
   ],
 );
+
+// ---------------------------------------------------------------------------
+// contact_messages
+//
+// Every /contacto submission (lead type `contact`), written BEFORE the webhook
+// and team-email fan-out in POST /api/v1/leads. Until this table existed a
+// message lived only in whichever of GHL, Sheets or the team inbox accepted it
+// — and with none configured, or all three failing, a person was told their
+// message was sent when it existed nowhere.
+//
+// Personal data, so it has a retention clock: hard DELETE after
+// CONTACT_MESSAGE_RETENTION_MONTHS (lib/retention.ts), run by `db:purge`.
+// Nothing here is candidate data — a contact message has no candidate_id and
+// is not read through lib/db/candidates-admin.ts.
+//
+// `handled_by_user_id` is a plain int, no FK (AGENTS.md). `users` rows are
+// never hard-deleted, so it is registered under NO_PARENT_DELETE in
+// scripts/verify-cascades.ts rather than as a dependency.
+// ---------------------------------------------------------------------------
+
+export const contactMessages = mysqlTable(
+  'contact_messages',
+  {
+    id: int('id').autoincrement().primaryKey(),
+    name: varchar('name', { length: 200 }).notNull(),
+    // As typed (contactSchema caps it at 30); the admin list normalises it for
+    // the WhatsApp link, not the write.
+    phone: varchar('phone', { length: 30 }).notNull(),
+    email: varchar('email', { length: 320 }),
+    message: text('message').notNull(),
+    // Truncated to the column on write: it falls back to the Referer header,
+    // which no schema bounds.
+    sourcePage: varchar('source_page', { length: 300 }),
+    createdAt: datetime('created_at').notNull(),
+    handledAt: datetime('handled_at'),
+    handledByUserId: int('handled_by_user_id'),
+  },
+  (table) => [
+    // The admin list (newest first) and the retention sweep (oldest first)
+    // both walk created_at; the unhandled count filters on handled_at.
+    index('created_idx').on(table.createdAt),
+    index('handled_created_idx').on(table.handledAt, table.createdAt),
+  ],
+);

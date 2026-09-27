@@ -27,6 +27,8 @@
 //      not row deletion.
 //   3. consents, 5 years after the data they authorised was purged.
 //   4. data_access_logs, 24 months.
+//   5. auth_events, 24 months.
+//   6. contact_messages (/contacto), 12 months from arrival — hard DELETE.
 //
 // deletion_requests is retained indefinitely and never appears here: it holds
 // no personal data by construction (§1.2), and it is the evidence that the rest
@@ -38,6 +40,7 @@ import {
   CANDIDATE_INACTIVITY_MONTHS,
   CANDIDATE_WARNING_MONTHS,
   CONSENT_RETENTION_MONTHS,
+  CONTACT_MESSAGE_RETENTION_MONTHS,
   monthsAgo,
 } from '../lib/retention';
 import { sendEmail } from '../lib/email';
@@ -116,6 +119,7 @@ async function main() {
   const applicationCutoff = monthsAgo(APPLICATION_REDACTION_MONTHS, now);
   const consentCutoff = monthsAgo(CONSENT_RETENTION_MONTHS, now);
   const accessLogCutoff = monthsAgo(ACCESS_LOG_RETENTION_MONTHS, now);
+  const contactMessageCutoff = monthsAgo(CONTACT_MESSAGE_RETENTION_MONTHS, now);
 
   console.log(`Now:    ${now.toISOString()}`);
 
@@ -124,16 +128,24 @@ async function main() {
 
   // Read everything first, then act. The apply run therefore acts on exactly
   // the set it printed, and a read failure cannot leave a half-applied sweep.
-  const [dueCandidates, toWarn, dueApplications, dueConsents, dueAccessLogs, dueAuthEvents] =
-    await Promise.all([
-      retention.findCandidatesInactiveSince(candidateCutoff),
-      retention.findCandidatesToWarn(warningCutoff, candidateCutoff),
-      retention.findApplicationsToRedact(applicationCutoff),
-      retention.findConsentsToDelete(consentCutoff),
-      retention.findAccessLogsToDelete(accessLogCutoff),
-      // Same 24-month clock as the access logs (PLAN-NEXT.md §2 A1).
-      retention.findAuthEventsToDelete(accessLogCutoff),
-    ]);
+  const [
+    dueCandidates,
+    toWarn,
+    dueApplications,
+    dueConsents,
+    dueAccessLogs,
+    dueAuthEvents,
+    dueContactMessages,
+  ] = await Promise.all([
+    retention.findCandidatesInactiveSince(candidateCutoff),
+    retention.findCandidatesToWarn(warningCutoff, candidateCutoff),
+    retention.findApplicationsToRedact(applicationCutoff),
+    retention.findConsentsToDelete(consentCutoff),
+    retention.findAccessLogsToDelete(accessLogCutoff),
+    // Same 24-month clock as the access logs (PLAN-NEXT.md §2 A1).
+    retention.findAuthEventsToDelete(accessLogCutoff),
+    retention.findContactMessagesToDelete(contactMessageCutoff),
+  ]);
 
   if (apply && dueCandidates.length > 0) {
     // Fail before the first candidate rather than between the third and the
@@ -307,6 +319,20 @@ async function main() {
   }
 
   // -------------------------------------------------------------------------
+  section(`6. contact_messages — ${CONTACT_MESSAGE_RETENTION_MONTHS} months from arrival (before ${fmt(contactMessageCutoff)})`);
+  console.log(`  ${dueContactMessages.length} /contacto message(s) due for deletion (handled or not)`);
+  listIds(
+    'message',
+    dueContactMessages.map((m) => ({ id: m.id, when: m.createdAt })),
+    verbose,
+  );
+  let contactMessagesDeleted = 0;
+  if (apply && dueContactMessages.length > 0) {
+    contactMessagesDeleted = await retention.deleteContactMessages(dueContactMessages.map((m) => m.id));
+    console.log(`  deleted ${contactMessagesDeleted} message(s)`);
+  }
+
+  // -------------------------------------------------------------------------
   section('Summary');
   const verb = apply ? 'done' : 'would do';
   console.log(`  candidates deleted        ${verb}: ${dueCandidates.length - failures}`);
@@ -314,6 +340,7 @@ async function main() {
   console.log(`  consent rows deleted      ${verb}: ${apply ? consentsDeleted : dueConsents.length}`);
   console.log(`  access log rows deleted   ${verb}: ${apply ? logsDeleted : dueAccessLogs.length}`);
   console.log(`  auth event rows deleted   ${verb}: ${apply ? authEventsDeleted : dueAuthEvents.length}`);
+  console.log(`  contact messages deleted  ${verb}: ${apply ? contactMessagesDeleted : dueContactMessages.length}`);
   console.log(`  candidates warned         ${verb}: ${apply ? warned : toWarn.length}`);
   if (!apply) {
     console.log('\nNothing was changed. Re-run with --apply to execute.');
