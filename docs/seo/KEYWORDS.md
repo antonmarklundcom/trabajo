@@ -3,9 +3,12 @@
 Raw data: [`keywords-2026-09-27.csv`](keywords-2026-09-27.csv) — one row per
 unique phrase: `phrase, monthly_searches, low_cpc_sek, high_cpc_sek`.
 
-Add a new Keyword Planner paste with `python3 docs/seo/kwp-merge.py paste.txt`:
-it parses the planner's copy-paste format, keeps existing rows, appends new
-phrases and re-sorts by volume.
+Add new data with `python3 docs/seo/kwp-merge.py <file>`. It takes either the
+planner's **"Download keyword ideas" CSV** (preferred — Swedish, English or
+Spanish UI, UTF-16 or UTF-8) or a `.txt` copy-paste of the table; keeps
+existing rows, appends new phrases, re-sorts by volume. Put raw exports in
+`docs/seo/raw/` if you want to keep them. The build plan that uses this data
+is `PLAN-SEO.md`.
 
 - **Location / language:** Paraguay, Spanish (the first "publicar … gratis"
   batch may have been pulled with a different location — re-check it before
