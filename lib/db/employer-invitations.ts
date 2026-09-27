@@ -175,36 +175,49 @@ export async function acceptInvitation(
     .limit(1);
   if (!invitation) return null;
 
-  const [claim] = await db
-    .update(employerInvitations)
-    .set({ acceptedAt: now })
-    .where(and(eq(employerInvitations.id, invitation.id), isNull(employerInvitations.acceptedAt)));
-  if (claim.affectedRows === 0) return null;
-
-  const [user] = await db.insert(users).values({
-    email: invitation.email,
-    passwordHash: input.passwordHash,
-    name: input.name,
-    role: 'employer',
-    companyId: invitation.companyId,
-    isActive: true,
-    createdAt: now,
-    updatedAt: now,
-  });
-
   const { POLICY_VERSION } = await import('../policy');
-  await db.insert(consents).values({
-    subjectType: 'employer_user',
-    subjectId: user.insertId,
-    purpose: 'terms_acceptance',
-    granted: true,
-    policyVersion: POLICY_VERSION,
-    relatedCompanyId: invitation.companyId,
-    relatedJobId: null,
-    ip: input.ip,
-    userAgent: input.userAgent,
-    createdAt: now,
-  });
 
-  return user.insertId;
+  // Claim, account and consent are ONE transaction. They used to be three
+  // statements with the claim first, so any failure after it — the users insert
+  // tripping the email unique index because the person had already signed up,
+  // or the consent insert failing — burned the invitation for good (the admin
+  // had to issue a new one) and, in the consent case, left an employer account
+  // with no record that its terms were accepted. Now a failure rolls all three
+  // back: the link still works, and no account exists without its consent row.
+  // The claim stays first INSIDE the transaction, so two simultaneous accepts
+  // still resolve to exactly one winner: the loser's conditional UPDATE matches
+  // no row and it returns null without inserting anything.
+  return db.transaction(async (tx) => {
+    const [claim] = await tx
+      .update(employerInvitations)
+      .set({ acceptedAt: now })
+      .where(and(eq(employerInvitations.id, invitation.id), isNull(employerInvitations.acceptedAt)));
+    if (claim.affectedRows === 0) return null;
+
+    const [user] = await tx.insert(users).values({
+      email: invitation.email,
+      passwordHash: input.passwordHash,
+      name: input.name,
+      role: 'employer',
+      companyId: invitation.companyId,
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await tx.insert(consents).values({
+      subjectType: 'employer_user',
+      subjectId: user.insertId,
+      purpose: 'terms_acceptance',
+      granted: true,
+      policyVersion: POLICY_VERSION,
+      relatedCompanyId: invitation.companyId,
+      relatedJobId: null,
+      ip: input.ip,
+      userAgent: input.userAgent,
+      createdAt: now,
+    });
+
+    return user.insertId;
+  });
 }
