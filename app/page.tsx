@@ -31,12 +31,15 @@ export const metadata: Metadata = {
 export default async function HomePage() {
   const [featured, recent, categories, cities, promo] = await Promise.all([
     getFeaturedJobs(6),
-    getRecentJobs(8),
+    getRecentJobs(6),
     getCategories(),
     getCities(),
     getLaunchPromoStatus(),
   ]);
   const promoActive = promo.enabled && promo.remaining > 0;
+  // Every live listing has exactly one category, so the category counts
+  // already sum to the catalogue size — no extra query for the trust line.
+  const activeJobCount = categories.reduce((n, c) => n + (c.jobCount ?? 0), 0);
 
   const site = siteUrl();
   const waNumber = siteWhatsAppNumber();
@@ -74,27 +77,83 @@ export default async function HomePage() {
     <>
       <JsonLd data={organizationJsonLd} />
       <JsonLd data={websiteJsonLd} />
-      <SearchHero cities={cities} />
+      <SearchHero
+        cities={cities}
+        activeJobCount={activeJobCount}
+        activeCityCount={cities.filter((c) => (c.jobCount ?? 0) > 0).length}
+      />
 
-      {/* Featured jobs */}
-      {featured.length > 0 && (
-        <section className="py-12 px-4 bg-[#FBF3E0]">
+      {/* Recent jobs first (PLAN-GROWTH.md §4 D3): freshness is the seeker's
+          signal and the reason they came. On a phone the first of these now
+          starts on the first screen. */}
+      <section className="pt-8 pb-4 sm:pt-12 px-4" aria-labelledby="recientes">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-baseline justify-between gap-4 mb-4 sm:mb-6">
+            <h2 id="recientes" className="text-xl sm:text-2xl font-bold text-ink">Últimos empleos</h2>
+            <Link href="/empleos" className="text-sm font-medium text-brand hover:underline whitespace-nowrap">
+              Ver todos <span aria-hidden="true">→</span>
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+            {recent.map((job) => (
+              <JobCard key={job.slug} job={job} />
+            ))}
+          </div>
+          <div className="mt-6 sm:mt-8 text-center">
+            <Link
+              href="/empleos"
+              className="inline-flex items-center justify-center gap-2 w-full sm:w-auto min-h-12 px-6 rounded-[12px] bg-ink text-white font-semibold hover:bg-ink/90 transition-colors"
+            >
+              Ver {activeJobCount > 0 ? `los ${activeJobCount} empleos` : 'todos los empleos'}
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Categories */}
+      <CategoryGrid categories={categories} />
+
+      {/* Cities (PLAN-GROWTH.md §4 S4) */}
+      {cities.some((c) => (c.jobCount ?? 0) > 0) && (
+        <section className="pb-10 sm:pb-12 px-4" aria-labelledby="ciudades">
           <div className="max-w-7xl mx-auto">
-            <div className="flex items-center justify-between mb-6">
+            <h2 id="ciudades" className="text-xl sm:text-2xl font-bold text-ink mb-4 sm:mb-6">Empleos por ciudad</h2>
+            <div className="flex flex-wrap gap-2">
+              {cities
+                .filter((c) => (c.jobCount ?? 0) > 0)
+                .map((city) => (
+                  <Link
+                    key={city.slug}
+                    href={`/trabajo-en/${city.slug}`}
+                    className="inline-flex items-center gap-2 min-h-10 px-3.5 rounded-full border border-border bg-surface text-sm font-medium text-ink-secondary hover:border-brand hover:text-brand transition-colors"
+                  >
+                    {city.name}
+                    <span className="text-xs font-semibold text-ink-3 tabular-nums">{city.jobCount}</span>
+                  </Link>
+                ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Featured jobs — a paid slot, so below what the seeker came for
+          (§7 D10), and still on the homepage, as /planes promises
+          ("Posición destacada en resultados y portada"). */}
+      {featured.length > 0 && (
+        <section className="py-10 sm:py-12 px-4 bg-[#FBF3E0]" aria-labelledby="destacados">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-baseline justify-between gap-4 mb-4 sm:mb-6">
               <div>
-                <h2 className="flex items-center gap-2 text-2xl font-bold text-ink">
-                  <span className="text-gold">★</span> Empleos destacados
+                <h2 id="destacados" className="flex items-center gap-2 text-xl sm:text-2xl font-bold text-ink">
+                  <span className="text-gold" aria-hidden="true">★</span> Empleos destacados
                 </h2>
-                <p className="text-sm text-ink-secondary mt-1">Posiciones con mayor visibilidad</p>
+                <p className="text-sm text-ink-secondary mt-1">Empresas que están contratando ahora</p>
               </div>
-              <Link
-                href="/empleos?orden=destacados"
-                className="text-sm font-medium text-brand hover:underline"
-              >
-                Ver todos →
+              <Link href="/empleos" className="text-sm font-medium text-brand hover:underline whitespace-nowrap">
+                Ver todos <span aria-hidden="true">→</span>
               </Link>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
               {featured.map((job) => (
                 <JobCard key={job.slug} job={job} />
               ))}
@@ -103,62 +162,8 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* Categories */}
-      <CategoryGrid categories={categories} />
-
-      {/* Cities (PLAN-GROWTH.md §4 S4) — shipped plainly here; D1 restyles it. */}
-      {cities.some((c) => (c.jobCount ?? 0) > 0) && (
-        <section className="py-8 px-4">
-          <div className="max-w-7xl mx-auto">
-            <h2 className="text-2xl font-bold text-ink mb-6">Empleos por ciudad</h2>
-            <div className="flex flex-wrap gap-2">
-              {cities
-                .filter((c) => (c.jobCount ?? 0) > 0)
-                .map((city) => (
-                  <Link
-                    key={city.slug}
-                    href={`/trabajo-en/${city.slug}`}
-                    className="inline-flex items-center gap-2 px-3.5 py-2 rounded-full border border-border bg-white text-sm text-ink-secondary hover:border-brand hover:text-brand transition-colors"
-                  >
-                    {city.name}
-                    <span className="text-xs text-ink-3">{city.jobCount}</span>
-                  </Link>
-                ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Recent jobs */}
-      <section className="py-8 px-4 pb-16">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-ink">Últimos empleos publicados</h2>
-            <Link
-              href="/empleos"
-              className="text-sm font-medium text-brand hover:underline"
-            >
-              Ver todos →
-            </Link>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {recent.map((job) => (
-              <JobCard key={job.slug} job={job} />
-            ))}
-          </div>
-          <div className="mt-8 text-center">
-            <Link
-              href="/empleos"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-[10px] border-2 border-brand text-brand font-semibold hover:bg-brand-tint transition-colors"
-            >
-              Ver todos los empleos
-            </Link>
-          </div>
-        </div>
-      </section>
-
       {/* CTA for employers */}
-      <section className="relative overflow-hidden bg-ink py-16 px-4">
+      <section className="relative overflow-hidden bg-ink py-12 sm:py-16 px-4">
         <NandutiMotif className="pointer-events-none absolute -right-20 -bottom-24 w-[24rem] h-[24rem] text-[#E6B25A] opacity-[0.12]" />
         <div className="relative max-w-3xl mx-auto text-center">
           <h2 className="text-2xl sm:text-3xl font-extrabold tracking-[-0.02em] text-white">

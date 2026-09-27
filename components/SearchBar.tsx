@@ -47,7 +47,7 @@ export default function SearchBar({ initialQ }: Props) {
           type="text"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Cargo, empresa o palabra clave..."
+          placeholder="Cargo o empresa"
           className="flex-1 min-w-0 py-2 text-base text-ink placeholder-ink-3 bg-transparent border-none outline-none"
           aria-label="Buscar empleos"
         />

@@ -19,26 +19,28 @@ type Props = { categories: Category[] };
 
 export default function CategoryGrid({ categories }: Props) {
   return (
-    <section className="py-12 px-4">
+    <section className="py-10 sm:py-12 px-4">
       <div className="max-w-7xl mx-auto">
-        <h2 className="text-2xl font-bold text-ink mb-6">
+        <h2 className="text-xl sm:text-2xl font-bold text-ink mb-4 sm:mb-6">
           Explorá por categoría
         </h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        {/* A compact two-column list on a phone (icon beside the name), the
+            tile grid from `sm` up. */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3">
           {categories.map((cat) => {
             const empty = cat.jobCount === 0;
             return (
               <Link
                 key={cat.slug}
                 href={`/trabajo/${cat.slug}`}
-                className={`group flex flex-col gap-3 p-4 rounded-[14px] border transition-all ${
+                className={`group flex items-center sm:items-start sm:flex-col gap-2.5 sm:gap-3 p-3 sm:p-4 min-h-11 rounded-card border transition-all ${
                   empty
                     ? 'border-dashed border-border-strong bg-transparent hover:border-gold'
                     : 'border-border bg-white hover:border-brand hover:shadow-[0_4px_12px_-2px_rgba(30,27,23,.1)]'
                 }`}
               >
                 <div
-                  className={`w-11 h-11 flex items-center justify-center rounded-[12px] transition-colors ${
+                  className={`w-9 h-9 sm:w-11 sm:h-11 flex-shrink-0 flex items-center justify-center rounded-[10px] sm:rounded-[12px] transition-colors ${
                     empty
                       ? 'bg-surface-2 text-ink-3'
                       : 'bg-brand-tint text-brand'
@@ -50,8 +52,8 @@ export default function CategoryGrid({ categories }: Props) {
                     )}
                   </svg>
                 </div>
-                <div>
-                  <p className="text-sm font-semibold text-ink leading-tight">
+                <div className="min-w-0">
+                  <p className="text-[13px] sm:text-sm font-semibold text-ink leading-tight">
                     {categoryLabel(cat.slug)}
                   </p>
                   {cat.jobCount !== undefined && (
