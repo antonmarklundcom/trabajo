@@ -2,7 +2,7 @@
 //
 //   npm run blog:import                       # dry run, prints what it would insert
 //   npm run blog:import -- --write
-//   npm run blog:import -- --drafts           # content/blog/drafts/ (C0), dry run
+//   npm run blog:import -- --drafts           # content/blog-drafts/ (C0), dry run
 //   npm run blog:import -- --drafts --write
 //
 // --drafts (PLAN-GROWTH.md §4 C0): the content-sprint drafts, validated by

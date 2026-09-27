@@ -10,24 +10,9 @@ Deleting them is safe once the import has run against production. They are kept
 for now because a one-time import is easier to re-run — or to check — while its
 input still exists.
 
-## Drafts from the content sprint (`drafts/`)
+## Drafts from the content sprint
 
-`content/blog/drafts/` holds the C0 sprint (PLAN-GROWTH.md §4 C0): AI-written
-drafts for the owner to edit and publish. They are not read by the site either.
-Two ways in:
-
-- Paste one into `/admin/blog` → **+ Nuevo artículo** (frontmatter fields map
-  1:1 to the form; the body is everything below the second `---`).
-- Or all at once: `npm run blog:import -- --drafts` (dry run), then
-  `npm run blog:import -- --drafts --write`. Every file is inserted as
-  **Borrador** with no date; the date becomes the day you publish it. Existing
-  slugs are skipped, never overwritten. Needs `DATABASE_URL`, and migration
-  `0015` applied first (four of the seven categories do not exist before it).
-
-`npm run blog:drafts` checks every draft against the same rules the admin form
-enforces plus the content rules below; `blog:verify` runs it in CI.
-`derechos-laborales` drafts open with a **Revisión pendiente** line — remove it
-only after a lawyer has read the article (PLAN-GROWTH.md §7 D14).
+The C0 drafts live in `content/blog-drafts/` — see the README there.
 
 ## Writing an article now
 

@@ -1,9 +1,9 @@
 // The C0 article drafts (PLAN-GROWTH.md §4 C0): what a file under
-// content/blog/drafts/ must look like to be importable, and the check that
+// content/blog-drafts/ must look like to be importable, and the check that
 // says so without a database.
 //
 //   npm run blog:drafts                          # every draft
-//   npm run blog:drafts -- content/blog/drafts/x.md
+//   npm run blog:drafts -- content/blog-drafts/x.md
 //
 // Used three ways: by that command while an article is being written, by
 // scripts/verify-blog.ts (so CI rejects a draft the import would reject), and
@@ -26,7 +26,7 @@ import { blogPostSchema, unknownRelatedTaxonomy } from '../app/api/admin/blog/sc
 import { getCategories, getCities } from '../lib/data';
 
 export const BLOG_DIR = join(process.cwd(), 'content', 'blog');
-export const DRAFTS_DIR = join(BLOG_DIR, 'drafts');
+export const DRAFTS_DIR = join(process.cwd(), 'content', 'blog-drafts');
 
 /** The standing line every derechos-laborales article carries (§4 C0). */
 export const LEGAL_DISCLAIMER =
@@ -128,7 +128,11 @@ export function checkDraftBodyRules(category: string, body: string): string[] {
     if (!firstLine.includes(LEGAL_REVIEW_MARKER)) {
       errors.push(`un artículo de derechos laborales empieza con una línea "${LEGAL_REVIEW_MARKER}"`);
     }
-    if (!body.includes(LEGAL_DISCLAIMER)) errors.push(`falta la línea: "${LEGAL_DISCLAIMER}"`);
+    // The clause, not the exact punctuation around it: "…de un profesional —
+    // consultá…" says the same thing as the standing line.
+    if (!body.includes(LEGAL_DISCLAIMER.replace(/\.$/, ''))) {
+      errors.push(`falta la línea: "${LEGAL_DISCLAIMER}"`);
+    }
   }
   return errors;
 }
@@ -206,6 +210,15 @@ export async function checkDraft(file: string): Promise<DraftReport> {
     category: draft.category,
     relatedCategory: draft.relatedCategory ?? '',
   }).filter((c) => !c.ok);
+  const unverified = body.match(/\[VERIFICAR/g)?.length ?? 0;
+  if (unverified > 0) {
+    advice.push({
+      id: 'verificar',
+      label: `${unverified} marcador(es) [VERIFICAR] sin resolver`,
+      ok: false,
+      hint: 'Resolvelos contra la fuente oficial antes de publicar (content/blog-drafts/README.md).',
+    });
+  }
 
   return { file, draft, errors, advice };
 }

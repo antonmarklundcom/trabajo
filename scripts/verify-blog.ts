@@ -593,7 +593,7 @@ async function main() {
   // -------------------------------------------------------------------------
   // 3h. The C0 drafts are importable (PLAN-GROWTH.md §4 C0).
   // -------------------------------------------------------------------------
-  // content/blog/drafts/ is what `blog:import -- --drafts` inserts, and that
+  // content/blog-drafts/ is what `blog:import -- --drafts` inserts, and that
   // import refuses the whole batch if one file fails scripts/blog-drafts.ts.
   // Checking it here means a draft that could not be imported never merges.
   {

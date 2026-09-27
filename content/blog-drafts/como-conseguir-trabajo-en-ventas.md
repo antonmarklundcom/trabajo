@@ -4,7 +4,7 @@ description: Qué buscan los empleadores en un vendedor, cómo mostrar resultado
 category: guias-por-sector
 publishedAt: 2026-09-09
 updatedAt: 2026-09-09
-published: true
+published: false
 relatedCategory: ventas
 relatedCity:
 ---

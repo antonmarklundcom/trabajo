@@ -1,9 +1,20 @@
 # content/blog-drafts/ — C0 pilot, not yet imported
 
 These are drafts for the C0 content sprint (`PLAN-GROWTH.md` §4). They are
-**not** read by the site and are **not** picked up by `scripts/blog-import.ts`
-(that script is a one-time historical importer scoped to the original three
-categories — see `content/blog/README.md`).
+**not** read by the site.
+
+`npm run blog:drafts` checks every file here against the rules the admin form
+enforces (description length, the guías-por-sector category, taxonomy slugs),
+the `Revisión pendiente` + disclaimer lines on `derechos-laborales`, and that
+every internal link resolves to a real route; `blog:verify` runs the same check
+in CI. Unresolved `[VERIFICAR: …]` markers are listed as warnings.
+
+Instead of pasting one by one (steps below), all of them can be inserted as
+**Borrador** at once: `npm run blog:import -- --drafts` (dry run), then
+`npm run blog:import -- --drafts --write`. Needs `DATABASE_URL` and migration
+`0015` applied first. Drafts get no date — it becomes the day you publish.
+Slugs already in the table are skipped, never overwritten. Resolve the
+VERIFICAR markers in `/admin/blog` before switching any of them to Publicado.
 
 Publishing path for each file here:
 
@@ -48,3 +59,10 @@ pasting anything into `/admin/blog`:
 All 23 have `published: false`; the admin form's **Estado** is what actually
 decides, so set it to `Borrador` when pasting unless the draft is fully
 reviewed.
+
+## Sector guides added 2026-09-27 (second session)
+
+`como-conseguir-trabajo-en-{contabilidad,salud,construccion,marketing}.md` fill
+the four job categories the first batch had no guide for, so all ten
+`/trabajo/{cat}` landings now have one. No legal claims or figures; no
+VERIFICAR markers.

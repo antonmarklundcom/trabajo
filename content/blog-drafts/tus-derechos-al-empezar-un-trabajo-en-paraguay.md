@@ -4,10 +4,12 @@ description: Contrato, período de prueba e IPS: lo que corresponde por ley cuan
 category: derechos-laborales
 publishedAt: 2026-09-09
 updatedAt: 2026-09-09
-published: true
+published: false
 relatedCategory: administracion
 relatedCity:
 ---
+
+> **Revisión pendiente:** borrador de Derechos laborales. No se publica hasta que un abogado lo haya leído (PLAN-GROWTH.md §7 D14).
 
 Empezar un trabajo nuevo trae preguntas que no siempre se responden en la entrevista: ¿tienen que darte un contrato por escrito? ¿desde cuándo te cubre el IPS? ¿qué es el período de prueba y qué pasa si te dicen que no seguís? Esta nota resume lo básico según el Código del Trabajo (Ley N.º 213/93) y el régimen del Instituto de Previsión Social (IPS). Esta nota es informativa y no reemplaza el asesoramiento de un profesional — para tu caso puntual, consultá al Ministerio de Trabajo, Empleo y Seguridad Social (MTESS) o a un abogado laboralista.
 
