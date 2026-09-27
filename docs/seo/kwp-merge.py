@@ -64,7 +64,7 @@ def from_export(text):
     for i, line in enumerate(lines[:10]):
         delim = '\t' if '\t' in line else ','
         cells = [c.strip().lower() for c in next(csv.reader([line], delimiter=delim))]
-        if len(cells) < 3 or not re.search(r'keyword|sökord|palabra', cells[0]):
+        if len(cells) < 3 or not re.search(r'keyword|sökord|palabra|phrase', cells[0]):
             continue
         find = lambda pat: next((j for j, c in enumerate(cells) if re.search(pat, c)), None)
         vol = find(r'month|månad|mensual')
@@ -128,7 +128,9 @@ def main(paths):
 
     if os.path.exists(CSV_PATH):
         for r in csv.DictReader(open(CSV_PATH, encoding='utf-8')):
-            put((r['phrase'], int(r['monthly_searches']), fmt(number(r['low_cpc_sek']), 2), fmt(number(r['high_cpc_sek']), 2)))
+            low = r.get('low_cpc_sek', r.get('low_cpc'))
+            high = r.get('high_cpc_sek', r.get('high_cpc'))
+            put((r['phrase'], int(r['monthly_searches']), fmt(number(low), 2), fmt(number(high), 2)))
     added = 0
     for path in paths:
         text = read_text(path)

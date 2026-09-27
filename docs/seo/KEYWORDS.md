@@ -10,13 +10,19 @@ existing rows, appends new phrases, re-sorts by volume. Put raw exports in
 `docs/seo/raw/` if you want to keep them. The build plan that uses this data
 is `PLAN-SEO.md`.
 
-**No-AI option:** open [`kwp-tool.html`](kwp-tool.html) in a browser (double-click
-it — works offline, nothing is uploaded). Drop any number of Keyword Planner
-exports plus this CSV; it merges variants with the same rule as the script,
-filters (text, /regex/, minimum volume, exclusion list), totals editable themes
-and cities, shows top words and word pairs weighted by volume, and downloads
-the merged or filtered CSV in the 4-column format above. Tested to give the
-same 3.727 unique phrases as `kwp-merge.py` on the three 2026-09-27 exports.
+**No-AI option — Keyword Library:** [`kwp-tool.html`](kwp-tool.html), one file,
+opened in Chrome or Edge (offline; nothing is uploaded). It keeps a library
+folder on your computer, organized as
+`<library>/<domain>/<project>/{raw/*.csv, keywords.csv, summary.md, config.json}`
+plus `<library>/INDEX.md`. Drop Keyword Planner exports into a project: it
+keeps the originals in `raw/`, merges variants with the same rule as
+`kwp-merge.py`, and writes `keywords.csv` (phrase, monthly_searches, low_cpc,
+high_cpc) and `summary.md` — a ~5k-token AI-ready summary (themes, places, top
+words and pairs, top 200 phrases, instructions to filter rather than read the
+full CSV). **Copy for AI** puts the full paths on the clipboard for Codex or a
+local Claude Code session; a cloud session gets `summary.md` attached instead.
+Tested: the three 2026-09-27 exports give 3.511 unique phrases (the repo CSV has
+more because it also holds the earlier copy-pasted batches).
 
 - **Location / language:** Paraguay, Spanish (the first "publicar … gratis"
   batch may have been pulled with a different location — re-check it before

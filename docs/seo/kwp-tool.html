@@ -3,50 +3,61 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Keyword Planner Merger</title>
+<title>Keyword Library</title>
 <!--
-  Offline tool for Google Keyword Planner exports. Open this file in a browser
-  (double-click it). Nothing is uploaded anywhere: files are read by the
-  browser on your own computer, and there is no network code in this page.
+  Keyword Library — an offline tool for Google Keyword Planner exports.
+  Open this file in Chrome or Edge (double-click it). There is no network code
+  in this page: files are read and written on your own computer only.
 
-  Same rules as docs/seo/kwp-merge.py:
-  - Reads the planner's "Download keyword ideas" CSV (UTF-16 or UTF-8,
-    tab- or comma-separated, Swedish/English/Spanish headers) and the
-    4-column keywords CSV this repo keeps (phrase, monthly_searches,
-    low_cpc_sek, high_cpc_sek), so you can load the saved file and add to it.
-  - Variants that differ only in accents, capitals, spacing or punctuation are
-    one row; the wording with the most searches is kept (volumes not summed).
+  Two ways to use it:
+  1. Library (Chrome/Edge): "Open library folder" once. Data is organized as
+       <library>/<domain>/<project>/raw/*.csv      the exports you dropped, as downloaded
+       <library>/<domain>/<project>/keywords.csv   merged: phrase, monthly_searches, low_cpc, high_cpc
+       <library>/<domain>/<project>/summary.md     short AI-ready summary (top phrases, themes, places, words)
+       <library>/<domain>/<project>/config.json    this project's themes, places and exclusions
+       <library>/INDEX.md                          every domain/project with its paths
+     "Copy for AI" puts the paths and a ready-made instruction on the clipboard.
+  2. Quick merge (any browser): drop files without a project and download the result.
+
+  Merge rule (same as docs/seo/kwp-merge.py in the trabajo repo): phrases that
+  differ only in accents, capitals, spacing or punctuation are ONE row; the
+  wording with the most searches is kept and volumes are not summed (Keyword
+  Planner already groups close variants). Real misspellings stay: they are
+  real searches.
 -->
 <style>
   :root {
     --bg: #f7f5f1; --panel: #ffffff; --ink: #1f1c18; --ink2: #6b645a; --line: #e4dfd6;
-    --brand: #c0362a; --brand-tint: #fbeae8; --ok: #1e7a46;
+    --brand: #c0362a; --brand-tint: #fbeae8; --ok: #1e7a46; --ok-tint: #e6f4ec;
   }
   @media (prefers-color-scheme: dark) {
     :root { --bg: #151311; --panel: #1f1c19; --ink: #f1ede6; --ink2: #a79f93; --line: #37322c;
-      --brand: #ef6a5c; --brand-tint: #3a1f1c; --ok: #5cc28a; }
+      --brand: #ef6a5c; --brand-tint: #3a1f1c; --ok: #5cc28a; --ok-tint: #173226; }
   }
   * { box-sizing: border-box; }
   body { margin: 0; font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--ink); }
-  header { padding: 16px 20px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  header { padding: 14px 20px; border-bottom: 1px solid var(--line); background: var(--panel); display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
   h1 { font-size: 18px; margin: 0; }
-  header p { margin: 4px 0 0; color: var(--ink2); }
-  main { padding: 16px 20px; display: grid; gap: 16px; grid-template-columns: 340px 1fr; }
+  header .muted { flex: 1; min-width: 240px; }
+  main { padding: 16px 20px; display: grid; gap: 16px; grid-template-columns: 360px 1fr; }
   @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
   .card h2 { font-size: 14px; margin: 0 0 8px; }
-  #drop { border: 2px dashed var(--line); border-radius: 10px; padding: 22px 12px; text-align: center; cursor: pointer; color: var(--ink2); }
+  #drop { border: 2px dashed var(--line); border-radius: 10px; padding: 20px 12px; text-align: center; cursor: pointer; color: var(--ink2); }
   #drop.over { border-color: var(--brand); background: var(--brand-tint); color: var(--ink); }
   label { display: block; font-size: 12px; color: var(--ink2); margin: 10px 0 4px; }
-  input[type=text], input[type=number], textarea { width: 100%; padding: 7px 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--ink); font: inherit; }
-  textarea { min-height: 120px; font: 12px/1.4 ui-monospace, Menlo, Consolas, monospace; }
+  input[type=text], input[type=number], textarea, select { width: 100%; padding: 7px 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--ink); font: inherit; }
+  textarea { min-height: 110px; font: 12px/1.4 ui-monospace, Menlo, Consolas, monospace; }
   button { font: inherit; padding: 7px 12px; border-radius: 7px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; }
+  button:disabled { opacity: .5; cursor: default; }
   button.primary { background: var(--brand); border-color: var(--brand); color: #fff; font-weight: 600; }
   .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .row > select { flex: 1; min-width: 0; }
   .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
   .stat { background: var(--bg); border-radius: 8px; padding: 8px; }
   .stat b { display: block; font-size: 18px; font-variant-numeric: tabular-nums; }
   .stat span { font-size: 11px; color: var(--ink2); }
+  #files { padding-left: 18px; margin: 8px 0; }
   #files li { color: var(--ink2); font-size: 12px; }
   .tabs { display: flex; gap: 4px; margin-bottom: 10px; flex-wrap: wrap; }
   .tabs button.on { background: var(--ink); color: var(--panel); border-color: var(--ink); }
@@ -58,80 +69,65 @@
   .muted { color: var(--ink2); font-size: 12px; }
   .variants { color: var(--ink2); font-size: 11px; }
   .bar { height: 6px; background: var(--brand); border-radius: 3px; }
+  .note { border-radius: 8px; padding: 8px 10px; font-size: 12px; margin-top: 8px; }
+  .note.ok { background: var(--ok-tint); color: var(--ok); }
+  .note.warn { background: var(--brand-tint); color: var(--brand); }
+  code { font-size: 12px; }
+  pre { white-space: pre-wrap; background: var(--bg); border-radius: 8px; padding: 8px; font-size: 12px; margin: 8px 0 0; }
 </style>
 </head>
 <body>
 <header>
-  <h1>Keyword Planner Merger</h1>
-  <p>Drop Google Keyword Planner CSV exports (and/or the saved <code>keywords-*.csv</code>). Everything runs in this browser — nothing is sent anywhere.</p>
+  <h1>Keyword Library</h1>
+  <span class="muted">Google Keyword Planner exports → one organized folder per domain and project, ready for Codex and Claude. Offline: nothing leaves this computer.</span>
 </header>
 <main>
   <aside style="display:grid;gap:16px;align-content:start">
     <div class="card">
-      <h2>1. Files</h2>
+      <h2>1. Library folder</h2>
+      <div class="row">
+        <button class="primary" id="openLib">Open library folder</button>
+        <button id="reconnect" hidden>Reconnect</button>
+      </div>
+      <div id="libStatus" class="muted" style="margin-top:6px">No library open — files you drop are only merged in memory (download to keep them).</div>
+      <label for="libPath">Full path of that folder on this computer (for AI paths)</label>
+      <input id="libPath" type="text" placeholder="e.g. C:\Users\Anton\SEO-library">
+      <p class="muted" style="margin:4px 0 0">Browsers can't read a folder's full path, so type it once; it is remembered here.</p>
+    </div>
+
+    <div class="card">
+      <h2>2. Domain and project</h2>
+      <label for="domain">Domain</label>
+      <div class="row"><select id="domain"></select><button id="newDomain">+ New</button></div>
+      <label for="project">Project / research topic</label>
+      <div class="row"><select id="project"></select><button id="newProject">+ New</button></div>
+      <p class="muted" style="margin:6px 0 0">Example: domain <code>trabajo.com.py</code>, project <code>job-market-2026-09</code>.</p>
+    </div>
+
+    <div class="card">
+      <h2>3. Add Keyword Planner exports</h2>
       <div id="drop">Drop CSV files here<br><span class="muted">or click to choose</span></div>
       <input id="picker" type="file" accept=".csv,.txt,.tsv" multiple hidden>
       <ul id="files"></ul>
-      <div class="row"><button id="clear">Clear all</button></div>
+      <div id="saveNote"></div>
     </div>
+
     <div class="card">
-      <h2>2. Filter</h2>
+      <h2>Filter</h2>
       <label for="q">Contains (or /regex/)</label>
       <input id="q" type="text" placeholder="e.g. medio tiempo  or  /trabajo en \w+/">
       <label for="minvol">Minimum monthly searches</label>
       <input id="minvol" type="number" value="0" min="0">
       <label for="exclude">Exclude rows containing (one per line)</label>
-      <textarea id="exclude" style="min-height:90px">new york
-estados unidos
-new jersey
-linkedin
-milanuncios
-inem
-eures
-españa
-mexico
-chile
-argentina
-colombia
-peru</textarea>
+      <textarea id="exclude" style="min-height:90px"></textarea>
     </div>
+
     <div class="card">
-      <h2>3. Themes (Name: regex)</h2>
-      <textarea id="themes">Trabaja con nosotros: trabaja con nosotros|trabajar en
-Remoto / online / casa: remot|online|en linea|desde (tu |la )?casa|teletrabajo|home office
-Lunes a viernes / horario: lunes a viernes|horario|nocturn|de noche|fin(es)? de semana
-Medio tiempo / estudiantes: medio tiempo|part.?time|estudiante|por horas
-Sin experiencia / primer empleo: sin experiencia|primer empleo|sin estudios
-Vacancia: vacancia
-Público / concurso: public|concurso|ministerio|municipal|gobierno
-Salario / sueldo: salario|sueldo|cuanto gana|jornal
-CV / entrevista: curriculum|\bcv\b|entrevista|carta de presentacion
-Derechos laborales: aguinaldo|liquidacion|despido|preaviso|vacaciones|horas extras|indemnizacion|aporte obrero|seguro social
-Publicar / contratar: publicar|busco personal|buscar personal|busco empleados|contratar|reclut|seleccion de personal</textarea>
-      <label for="cities">Cities (one per line)</label>
-      <textarea id="cities" style="min-height:90px">asuncion
-ciudad del este
-encarnacion
-luque
-san lorenzo
-lambare
-capiata
-fernando de la mora
-limpio
-mariano roque alonso
-nemby
-itaugua
-villa elisa
-caacupe
-concepcion
-pedro juan caballero
-caaguazu
-coronel oviedo
-villarrica
-hernandarias
-presidente franco
-pilar
-salto del guaira</textarea>
+      <h2>Themes (Name: regex)</h2>
+      <textarea id="themes"></textarea>
+      <label for="cities">Places (one per line)</label>
+      <textarea id="cities" style="min-height:90px"></textarea>
+      <p class="muted" style="margin:6px 0 0">Themes, places and exclusions are saved per project (<code>config.json</code>) and used in <code>summary.md</code>.</p>
     </div>
   </aside>
 
@@ -144,18 +140,19 @@ salto del guaira</textarea>
         <div class="stat"><b id="sShown">0</b><span>match filter</span></div>
       </div>
       <div class="row" style="margin-top:10px">
-        <button class="primary" id="exportAll">Download merged CSV (all)</button>
+        <button class="primary" id="copyAI" disabled>Copy for AI</button>
+        <button id="exportAll">Download merged CSV</button>
         <button id="exportShown">Download filtered CSV</button>
-        <button id="exportThemes">Download themes + cities CSV</button>
+        <button id="exportThemes">Download themes + places CSV</button>
       </div>
-      <p class="muted" style="margin:8px 0 0">CSV columns: phrase, monthly_searches, low_cpc_sek, high_cpc_sek — the format kept in <code>docs/seo/</code>. Exclusions only affect the filtered view and exports, never the merge.</p>
+      <pre id="aiText" hidden></pre>
     </div>
 
     <div class="card">
       <div class="tabs">
         <button data-tab="kw" class="on">Keywords</button>
         <button data-tab="themes">Themes</button>
-        <button data-tab="cities">Cities</button>
+        <button data-tab="cities">Places</button>
         <button data-tab="words">Top words &amp; pairs</button>
       </div>
       <div class="scroll" id="view"></div>
@@ -165,6 +162,24 @@ salto del guaira</textarea>
 
 <script>
 'use strict';
+const DEFAULTS = {
+  exclude: 'new york\nestados unidos\nnew jersey\nlinkedin\nmilanuncios\ninem\neures\nespaña\nmexico\nchile\nargentina\ncolombia\nperu',
+  themes: [
+    'Trabaja con nosotros: trabaja con nosotros|trabajar en',
+    'Remoto / online / casa: remot|online|en linea|desde (tu |la )?casa|teletrabajo|home office',
+    'Lunes a viernes / horario: lunes a viernes|horario|nocturn|de noche|fin(es)? de semana',
+    'Medio tiempo / estudiantes: medio tiempo|part.?time|estudiante|por horas',
+    'Sin experiencia / primer empleo: sin experiencia|primer empleo|sin estudios',
+    'Vacancia: vacancia',
+    'Público / concurso: public|concurso|ministerio|municipal|gobierno',
+    'Salario / sueldo: salario|sueldo|cuanto gana|jornal',
+    'CV / entrevista: curriculum|\\bcv\\b|entrevista|carta de presentacion',
+    'Derechos laborales: aguinaldo|liquidacion|despido|preaviso|vacaciones|horas extras|indemnizacion|aporte obrero|seguro social',
+    'Publicar / contratar: publicar|busco personal|buscar personal|busco empleados|contratar|reclut|seleccion de personal',
+  ].join('\n'),
+  cities: 'asuncion\nciudad del este\nencarnacion\nluque\nsan lorenzo\nlambare\ncapiata\nfernando de la mora\nlimpio\nmariano roque alonso\nnemby\nitaugua\nvilla elisa\ncaacupe\nconcepcion\npedro juan caballero\ncaaguazu\ncoronel oviedo\nvillarrica\nhernandarias\npresidente franco\npilar\nsalto del guaira',
+};
+
 // ---------------------------------------------------------------------------
 // Parsing
 // ---------------------------------------------------------------------------
@@ -172,9 +187,8 @@ function decode(buf) {
   const b = new Uint8Array(buf);
   if (b[0] === 0xff && b[1] === 0xfe) return new TextDecoder('utf-16le').decode(b);
   if (b[0] === 0xfe && b[1] === 0xff) return new TextDecoder('utf-16be').decode(b);
-  // UTF-16 without BOM: every other byte is 0 for ASCII text.
   if (b.length > 4 && b[1] === 0 && b[3] === 0) return new TextDecoder('utf-16le').decode(b);
-  return new TextDecoder('utf-8').decode(b).replace(/^﻿/, '');
+  return new TextDecoder('utf-8').decode(b).replace(/^\uFEFF/, '');
 }
 
 function splitLine(line, delim) {
@@ -192,7 +206,7 @@ function splitLine(line, delim) {
 
 // '14 800' / '14,800' / '1.28 kr' / '1,28' / '10 – 100' -> first number, or null.
 function num(text) {
-  text = (text || '').replace(/ /g, ' ').trim();
+  text = (text || '').replace(/\u00a0/g, ' ').trim();
   if (!text || /^[—–-]+$/.test(text)) return null;
   const m = text.match(/\d[\d .,]*/);
   if (!m) return null;
@@ -202,6 +216,7 @@ function num(text) {
   return Number.isFinite(v) ? v : null;
 }
 
+// Keyword Planner export (any UI language) or this tool's own 4-column CSV.
 function parseFile(text) {
   const lines = text.split(/\r?\n/);
   for (let i = 0; i < Math.min(lines.length, 10); i++) {
@@ -209,29 +224,38 @@ function parseFile(text) {
     const cells = splitLine(lines[i], delim).map((c) => c.toLowerCase());
     if (cells.length < 3 || !/keyword|sökord|palabra|phrase/.test(cells[0])) continue;
     const find = (re) => { const j = cells.findIndex((c) => re.test(c)); return j < 0 ? null : j; };
-    const vol = find(/month|månad|mensual|monthly_searches/);
+    const vol = find(/month|månad|mensual/);
     const low = find(/low|låg|bajo/);
     const high = find(/high|hög|alto/);
+    const cur = find(/currency|valuta|moneda/);
     const rows = [];
+    let currency = null;
     for (const line of lines.slice(i + 1)) {
       if (!line.trim()) continue;
       const r = splitLine(line, delim);
       if (!r[0]) continue;
       const at = (j) => (j === null ? '' : r[j] || '');
+      if (!currency && cur !== null && at(cur)) currency = at(cur);
       rows.push([r[0], num(at(vol)) || 0, num(at(low)), num(at(high))]);
     }
-    return rows;
+    return { rows, currency };
   }
-  return [];
+  return { rows: [], currency: null };
 }
 
 // ---------------------------------------------------------------------------
-// Merge (same key as docs/seo/kwp-merge.py)
+// Merge
 // ---------------------------------------------------------------------------
-const fold = (s) => s.toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '');
+const fold = (s) => s.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
 const keyOf = (s) => fold(s).replace(/[^a-z0-9]/g, '');
 
-const state = { files: [], rowsRead: 0, merged: 0, map: new Map(), tab: 'kw', sort: ['vol', -1] };
+const state = {
+  lib: null, domain: '', project: '',
+  files: [], rowsRead: 0, merged: 0, currency: null, map: new Map(),
+  tab: 'kw', sort: ['vol', -1],
+};
+
+function resetData() { Object.assign(state, { files: [], rowsRead: 0, merged: 0, currency: null, map: new Map() }); }
 
 function add(rows) {
   for (const [phrase, vol, low, high] of rows) {
@@ -249,13 +273,15 @@ function add(rows) {
 }
 
 // ---------------------------------------------------------------------------
-// Views
+// Analysis
 // ---------------------------------------------------------------------------
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => (n === null || n === undefined ? '' : n.toLocaleString('es-PY'));
-const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const all = () => [...state.map.values()];
+const lines = (id) => $(id).value.split('\n').map((s) => s.trim()).filter(Boolean);
 
-function all() { return [...state.map.values()]; }
+function excluded(r) { const ex = lines('exclude').map(fold); return ex.some((e) => fold(r.phrase).includes(e)); }
 
 function filtered() {
   const q = $('q').value.trim();
@@ -266,15 +292,15 @@ function filtered() {
     catch { test = () => false; }
   }
   const min = Number($('minvol').value) || 0;
-  const ex = $('exclude').value.split('\n').map((s) => fold(s.trim())).filter(Boolean);
-  return all().filter((r) => r.vol >= min && test(r.phrase) && !ex.some((e) => fold(r.phrase).includes(e)));
+  return all().filter((r) => r.vol >= min && test(r.phrase) && !excluded(r));
 }
 
-function themes() {
-  return $('themes').value.split('\n').map((l) => l.match(/^([^:]+):\s*(.+)$/)).filter(Boolean)
-    .map((m) => { try { return { name: m[1].trim(), re: new RegExp(m[2].trim(), 'i') }; } catch { return null; } })
+function themeGroups() {
+  return lines('themes').map((l) => l.match(/^([^:]+):\s*(.+)$/)).filter(Boolean)
+    .map((m) => { try { const re = new RegExp(m[2].trim(), 'i'); return { name: m[1].trim(), test: (p) => re.test(p) }; } catch { return null; } })
     .filter(Boolean);
 }
+function placeGroups() { return lines('cities').map(fold).map((c) => ({ name: c, test: (p) => p.includes(c) })); }
 
 function groupBy(rows, groups) {
   return groups.map((g) => {
@@ -283,6 +309,21 @@ function groupBy(rows, groups) {
   }).sort((a, b) => b.total - a.total);
 }
 
+function topTerms(rows, n = 60) {
+  const stop = new Set('de en la el los las y a para con por del un una al se que mi o me es lo sin su'.split(' '));
+  const words = new Map(), pairs = new Map();
+  for (const r of rows) {
+    const w = fold(r.phrase).split(/[^a-z0-9]+/).filter((x) => x && !stop.has(x));
+    for (const x of new Set(w)) words.set(x, (words.get(x) || 0) + r.vol);
+    for (let i = 0; i + 1 < w.length; i++) { const p = w[i] + ' ' + w[i + 1]; pairs.set(p, (pairs.get(p) || 0) + r.vol); }
+  }
+  const top = (m) => [...m].sort((a, b) => b[1] - a[1]).slice(0, n);
+  return { words: top(words), pairs: top(pairs) };
+}
+
+// ---------------------------------------------------------------------------
+// Rendering
+// ---------------------------------------------------------------------------
 function render() {
   const rows = filtered();
   $('sRows').textContent = fmt(state.rowsRead);
@@ -290,9 +331,10 @@ function render() {
   $('sMerged').textContent = fmt(state.merged);
   $('sShown').textContent = fmt(rows.length);
   $('files').innerHTML = state.files.map((f) => `<li>${esc(f.name)} — ${fmt(f.rows)} rows</li>`).join('');
+  $('copyAI').disabled = !(state.lib && state.project);
 
   const view = $('view');
-  if (!state.map.size) { view.innerHTML = '<p class="muted">No data yet. Drop Keyword Planner CSV exports on the left.</p>'; return; }
+  if (!state.map.size) { view.innerHTML = '<p class="muted">No data yet. Choose a project (or not) and drop Keyword Planner CSV exports on the left.</p>'; return; }
 
   if (state.tab === 'kw') {
     const [col, dir] = state.sort;
@@ -311,84 +353,305 @@ function render() {
     });
     return;
   }
-
   if (state.tab === 'themes' || state.tab === 'cities') {
-    const groups = state.tab === 'themes'
-      ? themes().map((t) => ({ name: t.name, test: (p) => t.re.test(p) }))
-      : $('cities').value.split('\n').map((c) => fold(c.trim())).filter(Boolean).map((c) => ({ name: c, test: (p) => p.includes(c) }));
-    const res = groupBy(rows, groups);
+    const res = groupBy(rows, state.tab === 'themes' ? themeGroups() : placeGroups());
     const max = Math.max(1, ...res.map((r) => r.total));
-    view.innerHTML = `<table><thead><tr><th>${state.tab === 'themes' ? 'Theme' : 'City'}</th><th class="n">Phrases</th><th class="n">Searches/mo</th><th>Top phrases</th></tr></thead><tbody>
+    view.innerHTML = `<table><thead><tr><th>${state.tab === 'themes' ? 'Theme' : 'Place'}</th><th class="n">Phrases</th><th class="n">Searches/mo</th><th>Top phrases</th></tr></thead><tbody>
       ${res.map((g) => `<tr><td>${esc(g.name)}<div class="bar" style="width:${(g.total / max) * 100}%"></div></td><td class="n">${fmt(g.count)}</td><td class="n">${fmt(g.total)}</td>
         <td class="muted">${g.top.map((r) => `${esc(r.phrase)} (${fmt(r.vol)})`).join('; ')}</td></tr>`).join('')}
-      </tbody></table><p class="muted">Totals add every phrase in the filtered view that matches — including the 10-search long tail.</p>`;
+      </tbody></table><p class="muted">Totals add every phrase in the filtered view that matches — including the long tail.</p>`;
     return;
   }
-
-  // Top words & pairs, weighted by volume.
-  const stop = new Set('de en la el los las y a para con por del un una al se que mi o me es lo sin su'.split(' '));
-  const words = new Map(), pairs = new Map();
-  for (const r of rows) {
-    const t = fold(r.phrase).split(/[^a-z0-9ñ]+/).filter(Boolean);
-    const w = t.filter((x) => !stop.has(x));
-    for (const x of new Set(w)) words.set(x, (words.get(x) || 0) + r.vol);
-    for (let i = 0; i + 1 < w.length; i++) { const p = w[i] + ' ' + w[i + 1]; pairs.set(p, (pairs.get(p) || 0) + r.vol); }
-  }
-  const top = (m) => [...m].sort((a, b) => b[1] - a[1]).slice(0, 60);
+  const { words, pairs } = topTerms(rows);
   const tbl = (title, list) => `<div><h2>${title}</h2><table><tbody>${list.map(([k, v]) => `<tr><td>${esc(k)}</td><td class="n">${fmt(v)}</td></tr>`).join('')}</tbody></table></div>`;
-  view.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">${tbl('Words', top(words))}${tbl('Word pairs', top(pairs))}</div>
-    <p class="muted">Weighted by monthly searches of every phrase containing the word. Surfaces themes nobody thought to look for.</p>`;
+  view.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">${tbl('Words', words)}${tbl('Word pairs', pairs)}</div>
+    <p class="muted">Weighted by the monthly searches of every phrase containing the word.</p>`;
 }
 
 // ---------------------------------------------------------------------------
-// Export
+// CSV + summary output
 // ---------------------------------------------------------------------------
 function csvCell(v) { const s = String(v ?? ''); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; }
-function download(name, lines) {
-  const blob = new Blob(['﻿' + lines.map((l) => l.map(csvCell).join(',')).join('\n') + '\n'], { type: 'text/csv;charset=utf-8' });
+const csv = (rowsArr) => rowsArr.map((l) => l.map(csvCell).join(',')).join('\n') + '\n';
+const money = (n) => (n ?? 0).toFixed(2);
+function kwCsv(rows) {
+  return csv([['phrase', 'monthly_searches', 'low_cpc', 'high_cpc'],
+    ...[...rows].sort((a, b) => b.vol - a.vol || a.phrase.localeCompare(b.phrase)).map((r) => [r.phrase, r.vol, money(r.low), money(r.high)])]);
+}
+function download(name, text) {
+  // BOM so Excel opens the accents correctly.
+  const blob = new Blob(['\uFEFF' + text], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
-const money = (n) => (n ?? 0).toFixed(2);
-function kwLines(rows) {
-  return [['phrase', 'monthly_searches', 'low_cpc_sek', 'high_cpc_sek'],
-    ...rows.sort((a, b) => b.vol - a.vol || a.phrase.localeCompare(b.phrase)).map((r) => [r.phrase, r.vol, money(r.low), money(r.high)])];
-}
 const today = () => new Date().toISOString().slice(0, 10);
+
+function sep() { return /\\/.test($('libPath').value) ? '\\' : '/'; }
+function libRoot() { return $('libPath').value.trim().replace(/[\\/]+$/, '') || `<${state.lib ? state.lib.name : 'library'}>`; }
+function projectPath(file = '') { return [libRoot(), state.domain, state.project, file].filter(Boolean).join(sep()); }
+
+// The file an AI reads first: small (a few thousand tokens), with pointers to
+// the full data so the AI filters keywords.csv instead of reading all of it.
+function summaryMd() {
+  const kept = all().filter((r) => !excluded(r));
+  const total = kept.reduce((s, r) => s + r.vol, 0);
+  const top = [...kept].sort((a, b) => b.vol - a.vol).slice(0, 200);
+  const themes = groupBy(kept, themeGroups());
+  const places = groupBy(kept, placeGroups()).filter((g) => g.count);
+  const { words, pairs } = topTerms(kept, 40);
+  const cell = (v) => String(v).replace(/\|/g, '/');
+  const t = (head, body) => [`| ${head.join(' | ')} |`, `| ${head.map(() => '---').join(' | ')} |`, ...body.map((r) => `| ${r.map(cell).join(' | ')} |`)].join('\n');
+  const topList = (g) => g.top.map((r) => `${r.phrase} (${r.vol})`).join('; ');
+  return `# Keyword research — ${state.domain} / ${state.project}
+
+Updated ${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC by Keyword Library. Source: Google Keyword Planner exports in \`raw/\`.
+
+## How to use this (for AI assistants)
+
+- This file is the summary. The full data is \`keywords.csv\` in this folder: ${state.map.size} unique phrases, columns \`phrase, monthly_searches, low_cpc, high_cpc\`, sorted by monthly searches (highest first). CPC currency: ${state.currency || 'as exported'}.
+- Do **not** read \`keywords.csv\` in full. Filter it (grep or a short script) for the topic you need.
+- Variants that differ only in accents, capitals or spacing are already merged into one row. Totals below add every matching phrase, long tail included. Rows containing the exclusion list below are left out of this summary (they stay in \`keywords.csv\`).
+- Full path of this folder: \`${projectPath()}\`
+
+## Totals
+
+- Files: ${state.files.map((f) => `${f.name} (${f.rows} rows)`).join(', ') || 'none'}
+- Unique phrases: ${state.map.size} (${state.merged} variants merged) · summed monthly searches: ${total}
+- Excluded from this summary: ${lines('exclude').join(', ') || 'nothing'}
+
+## Themes
+
+${t(['Theme', 'Phrases', 'Searches/mo', 'Top phrases'], themes.map((g) => [g.name, g.count, g.total, topList(g)]))}
+
+## Places
+
+${places.length ? t(['Place', 'Phrases', 'Searches/mo', 'Top phrases'], places.map((g) => [g.name, g.count, g.total, topList(g)])) : '_No place matches._'}
+
+## Top words and word pairs (weighted by searches)
+
+${t(['Word', 'Searches'], words.slice(0, 30))}
+
+${t(['Word pair', 'Searches'], pairs.slice(0, 30))}
+
+## Top 200 phrases
+
+${t(['Phrase', 'Searches/mo', 'Low CPC', 'High CPC'], top.map((r) => [r.phrase, r.vol, money(r.low), money(r.high)]))}
+`;
+}
+
+function aiInstruction() {
+  return `Keyword research for ${state.domain} (project: ${state.project}).
+Read first: ${projectPath('summary.md')}
+Full data (filter it, don't read it all): ${projectPath('keywords.csv')} — ${state.map.size} phrases, columns phrase, monthly_searches, low_cpc, high_cpc.
+All projects: ${[libRoot(), 'INDEX.md'].join(sep())}`;
+}
+
+// ---------------------------------------------------------------------------
+// Library (File System Access API — Chrome/Edge)
+// ---------------------------------------------------------------------------
+const hasFS = 'showDirectoryPicker' in window;
+const IDB = { db: null };
+function idb() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('keyword-library', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('kv');
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  });
+}
+async function kv(key, value) {
+  const db = IDB.db || (IDB.db = await idb());
+  return new Promise((res, rej) => {
+    const tx = db.transaction('kv', value === undefined ? 'readonly' : 'readwrite');
+    const req = value === undefined ? tx.objectStore('kv').get(key) : tx.objectStore('kv').put(value, key);
+    req.onsuccess = () => res(req.result); req.onerror = () => rej(req.error);
+  });
+}
+const slug = (s) => s.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9.\-_]/g, '').replace(/^[.\-_]+/, '');
+
+async function dirs(handle) {
+  const out = [];
+  for await (const [name, h] of handle.entries()) if (h.kind === 'directory' && !/^[._]/.test(name)) out.push(name);
+  return out.sort();
+}
+async function dirOf(...parts) { let h = state.lib; for (const p of parts) h = await h.getDirectoryHandle(p, { create: true }); return h; }
+async function writeText(dir, name, text) { const w = await (await dir.getFileHandle(name, { create: true })).createWritable(); await w.write(text); await w.close(); }
+async function readText(dir, name) { try { return decode(await (await (await dir.getFileHandle(name)).getFile()).arrayBuffer()); } catch { return null; } }
+
+async function useLibrary(handle) {
+  state.lib = handle;
+  $('libStatus').innerHTML = `Library: <b>${esc(handle.name)}</b>`;
+  $('reconnect').hidden = true;
+  await fillDomains(localStorage.getItem('kl.domain') || '');
+}
+
+async function fillDomains(pick) {
+  const ds = state.lib ? await dirs(state.lib) : [];
+  $('domain').innerHTML = `<option value="">— none (quick merge) —</option>` + ds.map((d) => `<option ${d === pick ? 'selected' : ''}>${esc(d)}</option>`).join('');
+  state.domain = ds.includes(pick) ? pick : '';
+  await fillProjects(localStorage.getItem('kl.project') || '');
+}
+async function fillProjects(pick) {
+  const ps = state.lib && state.domain ? await dirs(await dirOf(state.domain)) : [];
+  $('project').innerHTML = `<option value="">— none —</option>` + ps.map((p) => `<option ${p === pick ? 'selected' : ''}>${esc(p)}</option>`).join('');
+  state.project = ps.includes(pick) ? pick : '';
+  await loadProject();
+}
+
+function applyConfig(cfg) {
+  $('exclude').value = cfg?.exclude ?? DEFAULTS.exclude;
+  $('themes').value = cfg?.themes ?? DEFAULTS.themes;
+  $('cities').value = cfg?.cities ?? DEFAULTS.cities;
+}
+
+async function loadProject() {
+  localStorage.setItem('kl.domain', state.domain);
+  localStorage.setItem('kl.project', state.project);
+  resetData();
+  $('saveNote').innerHTML = '';
+  $('aiText').hidden = true;
+  if (!state.lib || !state.project) { applyConfig(null); render(); return; }
+  const pdir = await dirOf(state.domain, state.project);
+  const cfg = await readText(pdir, 'config.json');
+  applyConfig(cfg ? JSON.parse(cfg) : null);
+  const raw = await dirOf(state.domain, state.project, 'raw');
+  for await (const [name, h] of raw.entries()) {
+    if (h.kind !== 'file' || !/\.(csv|tsv|txt)$/i.test(name)) continue;
+    const parsed = parseFile(decode(await (await h.getFile()).arrayBuffer()));
+    state.files.push({ name, rows: parsed.rows.length });
+    state.currency = state.currency || parsed.currency;
+    add(parsed.rows);
+  }
+  state.files.sort((a, b) => a.name.localeCompare(b.name));
+  render();
+}
+
+// keywords.csv, summary.md, config.json, meta.json for the project, then INDEX.md for the library.
+// Written without a BOM so scripts and AI tools read the header cleanly.
+async function saveProject() {
+  if (!state.lib || !state.project) return;
+  const pdir = await dirOf(state.domain, state.project);
+  await writeText(pdir, 'keywords.csv', kwCsv(all()));
+  await writeText(pdir, 'summary.md', summaryMd());
+  await writeText(pdir, 'config.json', JSON.stringify({ exclude: $('exclude').value, themes: $('themes').value, cities: $('cities').value }, null, 2));
+  await writeText(pdir, 'meta.json', JSON.stringify({ domain: state.domain, project: state.project, updated: new Date().toISOString(), unique: state.map.size, variantsMerged: state.merged, currency: state.currency, files: state.files }, null, 2));
+  await writeIndex();
+  $('saveNote').innerHTML = `<div class="note ok">Saved <code>keywords.csv</code> and <code>summary.md</code> in ${esc(state.domain)}/${esc(state.project)}.</div>`;
+}
+
+async function writeIndex() {
+  const out = ['# Keyword Library index', '', `Updated ${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC. One folder per domain, one per project. For AI assistants: read a project's \`summary.md\` first; filter its \`keywords.csv\`, never read it whole.`, ''];
+  const s = sep();
+  for (const d of await dirs(state.lib)) {
+    out.push(`## ${d}`, '', '| Project | Phrases | Updated | Summary | Data |', '| --- | --- | --- | --- | --- |');
+    for (const p of await dirs(await dirOf(d))) {
+      const meta = JSON.parse((await readText(await dirOf(d, p), 'meta.json')) || '{}');
+      const base = [libRoot(), d, p].join(s);
+      out.push(`| ${p} | ${meta.unique ?? '—'} | ${(meta.updated || '').slice(0, 10) || '—'} | \`${base}${s}summary.md\` | \`${base}${s}keywords.csv\` |`);
+    }
+    out.push('');
+  }
+  await writeText(state.lib, 'INDEX.md', out.join('\n'));
+}
+
+async function uniqueName(dir, name) {
+  const [, base, ext] = name.match(/^(.*?)(\.[^.]*)?$/);
+  for (let i = 1; ; i++) {
+    const candidate = i === 1 ? name : `${base}-${i}${ext || ''}`;
+    try { await dir.getFileHandle(candidate); } catch { return candidate; }
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Wiring
 // ---------------------------------------------------------------------------
 async function load(files) {
+  const toLib = state.lib && state.project;
+  const raw = toLib ? await dirOf(state.domain, state.project, 'raw') : null;
+  const skipped = [];
   for (const f of files) {
-    const rows = parseFile(decode(await f.arrayBuffer()));
-    state.files.push({ name: f.name, rows: rows.length });
-    add(rows);
+    const buf = await f.arrayBuffer();
+    const parsed = parseFile(decode(buf));
+    if (!parsed.rows.length) { skipped.push(f.name); continue; }
+    let name = f.name;
+    if (raw) { name = await uniqueName(raw, f.name); const w = await (await raw.getFileHandle(name, { create: true })).createWritable(); await w.write(buf); await w.close(); }
+    state.files.push({ name, rows: parsed.rows.length });
+    state.currency = state.currency || parsed.currency;
+    add(parsed.rows);
   }
   render();
+  if (toLib) await saveProject();
+  else $('saveNote').innerHTML = `<div class="note warn">Not saved — no project selected. Download the merged CSV, or open a library and pick a project.</div>`;
+  if (skipped.length) $('saveNote').innerHTML += `<div class="note warn">Skipped (no Keyword Planner header found): ${esc(skipped.join(', '))}</div>`;
 }
+
 const drop = $('drop');
 drop.onclick = () => $('picker').click();
-$('picker').onchange = (e) => load(e.target.files);
+$('picker').onchange = (e) => { load([...e.target.files]); e.target.value = ''; };
 drop.ondragover = (e) => { e.preventDefault(); drop.classList.add('over'); };
 drop.ondragleave = () => drop.classList.remove('over');
-drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove('over'); load(e.dataTransfer.files); };
-$('clear').onclick = () => { Object.assign(state, { files: [], rowsRead: 0, merged: 0, map: new Map() }); render(); };
-['q', 'minvol', 'exclude', 'themes', 'cities'].forEach((id) => $(id).addEventListener('input', render));
+drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove('over'); load([...e.dataTransfer.files]); };
+
+let saveTimer = null;
+['q', 'minvol'].forEach((id) => $(id).addEventListener('input', render));
+['exclude', 'themes', 'cities'].forEach((id) => $(id).addEventListener('input', () => {
+  render(); clearTimeout(saveTimer); saveTimer = setTimeout(saveProject, 1200);
+}));
+$('libPath').value = localStorage.getItem('kl.libPath') || '';
+$('libPath').addEventListener('change', () => { localStorage.setItem('kl.libPath', $('libPath').value.trim()); saveProject(); });
+
 document.querySelectorAll('.tabs button').forEach((b) => b.onclick = () => {
   state.tab = b.dataset.tab; document.querySelectorAll('.tabs button').forEach((x) => x.classList.toggle('on', x === b)); render();
 });
-$('exportAll').onclick = () => download(`keywords-${today()}.csv`, kwLines(all()));
-$('exportShown').onclick = () => download(`keywords-filtered-${today()}.csv`, kwLines(filtered()));
+
+$('openLib').onclick = async () => {
+  if (!hasFS) { alert('Library folders need Chrome or Edge. Quick merge (drop + download) works here.'); return; }
+  const handle = await window.showDirectoryPicker({ mode: 'readwrite', id: 'keyword-library' }).catch(() => null);
+  if (!handle) return;
+  await kv('library', handle);
+  await useLibrary(handle);
+};
+$('reconnect').onclick = async () => {
+  const handle = await kv('library');
+  if (handle && (await handle.requestPermission({ mode: 'readwrite' })) === 'granted') await useLibrary(handle);
+};
+$('domain').onchange = async () => { state.domain = $('domain').value; await fillProjects(''); };
+$('project').onchange = async () => { state.project = $('project').value; await loadProject(); };
+$('newDomain').onclick = async () => {
+  if (!state.lib) { alert('Open a library folder first.'); return; }
+  const name = slug(prompt('Domain (e.g. trabajo.com.py):') || '');
+  if (!name) return;
+  await dirOf(name); localStorage.setItem('kl.project', ''); await fillDomains(name);
+};
+$('newProject').onclick = async () => {
+  if (!state.lib || !state.domain) { alert('Choose a domain first.'); return; }
+  const name = slug(prompt('Project / research topic (e.g. job-market-2026-09):') || '');
+  if (!name) return;
+  await dirOf(state.domain, name, 'raw'); await fillProjects(name); await saveProject();
+};
+$('copyAI').onclick = async () => {
+  await saveProject();
+  const text = aiInstruction();
+  $('aiText').textContent = text; $('aiText').hidden = false;
+  try { await navigator.clipboard.writeText(text); $('saveNote').innerHTML = '<div class="note ok">Copied — paste it into your AI chat.</div>'; } catch { /* the text is shown under the buttons */ }
+};
+$('exportAll').onclick = () => download(`keywords-${state.project || today()}.csv`, kwCsv(all()));
+$('exportShown').onclick = () => download(`keywords-filtered-${today()}.csv`, kwCsv(filtered()));
 $('exportThemes').onclick = () => {
   const rows = filtered();
-  const t = groupBy(rows, themes().map((x) => ({ name: x.name, test: (p) => x.re.test(p) })));
-  const c = groupBy(rows, $('cities').value.split('\n').map((s) => fold(s.trim())).filter(Boolean).map((s) => ({ name: s, test: (p) => p.includes(s) })));
-  download(`keyword-groups-${today()}.csv`, [['type', 'name', 'phrases', 'monthly_searches', 'top_phrases'],
-    ...t.map((g) => ['theme', g.name, g.count, g.total, g.top.map((r) => `${r.phrase} (${r.vol})`).join('; ')]),
-    ...c.map((g) => ['city', g.name, g.count, g.total, g.top.map((r) => `${r.phrase} (${r.vol})`).join('; ')])]);
+  const g = (type, res) => res.map((x) => [type, x.name, x.count, x.total, x.top.map((r) => `${r.phrase} (${r.vol})`).join('; ')]);
+  download(`keyword-groups-${today()}.csv`, csv([['type', 'name', 'phrases', 'monthly_searches', 'top_phrases'],
+    ...g('theme', groupBy(rows, themeGroups())), ...g('place', groupBy(rows, placeGroups()))]));
 };
-render();
+
+(async () => {
+  applyConfig(null);
+  render();
+  if (!hasFS) { $('openLib').disabled = true; $('libStatus').textContent = 'This browser cannot open folders — use Chrome or Edge for the library. Quick merge works.'; return; }
+  const handle = await kv('library').catch(() => null);
+  if (!handle) { await fillDomains(''); return; }
+  if ((await handle.queryPermission({ mode: 'readwrite' })) === 'granted') await useLibrary(handle);
+  else { $('reconnect').hidden = false; $('libStatus').innerHTML = `Library <b>${esc(handle.name)}</b> — click Reconnect to allow access again.`; }
+})();
 </script>
 </body>
 </html>
