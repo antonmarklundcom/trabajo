@@ -222,3 +222,13 @@ jobs:
       # Source-reading plus two pure modules — no database, no env.
       - name: Verify sessions, atomic signup and analytics URLs
         run: npm run accounts:verify
+
+      # "Avisame de empleos nuevos". Every failure here works in a browser: an
+      # alert without its consent row, an unsubscribe that UPDATEs a consent or
+      # flags the alert instead of deleting it, a GET that confirms for the
+      # mail scanner that prefetched the link, a sender that reads jobs around
+      # lib/data.ts, a plaintext link token in the table. Executes the writes
+      # against a recording fake pool (no database), renders both emails from
+      # fixtures, and reads the wiring from source.
+      - name: Verify job alerts
+        run: npm run alerts:verify

@@ -32,6 +32,8 @@ Managed GitHub integration — no SSH, PM2 or Nginx.
 | `GOOGLE_SHEETS_WEBHOOK_URL` | Optional lead sink |
 | `LEADS_NOTIFY_EMAIL` | Optional — team inbox for the "Nuevo pedido de publicación" / "Nueva consulta" emails (requires `RESEND_API_KEY` + `EMAIL_FROM` too) |
 | `VENDERCRM_API_KEY` | Optional — only if VenderCRM is switched on |
+| `JOB_ALERTS_ENABLED` | Exact `"true"` shows the "Avisame de empleos nuevos" form and enables confirm. Off by default: add the job-alert paragraph to `/privacidad` first. Unsubscribe works either way |
+| `JOB_ALERTS_SECRET` | ≥32 random chars; required for job alerts. Every confirm/unsubscribe link is derived from it (`lib/job-alert-token.ts`), so the environment running `npm run alerts:send` must have the SAME value. Rotating it breaks the links already in inboxes until the next weekly email. Never reuse `SESSION_SECRET` |
 
 The live app connects to MySQL over `localhost`. The remote host below is for
 your machine only.
@@ -275,6 +277,34 @@ order of preference:
    allowlist, `.env` with the remote `DATABASE_URL` and the mail keys) every
    Monday, or from a scheduled Claude Routine. Missing a week costs nothing but
    the email: the next run reports the whole period since the last one.
+
+### `npm run alerts:send` — the weekly job-alert email
+
+"Avisame de empleos nuevos": a visitor leaves an address on `/empleos`, a
+category, a city or a category+city landing, confirms by email (double
+opt-in), and from then on gets at most one email a week listing up to 10
+listings published since the last one that match that categoría/ciudad —
+read through `lib/data.ts`, so only what the public site shows. No new
+listings, no email.
+
+**`npm run db:migrate` first.** Migration `0021_wild_ozymandias` creates
+`job_alerts` and adds `job_alert` / `job_alerts` to the `consents` enums.
+
+```bash
+npm run alerts:send              # DRY RUN — ids and counts, no addresses
+npm run alerts:send -- --apply   # sends, then stamps last_sent_at per alert
+npm run alerts:send -- --verbose # also list every skipped alert
+```
+
+- Runs with `DATA_SOURCE=db` (the npm script sets it). `--apply` refuses to
+  start without `RESEND_API_KEY`, `EMAIL_FROM` and `JOB_ALERTS_SECRET`.
+- Safe to re-run: an alert sent within 6 days is skipped, and the stamp is
+  written only after the provider accepted the send.
+- Schedule it exactly like `digest:employers` above (same env file, plus
+  `JOB_ALERTS_SECRET`), e.g. Mondays `15 11 * * 1` UTC.
+- Retention is in `db:purge`: unconfirmed alerts go after 7 days, confirmed
+  ones after 12 months without a send; both are a hard DELETE plus an appended
+  `granted=false` consents row.
 
 ### `drizzle-kit` connecting does NOT mean your scripts will
 

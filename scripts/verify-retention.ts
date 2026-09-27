@@ -17,6 +17,9 @@ import {
   CANDIDATE_WARNING_MONTHS,
   CONSENT_RETENTION_MONTHS,
   CONTACT_MESSAGE_RETENTION_MONTHS,
+  JOB_ALERT_INACTIVITY_MONTHS,
+  JOB_ALERT_UNCONFIRMED_DAYS,
+  daysAgo,
   monthsAgo,
 } from '../lib/retention';
 
@@ -44,6 +47,17 @@ check('application redaction is 12 months', APPLICATION_REDACTION_MONTHS, 12);
 check('consent retention is 5 years', CONSENT_RETENTION_MONTHS, 60);
 check('access log retention is 24 months', ACCESS_LOG_RETENTION_MONTHS, 24);
 check('contact message retention is 12 months', CONTACT_MESSAGE_RETENTION_MONTHS, 12);
+check('unconfirmed job alerts are kept 7 days', JOB_ALERT_UNCONFIRMED_DAYS, 7);
+check('confirmed job alerts with no send are kept 12 months', JOB_ALERT_INACTIVITY_MONTHS, 12);
+check(
+  'daysAgo(7) is exactly 7 × 24 h back and does not mutate its input',
+  (() => {
+    const input = new Date('2026-09-27T12:00:00.000Z');
+    const out = daysAgo(7, input);
+    return `${iso(out)} ${iso(input)}`;
+  })(),
+  '2026-09-20T12:00:00.000Z 2026-09-27T12:00:00.000Z',
+);
 
 console.log('');
 
@@ -134,6 +148,12 @@ check('monthsAgo does not mutate its input', iso(original), '2026-08-09T12:00:00
     { table: 'data_access_logs', finder: 'findAccessLogsToDelete', executor: 'retention.deleteAccessLogs(' },
     { table: 'auth_events', finder: 'findAuthEventsToDelete', executor: 'retention.deleteAuthEvents(' },
     { table: 'contact_messages', finder: 'findContactMessagesToDelete', executor: 'retention.deleteContactMessages(' },
+    { table: 'job_alerts', finder: 'findJobAlertsToDelete', executor: 'retention.deleteJobAlerts(' },
+    {
+      table: 'consents of ended job alerts',
+      finder: 'findJobAlertConsentsToDelete',
+      executor: 'retention.deleteConsents(dueJobAlertConsents',
+    },
   ] as const;
 
   for (const { table, finder, executor } of swept) {

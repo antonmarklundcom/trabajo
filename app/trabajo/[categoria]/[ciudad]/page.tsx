@@ -9,6 +9,8 @@ import { JOBS_PAGE_SIZE } from '@/lib/pagination';
 import JobCard from '@/components/JobCard';
 import Pagination from '@/components/Pagination';
 import JsonLd from '@/components/JsonLd';
+import JobAlertForm from '@/components/JobAlertForm';
+import { jobAlertsEnabled } from '@/lib/flags';
 
 // Cached reads are invalidated on demand by every admin mutation
 // (lib/cache.ts), so this timer is only the safety net for job expiry and
@@ -190,6 +192,16 @@ export default async function CategoriaciudadPage({
               searchParams={sp}
             />
           </>
+        )}
+
+        {/* After the listings, never above them (components/JobAlertForm.tsx). */}
+        {jobAlertsEnabled() && (
+          <JobAlertForm
+            categorySlug={category.slug}
+            citySlug={city.slug}
+            categoryName={category.name}
+            cityName={city.name}
+          />
         )}
 
         {/* Cross-links (PLAN-GROWTH.md §4 S5) */}

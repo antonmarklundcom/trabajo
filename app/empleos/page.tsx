@@ -15,6 +15,8 @@ import SearchBar from '@/components/SearchBar';
 import Pagination from '@/components/Pagination';
 import { JOBS_PAGE_SIZE } from '@/lib/pagination';
 import JsonLd from '@/components/JsonLd';
+import JobAlertForm from '@/components/JobAlertForm';
+import { jobAlertsEnabled } from '@/lib/flags';
 
 // Cached reads are invalidated on demand by every admin mutation
 // (lib/cache.ts), so this timer is only the safety net for job expiry and
@@ -226,6 +228,22 @@ export default async function EmpleosPage({
             totalPages={Math.ceil(total / JOBS_PAGE_SIZE)}
             searchParams={sp}
           />
+
+          {/*
+            After the results and the pagination, never above them: on a phone
+            the first thing under the filters must still be a job. The alert
+            takes only the categoría/ciudad this page is about, and only when
+            they name a real taxonomy — the rest of the filters are not part of
+            an alert.
+          */}
+          {jobAlertsEnabled() && (
+            <JobAlertForm
+              categorySlug={headingCategory?.slug ?? null}
+              citySlug={headingCity?.slug ?? null}
+              categoryName={headingCategory?.name ?? null}
+              cityName={headingCity?.name ?? null}
+            />
+          )}
         </div>
       </div>
 

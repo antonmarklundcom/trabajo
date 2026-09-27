@@ -20,6 +20,14 @@ export type EmailMessage = {
   subject: string;
   /** Plain text. These are transactional notices, not a newsletter. */
   text: string;
+  /**
+   * Extra MIME headers, passed through as Resend's `headers` field. Exists for
+   * one use: `List-Unsubscribe` / `List-Unsubscribe-Post` (RFC 2369, RFC 8058)
+   * on the job-alert emails (lib/emails/job-alerts.ts), which is what puts a
+   * "Cancelar suscripción" button in Gmail and Yahoo and what their bulk-sender
+   * rules require of a recurring email.
+   */
+  headers?: Record<string, string>;
 };
 
 /**
@@ -60,6 +68,9 @@ export async function sendEmail(message: EmailMessage): Promise<SendResult> {
         to: [message.to],
         subject: message.subject,
         text: message.text,
+        ...(message.headers && Object.keys(message.headers).length > 0
+          ? { headers: message.headers }
+          : {}),
       }),
     });
 

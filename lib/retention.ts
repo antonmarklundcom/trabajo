@@ -50,6 +50,29 @@ export const ACCESS_LOG_RETENTION_MONTHS = 24;
 export const CONTACT_MESSAGE_RETENTION_MONTHS = 12;
 
 /**
+ * `job_alerts` that were never confirmed: hard-deleted this many DAYS after the
+ * subscribe. An unconfirmed alert is an address somebody typed that nobody has
+ * yet shown they own — it may not even be the subscriber's — so it is kept only
+ * as long as a confirmation link could plausibly still be clicked.
+ */
+export const JOB_ALERT_UNCONFIRMED_DAYS = 7;
+
+/**
+ * Confirmed `job_alerts` with no successful send for this long are
+ * hard-deleted. The clock is the last send (or the confirmation, for an alert
+ * that never matched anything): a filter that has produced nothing in a year
+ * is an address kept for no purpose. Same working-default status as
+ * CONTACT_MESSAGE_RETENTION_MONTHS: the owner confirms it before /privacidad
+ * quotes it.
+ */
+export const JOB_ALERT_INACTIVITY_MONTHS = 12;
+
+/** `now` shifted back by whole days, for the one period stated in days. */
+export function daysAgo(days: number, now: Date = new Date()): Date {
+  return new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+}
+
+/**
  * `now` shifted back by whole months. Uses UTC parts rather than subtracting
  * milliseconds so "24 months ago" lands on the same day of the month, and
  * clamps day-of-month overflow (31 March minus 1 month is 28/29 February, not
