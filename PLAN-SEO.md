@@ -1,6 +1,6 @@
 # PLAN-SEO.md — programmatic SEO build (2026-09-27)
 
-Status: **not started.** Seven PRs (plus one optional PR), each small enough for a single Claude Code
+Status: **not started.** Eight PRs (plus one optional PR), each small enough for a single Claude Code
 session, each with a copy-paste prompt in §4. Keyword data and the
 keyword → page map live in `docs/seo/` (`KEYWORDS.md`,
 `keywords-2026-09-27.csv`); PLAN-GROWTH.md §17 records what already shipped
@@ -48,11 +48,32 @@ with `SearchAction` on `/`, `BlogPosting` on articles. New page types add
 | S5 | Salary pages `/salarios/[puesto]` | Opus | S4 (reuses its dictionary) | block 6 (salaries) |
 | S6 | Labour calculators (aguinaldo, salario neto/IPS, salario mínimo) | Sonnet | owner verifies the legal constants | block 7 (labour rights) |
 | S7 | Schedule field on jobs ("de lunes a viernes", fines de semana, nocturno, rotativo) + filter + landing | Opus | — | already met: 3.230 searches/mo (KEYWORDS.md) |
+| S8 | CV hub: free in-browser CV builder + templates/examples + guides (`/curriculum`) | Opus | — | already met: the largest demand in the data (see §2 note) |
 
-Order: S1 and S2 first (small, immediate), then S3, S7, S4, S5; S6 whenever
-the owner has verified the constants. S0 can go anywhere. Evidence for the
-order is in `docs/seo/KEYWORDS.md` ("What the 2026-09-27 seeker export says"):
-company careers 8.470/mo, remote 5.110, schedule 3.230, sin experiencia 2.060.
+Order (revised 2026-09-27 after the full 24.916-phrase export, see
+`docs/seo/trabajo-2026-09-27/`): **S8 and S6 first** — they are the two
+biggest demands in the whole dataset and neither needs job supply to rank —
+then S1, S2, S3, S7, S4, S5. S6 still waits for the owner to verify the legal
+constants. S0 can go anywhere.
+
+Demand by meaning group (monthly searches, from `clusters.md`; totals are
+inflated where Keyword Planner reports the same number for close variants,
+so read them as a ranking, not as traffic):
+
+| Need | Biggest phrases | PR |
+|---|---|---|
+| CV: builder, templates, examples, "para llenar", sin experiencia, carta de presentación, entrevista | curriculum vitae / cv (12.100 — one Google group), modelo de curriculum vitae (1.000), cv ejemplo (1.600), curriculum vitae gratis (880), como hacer un curriculum (720), carta de presentación (320) | S8 |
+| Aguinaldo, salario mínimo, jornal, preaviso, despido, horas extras | salario minimo paraguay 2026 (6.600), calculo de aguinaldo (2.900), como se calcula el aguinaldo (2.400), jornal minimo (1.300), preaviso paraguay (1.300), horas extras (480), aguinaldo proporcional (390), despido injustificado (320) | S6 (+ lawyer-reviewed guides for preaviso/despido) |
+| Head terms | empleo en py (14.800), bolsa de trabajo de paraguay (8.100), empleos paraguay (5.400) | done (PLAN-GROWTH §17) |
+| Company careers | trabaja con nosotros (6.600), Biggie 590, Itaú 320, Continental/Stock/Tigo 260 | S1 |
+| Remote / online | trabajo(s) remoto(s) paraguay (1.300 each), trabajos remotos (880) | S3 |
+| Job titles | cajeras (2.900), auxiliar/asistente administrativo (590/320), guardias de seguridad (320), recepcionista, chofer | S4 |
+| Cities | Asunción 7.900, San Lorenzo 1.580, Luque 1.510, Encarnación 1.400, CDE 1.110 | S2 (+ existing landings) |
+| Schedule | busco trabajo de lunes a viernes en paraguay (1.300), nocturno, fin de semana | S7 |
+
+Not ours: "ministerio de justicia y trabajo" (1.600, navigational),
+"computrabajo" / "clasipar empleos …" (competitor brands — ads only, never
+page copy).
 
 "Keyword gate" means: before the session starts, the owner has merged that
 block's Keyword Planner results into `docs/seo/keywords-2026-09-27.csv`
@@ -197,6 +218,29 @@ can answer it honestly.
   vice versa. These are the pages most likely to earn links from other
   sites, which is what moves "bolsa de trabajo paraguay".
 
+### S8 — CV hub (`/curriculum`)
+
+The single largest need in the data: people in Paraguay searching how to make
+a CV, for a template, an example, a "para llenar" PDF, a free builder.
+Answering it brings job seekers to the site before they search for a job.
+
+- `/curriculum` hub + `/curriculum/crear` (builder) + a few static pages only
+  where the data shows demand: modelos/plantillas, ejemplos (incl. sin
+  experiencia), carta de presentación. Blog drafts that already exist
+  (`carta-de-presentacion-con-ejemplo`, …) are linked, not duplicated.
+- **The builder runs entirely in the browser**: a form, 3–4 clean templates,
+  "Descargar PDF" through the browser's print-to-PDF with a print stylesheet
+  (no PDF library, no server). **Nothing is sent to or stored on the server**
+  — a CV is personal data (Ley 7593/2025), so an anonymous builder keeps it
+  on the device (localStorage draft, with a "Borrar" button). Saving it to a
+  candidate account is a separate, later decision that goes through the
+  existing consent model (PLAN-PHASE2.md), not this PR.
+- Every page ends in the job search ("Ya tenés tu CV — mirá los empleos en
+  {ciudad}") and, where candidate accounts are on, "Creá tu perfil".
+- Title/H1 wording from `docs/seo/trabajo-2026-09-27/clusters.md`; the full
+  phrase list for each page comes from filtering `keywords.csv` in the
+  Keyword Library, not from guesses.
+
 ## 3. What the owner does
 
 1. Run the Keyword Planner blocks and merge them: download "Keyword ideas"
@@ -276,6 +320,19 @@ Use the model named in the table; never Fable for these sessions.
 > `/trabajo-de-lunes-a-viernes` landing with the S3 indexing rule. Keep seed
 > and DB in parity. Verify locally, including `db:test` if a database is
 > available; one PR.
+
+**S8 (Opus)**
+> Read AGENTS.md and PLAN-SEO.md §1 and §2 S8. Build the CV hub: `/curriculum`,
+> `/curriculum/crear` (in-browser builder, 3–4 templates, PDF via print
+> stylesheet, draft in localStorage with a delete button, **no server
+> storage and no network call with CV data**) and the static pages the data
+> supports (modelos/plantillas, ejemplos incl. sin experiencia, carta de
+> presentación). Pick titles and headings from
+> `docs/seo/trabajo-2026-09-27/clusters.md`. Link existing blog drafts instead
+> of duplicating them; every page ends in the job search. Add the pages to the
+> sitemap with BreadcrumbList. Spanish (Paraguay) copy, no promises of
+> interviews or jobs. Verify locally (lint, typecheck, build, seo:verify);
+> one PR.
 
 **S0 (Opus)** — after the owner has set `GOOGLE_INDEXING_SA_JSON`
 > Read AGENTS.md and PLAN-SEO.md §1 and §2 S0. Implement the Indexing API
