@@ -171,6 +171,15 @@ jobs:
       - name: Verify Destacado window arithmetic
         run: npm run featured:verify
 
+      # The "¿Tu aviso sigue abierto?" links renew or close a live listing with
+      # no session — a signed token is the whole authorization. A token that
+      # accepts a tampered job id, a page that acts on GET (mail scanners open
+      # every link), or a renewal that writes a status would all still "work"
+      # when the employer clicks. Token by evaluation, wiring by source; no
+      # database, no env.
+      - name: Verify listing confirmation links
+        run: npm run listings-confirm:verify
+
       # The self-serve checkout's non-negotiables (PLAN-PAGOPAR.md §4, §5). A
       # payment callback is delivered more than once by design, and a claim not
       # guarded by `AND status = 'pending'` doubles the window a customer paid

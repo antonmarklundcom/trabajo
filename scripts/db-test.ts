@@ -159,6 +159,11 @@ async function main() {
     // redaction does not clear — so orphans of deleted fixture jobs are found too.
     await db.delete(schema.applications).where(like(schema.applications.sourcePage, `/${PREFIX}%`));
     if (jobIds.length > 0) {
+      // The listing-confirmation flow logs with a NULL actor, so its rows are
+      // found by entity rather than by DBTEST_ACTOR.
+      await db
+        .delete(schema.activityLog)
+        .where(and(eq(schema.activityLog.entityType, 'job'), inArray(schema.activityLog.entityId, jobIds)));
       await db.delete(schema.applications).where(inArray(schema.applications.jobId, jobIds));
       await db.delete(schema.jobs).where(inArray(schema.jobs.id, jobIds));
     }
@@ -562,6 +567,83 @@ async function main() {
         takenRows,
       );
       check((await countConsents()) === consentsBefore, 'no consent row was written by the failed accept');
+    });
+
+    // =======================================================================
+    // 6. "¿Tu aviso sigue abierto?" — the signed-link flow's SQL.
+    //    The link carries expires_at in whole seconds and the write only
+    //    matches while the row still holds that value, so this is where a
+    //    DATETIME rounding or timezone mismatch between Node and MySQL would
+    //    make every emailed link dead. Mirrors app/api/empresa/confirmar-aviso.
+    // =======================================================================
+    await runCase('6 listing confirmation links', async () => {
+      const confirm = await import('../lib/listing-confirm');
+      const confirmDb = await import('../lib/db/listing-confirm');
+      const employer = await import('../lib/db/employer');
+      const key = confirm.listingConfirmKey('x'.repeat(48));
+      const company = await makeCompany('confirm');
+      const other = await makeCompany('confirm-other');
+      // Milliseconds on purpose: MySQL DATETIME rounds them away on insert.
+      const soon = new Date(now.getTime() + 3 * DAY_MS + 700);
+      const renewJob = await makeJob(company.id, 'confirm-renew', { expiresAt: soon });
+      const closeJob = await makeJob(company.id, 'confirm-close', { expiresAt: soon });
+      const farJob = await makeJob(company.id, 'confirm-far', { expiresAt: new Date(now.getTime() + 20 * DAY_MS) });
+      const pendingJob = await makeJob(company.id, 'confirm-pending', { status: 'pending', expiresAt: soon });
+
+      const due = (await confirmDb.findListingsDueForConfirmation()).map((j) => j.id);
+      check(due.includes(renewJob.id) && due.includes(closeJob.id), 'listings expiring within the window are due');
+      check(!due.includes(farJob.id), 'a listing expiring in 20 days is not due yet');
+      check(!due.includes(pendingJob.id), 'an unapproved listing is never asked about');
+
+      // The redeem route's path: read the row, mint, verify, compare, write.
+      async function redeem(jobId: number, action: 'open' | 'close', asCompanyId?: number) {
+        const target = await confirmDb.findListingConfirmTarget(jobId);
+        if (!target?.expiresAt) return { minted: false as const };
+        const token = confirm.signListingConfirmToken(
+          { jobId, action, expiresAt: target.expiresAt, issuedAt: new Date() },
+          key,
+        );
+        const verdict = confirm.verifyListingConfirmToken(token, new Date(), key);
+        if (!verdict.ok) return { minted: true as const, verified: false as const };
+        const signed = verdict.payload.expiresAt;
+        const sameRow = confirm.sameExpiry(target.expiresAt, signed);
+        const companyId = asCompanyId ?? target.companyId;
+        const wrote =
+          action === 'open'
+            ? await employer.renewEmployerListingFromEmail(companyId, jobId, signed)
+            : await employer.closeEmployerListingFromEmail(companyId, jobId, signed);
+        return { minted: true as const, verified: true as const, sameRow, wrote, signed };
+      }
+
+      const before = await confirmDb.findListingConfirmTarget(renewJob.id);
+      const renewed = await redeem(renewJob.id, 'open');
+      check(renewed.minted && 'sameRow' in renewed && renewed.sameRow === true, 'the signed expiry equals the stored one after the round trip');
+      check('wrote' in renewed && renewed.wrote !== null, '"Sí, sigue abierto" renews the listing (the WHERE on expires_at matched)', renewed);
+      const after = await confirmDb.findListingConfirmTarget(renewJob.id);
+      check(
+        !!before?.expiresAt && !!after?.expiresAt && after.expiresAt.getTime() - before.expiresAt.getTime() > 25 * DAY_MS,
+        'the new expiry is about LISTING_DAYS later',
+        { before: before?.expiresAt, after: after?.expiresAt },
+      );
+      check(after?.status === 'published', 'renewing never changes the status');
+
+      // The same link again: the row moved, so the old signed value matches nothing.
+      if ('signed' in renewed && renewed.signed) {
+        const again = await employer.renewEmployerListingFromEmail(company.id, renewJob.id, renewed.signed);
+        check(again === null, 'a second click on the same link does nothing');
+      }
+
+      const wrongCompany = await redeem(closeJob.id, 'close', other.id);
+      check('wrote' in wrongCompany && wrongCompany.wrote === false, "another company's id cannot close the listing");
+      const closed = await redeem(closeJob.id, 'close');
+      check('wrote' in closed && closed.wrote === true, '"Ya lo cubrimos" closes the listing');
+      const closedRow = await confirmDb.findListingConfirmTarget(closeJob.id);
+      check(closedRow?.status === 'archived', 'the closed listing is archived, not deleted', closedRow);
+
+      await confirmDb.recordConfirmationSent(farJob.id, new Date(now.getTime() + 20 * DAY_MS), 1);
+      const sent = await confirmDb.listConfirmationsSent([farJob.id, renewJob.id]);
+      check((sent.get(farJob.id)?.size ?? 0) === 1, 'a recorded send is found again for idempotency', [...(sent.get(farJob.id) ?? [])]);
+      check(!sent.has(renewJob.id) || sent.get(renewJob.id)?.size === 0, 'a job with no recorded send is not reported as sent');
     });
   } finally {
     try {
