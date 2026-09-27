@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { listCategoryOptions, listCityOptions } from '@/lib/db/taxonomy';
+import { paraguayToday } from '@/lib/db/blog';
 import BlogPostForm from '@/components/admin/BlogPostForm';
 
 export const metadata: Metadata = { title: 'Nuevo artículo' };
@@ -12,7 +13,7 @@ export default async function NuevoArticuloPage() {
     <div>
       <h1 className="text-2xl font-bold text-ink mb-6">Nuevo artículo</h1>
       <div className="bg-white rounded-[10px] border border-border p-6 sm:p-8 max-w-3xl">
-        <BlogPostForm categories={categories} cities={cities} siteUrl={siteUrl} />
+        <BlogPostForm categories={categories} cities={cities} siteUrl={siteUrl} today={paraguayToday()} />
       </div>
       <p className="text-sm text-ink-secondary mt-4 max-w-3xl">
         La portada se sube después de guardar, desde la pantalla de edición.

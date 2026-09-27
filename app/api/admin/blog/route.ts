@@ -7,7 +7,8 @@ import { authErrorResponse, requireApiSession, requireRole } from '@/lib/auth';
 import { blogSlugExists, createBlogPost } from '@/lib/db/blog';
 import { invalidateBlogContent } from '@/lib/cache';
 import { slugify, uniqueSlug } from '@/lib/slug';
-import { blogPostSchema } from './schema';
+import { listCategoryOptions, listCityOptions } from '@/lib/db/taxonomy';
+import { blogPostSchema, firstIssueMessage, unknownRelatedTaxonomy } from './schema';
 
 export async function POST(request: Request) {
   try {
@@ -17,9 +18,16 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => null);
     const parsed = blogPostSchema.safeParse(body);
     if (!parsed.success) {
-      return Response.json({ error: 'Datos inválidos.', issues: parsed.error.issues }, { status: 400 });
+      return Response.json(
+        { error: firstIssueMessage(parsed.error), issues: parsed.error.issues },
+        { status: 400 },
+      );
     }
     const data = parsed.data;
+
+    const [categories, cities] = await Promise.all([listCategoryOptions(), listCityOptions()]);
+    const unknown = unknownRelatedTaxonomy(data, { categories, cities });
+    if (unknown) return Response.json({ error: unknown }, { status: 400 });
 
     // uniqueSlug() also steps over retired slugs, not just live posts — see
     // blogSlugExists(). A new article must not claim a URL that already 301s

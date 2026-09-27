@@ -5,7 +5,13 @@ import { getLaunchPromoStatus } from '@/lib/promo';
 import FloatingWhatsApp from '@/components/FloatingWhatsApp';
 import WhatsAppCta from '@/components/WhatsAppCta';
 import LaunchPromoStrip from '@/components/LaunchPromoStrip';
+import BlogPostLinks from '@/components/BlogPostLinks';
+import { blogCategoryPath, getLatestBlogPosts } from '@/lib/blog';
 import Link from 'next/link';
+
+// Same as /publicar: the "Leé más" row reads published posts, and a
+// scheduled post reaching its date has no write to refresh this page.
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: 'Planes y precios para empleadores',
@@ -91,7 +97,10 @@ export default async function PlanesPage() {
   // missing number is a working /contacto link rather than a wa.me/ that
   // goes nowhere (WhatsAppCta itself renders null in that case).
   const hasWhatsApp = Boolean(siteWhatsAppNumber());
-  const promo = await getLaunchPromoStatus();
+  const [promo, employerPosts] = await Promise.all([
+    getLaunchPromoStatus(),
+    getLatestBlogPosts(2, 'para-empresas'),
+  ]);
   const promoActive = promo.enabled && promo.remaining > 0;
 
   return (
@@ -187,6 +196,16 @@ export default async function PlanesPage() {
           })}
         </div>
       )}
+
+      {/* A quiet "Leé más" row under the cards (PLAN-GROWTH.md §4 C2). */}
+      <BlogPostLinks
+        title="Leé más"
+        posts={employerPosts}
+        tone="quiet"
+        moreHref={blogCategoryPath('para-empresas')}
+        moreLabel="Más para empresas"
+        className="mt-10"
+      />
 
       {/* FAQ */}
       <div className="mt-16">

@@ -3,7 +3,8 @@ import { authErrorResponse, requireApiSession, requireRole } from '@/lib/auth';
 import { blogSlugExists, deleteBlogPost, getAdminBlogPost, updateBlogPost } from '@/lib/db/blog';
 import { invalidateBlogContent } from '@/lib/cache';
 import { slugify, uniqueSlug } from '@/lib/slug';
-import { blogPostSchema } from '../schema';
+import { listCategoryOptions, listCityOptions } from '@/lib/db/taxonomy';
+import { blogPostSchema, firstIssueMessage, unknownRelatedTaxonomy } from '../schema';
 
 function parseId(idParam: string): number | null {
   const id = Number(idParam);
@@ -25,9 +26,16 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const body = await request.json().catch(() => null);
     const parsed = blogPostSchema.safeParse(body);
     if (!parsed.success) {
-      return Response.json({ error: 'Datos inválidos.', issues: parsed.error.issues }, { status: 400 });
+      return Response.json(
+        { error: firstIssueMessage(parsed.error), issues: parsed.error.issues },
+        { status: 400 },
+      );
     }
     const data = parsed.data;
+
+    const [categories, cities] = await Promise.all([listCategoryOptions(), listCityOptions()]);
+    const unknown = unknownRelatedTaxonomy(data, { categories, cities });
+    if (unknown) return Response.json({ error: unknown }, { status: 400 });
 
     // An image with no alt text is an accessibility defect, and publishing is
     // the moment it stops being fixable in private. The upload route already
@@ -41,7 +49,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       );
     }
 
-    // A slug change on a PUBLISHED post mints a 301 (lib/db/blog.ts). No
+    // A slug change on a post that was EVER published mints a 301
+    // (lib/db/blog.ts shouldMintRedirect()). No
     // confirmation dialog, unlike the job form: there the app had no way to
     // issue the redirect, so the editor had to be told to go and configure one.
     // Here the redirect is part of the same write, so a confirmation step would
@@ -66,7 +75,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         publishedAt: data.publishedAt || null,
       },
       user.id,
-      { slug: existing.slug, status: existing.status },
+      { slug: existing.slug, publishedAt: existing.publishedAt },
     );
 
     invalidateBlogContent();

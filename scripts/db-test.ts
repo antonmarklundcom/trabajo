@@ -645,6 +645,66 @@ async function main() {
       check((sent.get(farJob.id)?.size ?? 0) === 1, 'a recorded send is found again for idempotency', [...(sent.get(farJob.id) ?? [])]);
       check(!sent.has(renewJob.id) || sent.get(renewJob.id)?.size === 0, 'a job with no recorded send is not reported as sent');
     });
+
+    // =======================================================================
+    // 8. Blog public reads — drafts and scheduled posts never leak, and the
+    //    archive/related/count queries (group by, sort key) run on MySQL.
+    // =======================================================================
+    await runCase('8 blog public reads', async () => {
+      const blogDb = await import('../lib/db/blog');
+      const today = blogDb.paraguayToday();
+      const shift = (days: number) => {
+        const d = new Date(`${today}T12:00:00Z`);
+        d.setUTCDate(d.getUTCDate() + days);
+        return d.toISOString().slice(0, 10);
+      };
+      async function makePost(label: string, fields: Partial<typeof schema.blogPosts.$inferInsert>) {
+        await db.insert(schema.blogPosts).values({
+          slug: `${PREFIX}${label}`,
+          title: `Artículo ${label}`,
+          description: 'Descripción de prueba para el artículo.',
+          body: '## Sección\n\nTexto.',
+          category: 'consejos-cv',
+          status: 'published',
+          publishedAt: shift(-5),
+          createdAt: now,
+          updatedAt: now,
+          ...fields,
+        });
+        return `${PREFIX}${label}`;
+      }
+      try {
+        const live = await makePost('blog-live', { category: 'consejos-cv', publishedAt: shift(-5) });
+        const today2 = await makePost('blog-today', { category: 'entrevistas', publishedAt: today });
+        const scheduled = await makePost('blog-scheduled', { publishedAt: shift(3) });
+        const draft = await makePost('blog-draft', { status: 'draft', publishedAt: null });
+        const guide = await makePost('blog-guide', { category: 'guias-por-sector', relatedCategorySlug: `${PREFIX}categoria` });
+
+        const slugs = (await blogDb.queryPublishedPosts()).map((p) => p.slug);
+        check(slugs.includes(live) && slugs.includes(today2), 'published posts (including today\'s) are listed');
+        check(!slugs.includes(scheduled), 'a post scheduled for a future date is NOT public yet');
+        check(!slugs.includes(draft), 'a draft is never public');
+        check((await blogDb.queryPublishedPost(scheduled)) === null, 'the scheduled post\'s own URL is not served yet');
+        check((await blogDb.queryPublishedPost(draft)) === null, 'the draft\'s URL is not served');
+
+        const page = await blogDb.queryPublishedPostPage({ category: 'consejos-cv', page: 1, pageSize: 12 });
+        const pageSlugs = ((page as { posts?: { slug: string }[] }).posts ?? (page as unknown as { slug: string }[])).map((p) => p.slug);
+        check(pageSlugs.includes(live) && !pageSlugs.includes(scheduled), 'the category archive shows only public posts of that category', page);
+
+        const counts = await blogDb.queryPublishedCategoryCounts();
+        const cv = counts.find((c) => c.category === 'consejos-cv')?.total ?? 0;
+        check(cv >= 1, 'category counts come back as numbers from the GROUP BY', counts);
+
+        const related = (await blogDb.queryRelatedPosts(live, 'consejos-cv', 3)).map((p) => p.slug);
+        check(!related.includes(live), 'related posts never include the article itself');
+        check(!related.includes(scheduled) && !related.includes(draft), 'related posts are public posts only');
+
+        const forJobs = (await blogDb.queryPostsForJobCategory(`${PREFIX}categoria`, 3)).map((p) => p.slug);
+        check(forJobs[0] === guide, 'the sector guide for a job category comes first on job pages', forJobs);
+      } finally {
+        await db.delete(schema.blogPosts).where(like(schema.blogPosts.slug, `${PREFIX}%`));
+      }
+    });
   } finally {
     try {
       await cleanup();
