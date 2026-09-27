@@ -1363,3 +1363,36 @@ intents; seeker apply buttons; `teamToEmployerHref()`; the two analytics event
 names. Historical `whatsapp_click` rows with `intent=publicar` stop appearing
 from this date — expected, not a tracking bug.
 
+## 15. Owner decision 2026-09-27: three paid packages, free only as a promotion
+
+Publishing is no longer "free, always". There are three packages, priced in
+`/admin/precios` (admin only) and read everywhere through `lib/pricing.ts`:
+
+| Package | Launch default | Role |
+|---|---|---|
+| Básico | Gs. 149.000 / aviso / 30 días — **Gratis hasta el 31/10/2026** (promotion) | Entry point; the free promotion is the acquisition hook |
+| Destacado | Gs. 349.000 / aviso / 30 días | The package the page steers toward (middle, highlighted, "Recomendado") |
+| Empresa | Gs. 1.990.000 / mes | High-ticket anchor that makes Destacado read as the sensible choice |
+
+Rules the code enforces (`npm run pricing:verify`):
+
+- A promotion is a price **plus an end date** (`plan_prices.promo_ends_at`,
+  end of that day in Asunción). `activePromo()` stops returning it the moment
+  the date passes; no deploy, no cron. The site never shows a countdown that
+  resets — misleading advertising (Ley 1334/98), and it burns trust.
+- A regular price is never 0: "free" only exists as a dated promotion.
+- No page that sells a package carries a price literal.
+- The pricing write is admin-only and never touches a job. A price, paid or
+  free, never publishes or approves anything (AGENTS.md).
+- `/terminos` §7 states that listings sent during a promotion keep it for their
+  full 30 days — that is what makes "enviá antes del 31" true urgency rather
+  than a trick. `POLICY_VERSION` bumped.
+
+Not built yet (next): collecting payment for Básico once the promotion ends —
+today `/publicar` states the price and the team sends transfer details by
+WhatsApp before approving; `PLAN-PAGOPAR.md` is where that becomes a checkout.
+The launch promotion (§7 D15, `LAUNCH_PROMO_ENABLED`) is untouched and still
+gives Destacado away to the first 100 approved listings while it is on — it
+now competes with the paid Destacado, so the owner should decide whether to
+turn it off.
+

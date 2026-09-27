@@ -122,6 +122,13 @@ const STANDALONE: { table: string; sqlName: string; why: string }[] = [
     sqlName: 'job_alerts',
     why: 'an address + a category/city slug filter; references no other row',
   },
+  {
+    // /admin/precios (lib/plans.ts). Keyed by a package key; who changed a
+    // price is recorded in activity_log, not in a user id column here.
+    table: 'planPrices',
+    sqlName: 'plan_prices',
+    why: 'one price row per package key; references no other row',
+  },
 ];
 
 /**

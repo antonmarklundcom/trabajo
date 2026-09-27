@@ -25,6 +25,9 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/admin/registros-de-acceso', label: 'Registros de acceso', roles: ['admin'] },
   { href: '/admin/retencion', label: 'Retención de datos', roles: ['admin'] },
   { href: '/admin/usuarios', label: 'Usuarios', roles: ['admin'] },
+  // Prices are an owner decision, not curation: admin only, re-checked by the
+  // page and by PUT /api/admin/precios.
+  { href: '/admin/precios', label: 'Precios', roles: ['admin'] },
 ];
 
 type Props = { name: string; role: Role };

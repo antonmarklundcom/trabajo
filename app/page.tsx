@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import { getFeaturedJobs, getRecentJobs, getCategories, getCities } from '@/lib/data';
 import { canonicalFor, siteUrl } from '@/lib/seo';
 import { getLaunchPromoStatus } from '@/lib/promo';
+import { getPlanPricing } from '@/lib/pricing';
+import { activePromo, formatGs, formatPrice, formatPromoEnd } from '@/lib/plans';
 import { WHATSAPP_HOURS_COPY, siteWhatsAppNumber } from '@/lib/whatsapp';
 import SearchHero from '@/components/SearchHero';
 import CategoryGrid from '@/components/CategoryGrid';
@@ -25,20 +27,22 @@ export const revalidate = 300;
 export const metadata: Metadata = {
   title: 'Empleos en Paraguay — trabajo.com.py',
   description:
-    'Buscá trabajo en Asunción, Ciudad del Este, Encarnación y todo Paraguay. Publicá tu empleo gratis. El portal de empleos hecho para el móvil.',
+    'Buscá trabajo en Asunción, Ciudad del Este, Encarnación y todo Paraguay. Publicá tu empleo. El portal de empleos hecho para el móvil.',
   alternates: { canonical: canonicalFor('/') },
 };
 
 export default async function HomePage() {
-  const [featured, recent, categories, cities, promo, latestPosts] = await Promise.all([
+  const [featured, recent, categories, cities, promo, pricing, latestPosts] = await Promise.all([
     getFeaturedJobs(6),
     getRecentJobs(6),
     getCategories(),
     getCities(),
     getLaunchPromoStatus(),
+    getPlanPricing(),
     getLatestBlogPosts(3),
   ]);
   const promoActive = promo.enabled && promo.remaining > 0;
+  const basicoPromo = activePromo(pricing.basico);
   // Every live listing has exactly one category, so the category counts
   // already sum to the catalogue size — no extra query for the trust line.
   const activeJobCount = categories.reduce((n, c) => n + (c.jobCount ?? 0), 0);
@@ -186,8 +190,17 @@ export default async function HomePage() {
             ¿Necesitás contratar?
           </h2>
           <p className="mt-3 text-white/70 text-base">
-            Publicá tu empleo gratis. Los postulantes te escriben directo a tu WhatsApp.
+            {basicoPromo?.priceGs === 0
+              ? 'Publicá tu empleo gratis. Los postulantes te escriben directo a tu WhatsApp.'
+              : 'Publicá tu empleo. Los postulantes te escriben directo a tu WhatsApp.'}
           </p>
+          {basicoPromo && (
+            <p className="mt-2 text-white text-sm font-semibold">
+              Promoción por tiempo limitado: {formatPrice(basicoPromo.priceGs).toLowerCase()} hasta
+              el {formatPromoEnd(basicoPromo.endsAt)}. Después, {formatGs(pricing.basico.priceGs)} por
+              aviso.
+            </p>
+          )}
           {promoActive && (
             <p className="mt-2 text-[#E6B25A] text-sm font-semibold">
               Promoción de lanzamiento: los primeros 100 avisos salen destacados 90 días, gratis.
@@ -199,7 +212,7 @@ export default async function HomePage() {
               href="/publicar"
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-[12px] bg-[#E6B25A] text-ink font-bold text-base hover:bg-[#d8a548] transition-colors"
             >
-              Publicá tu empleo
+              {basicoPromo?.priceGs === 0 ? 'Publicá gratis ahora' : 'Publicá tu empleo'}
             </Link>
           </div>
           <p className="mt-4">

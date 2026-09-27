@@ -171,6 +171,13 @@ jobs:
       - name: Verify Destacado window arithmetic
         run: npm run featured:verify
 
+      # What the site says an employer pays. A promotion that keeps showing
+      # after its advertised end date, a price literal on one page that
+      # disagrees with /admin/precios, or a pricing write an editor can make
+      # all render without error. Pure functions plus source-reading.
+      - name: Verify package pricing and promotions
+        run: npm run pricing:verify
+
       # The "¿Tu aviso sigue abierto?" links renew or close a live listing with
       # no session — a signed token is the whole authorization. A token that
       # accepts a tampered job id, a page that acts on GET (mail scanners open

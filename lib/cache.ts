@@ -108,6 +108,26 @@ export function invalidateLaunchPromo(): void {
 }
 
 /**
+ * The package prices (lib/pricing.ts), after /admin/precios saves. The paths
+ * are the pages that print a price or say "gratis" to an employer; the job and
+ * company pages carry EmployerBand, which does too.
+ */
+const PRICING_PATHS: ReadonlyArray<readonly [path: string, type?: 'page' | 'layout']> = [
+  ['/'],
+  ['/planes'],
+  ['/publicar'],
+  ['/empleos/[slug]', 'page'],
+  ['/empresas/[slug]', 'page'],
+];
+
+export function invalidatePricing(): void {
+  revalidateTag(CACHE_TAGS.pricing, { expire: 0 });
+  for (const [path, type] of PRICING_PATHS) {
+    revalidatePath(path, type);
+  }
+}
+
+/**
  * Routes whose rendered output embeds blog posts. Kept apart from
  * PUBLIC_PATHS because the two lists answer different writes: an article edit
  * cannot change a job listing. Since C2 the blog's linking surfaces put posts

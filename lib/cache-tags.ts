@@ -54,4 +54,10 @@ export const CACHE_TAGS = {
    * stale because only a job was edited, are both wrong.
    */
   promo: 'launch-promo',
+  /**
+   * The package prices (lib/pricing.ts). Moves only when /admin/precios saves;
+   * a promotion ENDING needs no write — activePromo() compares against the
+   * clock at render, and the pages' 300s timer bounds that drift.
+   */
+  pricing: 'plan-pricing',
 } as const;
