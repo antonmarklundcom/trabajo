@@ -2,7 +2,8 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 // Fonts and text hygiene for the generated Open Graph cards
-// (app/opengraph-image.tsx, app/empleos/[slug]/opengraph-image.tsx).
+// (app/opengraph-image.tsx, app/empleos/[slug]/opengraph-image.tsx and the
+// two blog cards).
 //
 // Without a `fonts` option next/og draws everything in its one bundled font,
 // Geist Regular: every fontWeight on the card is silently ignored, so the

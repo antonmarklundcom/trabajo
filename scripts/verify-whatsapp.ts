@@ -17,6 +17,8 @@
 // scripts/verify-moderation.ts and scripts/verify-seo.ts.
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { teamToEmployerHref } from '../lib/whatsapp';
+import { employerPostSchema } from '../lib/leads';
 
 const ROOT = process.cwd();
 
@@ -164,6 +166,38 @@ check(
   'lib/whatsapp.ts exports WHATSAPP_HOURS_COPY',
   /export const WHATSAPP_HOURS_COPY/.test(code(read('lib/whatsapp.ts'))),
 );
+
+// ---------------------------------------------------------------------------
+// 5. Numbers become digits before they become a link, and a submitted number
+//    must fit where it is stored.
+// ---------------------------------------------------------------------------
+
+{
+  const href = teamToEmployerHref('+595 981-123 456', 'published', { title: 'Cajero/a' }) ?? '';
+  check(
+    'teamToEmployerHref strips spaces, "+" and dashes from a stored number',
+    href.startsWith('https://wa.me/595981123456?'),
+    href,
+  );
+
+  const base = {
+    type: 'employer_post' as const,
+    companyName: 'Empresa SA',
+    contactName: 'Ana Pérez',
+    jobTitle: 'Vendedor',
+    categorySlug: 'ventas',
+    citySlug: 'asuncion',
+    description: 'Buscamos vendedor con experiencia en atención al cliente.',
+  };
+  check(
+    'a local number ("0981 123 456") is accepted for a job post',
+    employerPostSchema.safeParse({ ...base, contactWhatsapp: '0981 123 456' }).success,
+  );
+  check(
+    'a number that normalises past jobs.whatsapp varchar(20) / 15 digits is refused',
+    !employerPostSchema.safeParse({ ...base, contactWhatsapp: '0981 123 456 789 012 345 67' }).success,
+  );
+}
 
 console.log('');
 if (failures > 0) {
