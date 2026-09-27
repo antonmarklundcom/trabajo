@@ -747,6 +747,10 @@ async function main() {
             .where(and(eq(schema.consents.subjectType, 'job_alert'), inArray(schema.consents.subjectId, createdIds)));
         }
         await db.delete(schema.jobAlerts).where(like(schema.jobAlerts.email, `${PREFIX}%`));
+      }
+    });
+
+    // =======================================================================
     // 8. Blog public reads — drafts and scheduled posts never leak, and the
     //    archive/related/count queries (group by, sort key) run on MySQL.
     // =======================================================================
