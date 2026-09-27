@@ -15,11 +15,17 @@ export function slugify(input: string): string {
  * Appends a numeric suffix until `exists` reports the slug is free.
  * `exists` should exclude the record being edited (pass its id to the query).
  */
+/** Leaves room for a `-NNN` suffix inside the narrowest slug column (200). */
+export const MAX_SLUG_ROOT = 180;
+
 export async function uniqueSlug(
   base: string,
   exists: (candidate: string) => Promise<boolean>,
 ): Promise<string> {
-  const root = slugify(base) || 'item';
+  // Capped so the suffix always fits: the narrowest column this writes is
+  // varchar(200) (jobs.slug, blog_posts.slug), and a 200-char title used to
+  // produce a 200-char root whose "-2" made the INSERT fail.
+  const root = slugify(base).slice(0, MAX_SLUG_ROOT).replace(/-+$/, '') || 'item';
   let candidate = root;
   let suffix = 2;
   while (await exists(candidate)) {
