@@ -13,7 +13,7 @@
 import { z } from 'zod';
 import { authErrorResponse, requireApiSession, requireRole } from '@/lib/auth';
 import { getAdminBlogPost, updateBlogCover } from '@/lib/db/blog';
-import { removeBlogCoverObject, uploadBlogCover } from '@/lib/blog-cover';
+import { removeBlogCover, uploadBlogCover } from '@/lib/blog-cover';
 import { invalidateBlogContent } from '@/lib/cache';
 
 const altSchema = z.string().trim().min(1).max(200);
@@ -43,12 +43,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       );
     }
 
-    const result = await uploadBlogCover(request, post.coverImageKey);
+    const result = await uploadBlogCover(request, post.coverImageKey, (key) =>
+      updateBlogCover(id, key, alt.data, user.id),
+    );
     if (!result.ok) {
       return Response.json({ error: result.error }, { status: result.status });
     }
-
-    await updateBlogCover(id, result.key, alt.data, user.id);
     invalidateBlogContent();
 
     return Response.json({ key: result.key, url: result.url, alt: alt.data }, { status: 201 });
@@ -103,10 +103,10 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     if (!post) return Response.json({ error: 'Artículo no encontrado.' }, { status: 404 });
 
     if (post.coverImageKey) {
-      // Object first, then the columns: the key lives nowhere else, so clearing
-      // the row first would strand the WebP with nothing pointing at it.
-      await removeBlogCoverObject(post.coverImageKey);
-      await updateBlogCover(id, null, null, user.id);
+      // Columns first, then the object (lib/blog-cover.ts): a failed delete
+      // strands one invisible WebP, which beats a published article whose row
+      // still points at a cover that no longer exists.
+      await removeBlogCover(post.coverImageKey, () => updateBlogCover(id, null, null, user.id));
       invalidateBlogContent();
     }
 

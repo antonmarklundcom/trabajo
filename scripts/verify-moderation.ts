@@ -493,6 +493,33 @@ check(
   );
 }
 
+// ---------------------------------------------------------------------------
+// Accepting an invitation is all-or-nothing.
+//
+// The claim, the employer account and its consent row run in one transaction.
+// Outside one, a failure after the claim burned the invitation and could leave
+// an account with no record of accepting the terms (see acceptInvitation()).
+// ---------------------------------------------------------------------------
+{
+  const body = code(functionBody(read('lib/db/employer-invitations.ts'), 'acceptInvitation'));
+  const txAt = body.indexOf('db.transaction(');
+  const inTx = txAt === -1 ? '' : body.slice(txAt);
+  check(
+    'acceptInvitation() runs inside db.transaction',
+    txAt !== -1,
+  );
+  check(
+    'the claim, the users insert and the consent insert all go through the transaction handle',
+    /tx\s*\.update\(employerInvitations\)/.test(inTx) &&
+      /tx\.insert\(users\)/.test(inTx) &&
+      /tx\.insert\(consents\)/.test(inTx),
+  );
+  check(
+    'nothing in acceptInvitation() writes through `db` directly',
+    !/\bdb\s*\.(insert|update|delete)\(/.test(body),
+  );
+}
+
 if (failures > 0) {
   console.error(`\n${failures} assertion(s) FAILED.`);
   process.exit(1);
