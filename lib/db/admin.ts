@@ -1206,6 +1206,12 @@ export async function updateUser(
 // ---------------------------------------------------------------------------
 // Applications — inserted from POST /api/v1/leads (public, unauthenticated),
 // reviewed from /admin/postulaciones.
+//
+// This file WRITES applications and never reads their personal columns. The
+// staff read of names, phones, emails and messages is
+// listApplicationsForStaff() in lib/db/candidates-admin.ts, which logs to
+// data_access_logs before it returns; `npm run access:verify` fails if a
+// read of those columns reappears here.
 // ---------------------------------------------------------------------------
 
 export type ApplicationInput = {
@@ -1254,59 +1260,6 @@ export async function createApplication(
     createdAt: new Date(),
   });
   return { applicationId: result.insertId, companyId: job.companyId };
-}
-
-export type AdminApplicationFilters = {
-  jobId?: number;
-  status?: (typeof applicationStatusEnum)[number];
-  page?: number;
-};
-
-const APPLICATION_PAGE_SIZE = 20;
-
-export async function getAdminApplications(filters: AdminApplicationFilters) {
-  const db = await getDb();
-  const page = filters.page ?? 1;
-  const conditions = [];
-  if (filters.jobId) conditions.push(eq(applications.jobId, filters.jobId));
-  if (filters.status) conditions.push(eq(applications.status, filters.status));
-  const where = conditions.length ? and(...conditions) : undefined;
-
-  const selection = {
-    id: applications.id,
-    jobId: applications.jobId,
-    jobTitle: jobs.title,
-    jobSlug: jobs.slug,
-    name: applications.name,
-    phone: applications.phone,
-    email: applications.email,
-    message: applications.message,
-    status: applications.status,
-    // Set means every personal column above is already NULL: the candidate
-    // withdrew consent (§4.2), deleted their account (§4.4) or the row aged out
-    // (§4.3). Selected so the admin table can say so, rather than rendering
-    // three empty cells that look like a bug.
-    redactedAt: applications.redactedAt,
-    createdAt: applications.createdAt,
-  };
-
-  const base = () =>
-    db.select(selection).from(applications).innerJoin(jobs, eq(applications.jobId, jobs.id));
-
-  const [rows, [{ total }]] = await Promise.all([
-    base()
-      .where(where)
-      .orderBy(desc(applications.createdAt))
-      .limit(APPLICATION_PAGE_SIZE)
-      .offset((page - 1) * APPLICATION_PAGE_SIZE),
-    db
-      .select({ total: count() })
-      .from(applications)
-      .innerJoin(jobs, eq(applications.jobId, jobs.id))
-      .where(where),
-  ]);
-
-  return { applications: rows, total, pageSize: APPLICATION_PAGE_SIZE };
 }
 
 /** Jobs that have at least one application — populates the postulaciones job filter. */

@@ -1,6 +1,16 @@
+// /admin/postulaciones — every application, for the portal team.
+//
+// The applicant rows come from listApplicationsForStaff() in
+// lib/db/candidates-admin.ts, which writes one data_access_logs row per
+// applicant whose name / phone / email / message it returns, before it
+// returns (/privacidad §6). This page never reads those columns itself.
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { getAdminApplications, listJobOptionsWithApplications, type AdminApplicationFilters } from '@/lib/db/admin';
+import { headers } from 'next/headers';
+import { requireSessionWithRole } from '@/lib/auth';
+import { clientIp } from '@/lib/client-ip';
+import { listJobOptionsWithApplications } from '@/lib/db/admin';
+import { listApplicationsForStaff, type StaffApplicationFilters } from '@/lib/db/candidates-admin';
 import { applicationStatusEnum } from '@/lib/db/schema';
 import PostulacionesFilterBar from '@/components/admin/PostulacionesFilterBar';
 import ApplicationStatusSelect from '@/components/admin/ApplicationStatusSelect';
@@ -19,6 +29,10 @@ export default async function AdminPostulacionesPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
+  // Same roles the (dashboard) layout admits. Re-established here because the
+  // access log needs to know WHO is reading, and a layout's result is not
+  // passed down to its pages.
+  const user = await requireSessionWithRole(['admin', 'editor']);
   const sp = await searchParams;
   const statusParam = param(sp, 'status');
   const status = applicationStatusEnum.find((s) => s === statusParam);
@@ -26,9 +40,9 @@ export default async function AdminPostulacionesPage({
   const jobId = jobIdParam ? Number(jobIdParam) : undefined;
   const page = param(sp, 'page') ? Number(param(sp, 'page')) : 1;
 
-  const filters: AdminApplicationFilters = { status, jobId, page };
+  const filters: StaffApplicationFilters = { status, jobId, page };
   const [{ applications, total, pageSize }, jobOptions] = await Promise.all([
-    getAdminApplications(filters),
+    listApplicationsForStaff(user, filters, { ip: clientIp(await headers()) }),
     listJobOptionsWithApplications(),
   ]);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
