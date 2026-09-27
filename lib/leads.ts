@@ -37,7 +37,7 @@ export const applicationSchema = z.object({
   jobTitle: z.string().min(1),
   name: z.string().max(100).optional(),
   phone: z.string().max(30).optional(),
-  email: z.string().email().optional().or(z.literal('')),
+  email: z.string().email().max(320).optional().or(z.literal('')),
   message: z.string().max(1000).optional(),
   // Optional job context so seeker leads can carry city / category / contract.
   citySlug: z.string().max(100).optional(),
@@ -52,7 +52,17 @@ export const employerPostSchema = z.object({
   type: z.literal('employer_post'),
   companyName: z.string().min(2).max(150),
   contactName: z.string().min(2).max(100),
-  contactWhatsapp: z.string().min(6).max(30),
+  // Stored normalised (digits, 595-prefixed) in jobs.whatsapp, a varchar(20).
+  // 30 typed characters could normalise to more than that, and the INSERT then
+  // failed — losing the pending job. E.164 caps a number at 15 digits.
+  contactWhatsapp: z
+    .string()
+    .min(6)
+    .max(30)
+    .refine((v) => {
+      const n = normalizePhone(v).length;
+      return n >= 8 && n <= 15;
+    }, 'Ingresá un número de WhatsApp válido'),
   email: z.string().email().optional().or(z.literal('')),
   jobTitle: z.string().min(3).max(200),
   categorySlug: z.string().min(1),
