@@ -1,7 +1,7 @@
 import { clientIp } from '@/lib/client-ip';
 import { recordAuthEvent } from '@/lib/db/auth-events';
 import { z } from 'zod';
-import { createSession, hashPassword } from '@/lib/auth';
+import { createSession, hashPassword, NEW_ACCOUNT_SESSION_VERSION } from '@/lib/auth';
 import { employerDashboardEnabled } from '@/lib/flags';
 import { acceptInvitation } from '@/lib/db/employer-invitations';
 
@@ -49,6 +49,8 @@ export async function POST(request: Request) {
     ip: clientIp(request.headers),
   });
 
-  await createSession(userId);
+  // A row acceptInvitation() inserted a moment ago: no password write has
+  // happened since, so it is still at the column default.
+  await createSession(userId, NEW_ACCOUNT_SESSION_VERSION);
   return Response.json({ ok: true, redirectTo: '/empresa' });
 }

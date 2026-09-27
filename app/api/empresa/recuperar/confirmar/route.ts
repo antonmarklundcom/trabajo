@@ -42,11 +42,13 @@ export async function POST(request: Request) {
   }
 
   const passwordHash = await hashPassword(parsed.data.password);
-  // False when the account is no longer an active employer (deactivated, or a
+  // Null when the account is no longer an active employer (deactivated, or a
   // staff account a token could never have been issued for): the link is
-  // spent either way, and nothing is changed.
-  const updated = await setEmployerPassword(redeemed.userId, passwordHash);
-  if (!updated) {
+  // spent either way, and nothing is changed. Otherwise the account's new
+  // session version — the same write bumped it, so every cookie issued before
+  // this reset (on any device, held by anyone) has just stopped working.
+  const sessionVersion = await setEmployerPassword(redeemed.userId, passwordHash);
+  if (sessionVersion === null) {
     return Response.json({ error: LINK_ERRORS.invalid }, { status: 410 });
   }
 
@@ -57,6 +59,8 @@ export async function POST(request: Request) {
     ip: clientIp(request.headers),
   });
 
-  await createSession(redeemed.userId);
+  // Sealed with the NEW version, so the one session that survives the reset is
+  // the one belonging to whoever just proved control of the inbox.
+  await createSession(redeemed.userId, sessionVersion);
   return Response.json({ ok: true, redirectTo: '/empresa' });
 }

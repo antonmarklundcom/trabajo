@@ -15,18 +15,19 @@ import type { NextConfig } from 'next';
 //
 // The policy below is deliberately the TARGET policy rather than a permissive
 // one. It omits `'unsafe-inline'` for scripts, so the browser console will
-// report every inline script that would break — which today is exactly two
-// kinds, both known: the GA4 init snippet (components/Analytics.tsx) and the
-// JSON-LD blocks on the six route groups that emit them. That report is the
-// input to the follow-up PR that adds nonces or hashes; a policy that allowed
-// inline scripts would report nothing and teach us nothing.
+// report every inline script that would break — which today is exactly one
+// kind, and it is known: the JSON-LD blocks on the six route groups that emit
+// them. (The GA4 init snippet used to be the second; it moved into a client
+// component, components/AnalyticsPageViews.tsx, and is no longer inline.)
+// That report is the input to the follow-up PR that adds nonces or hashes; a
+// policy that allowed inline scripts would report nothing and teach us nothing.
 //
 // Nothing here is enforced against script execution yet. That is the honest
 // state, and it is why this rides along with B3 rather than being called done.
 const CSP_REPORT_ONLY = [
   "default-src 'self'",
-  // GA4 loads gtag from googletagmanager. The inline init snippet is NOT
-  // allowed on purpose — see above.
+  // GA4 loads gtag from googletagmanager. Inline scripts are NOT allowed on
+  // purpose — see above.
   "script-src 'self' https://www.googletagmanager.com",
   // Next injects inline styles; there is no styling equivalent of the nonce
   // problem worth solving first, and inline CSS is not an execution vector.

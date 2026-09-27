@@ -333,10 +333,16 @@ published article mints the 301 inside the same write (`AGENTS.md`).
 
 ## 5. Auth & authorization
 
-- **Session**: `iron-session` encrypted cookie holding **only `userId`**. Load
-  the user (and therefore the role) from the DB on each request. Storing the
-  role in the cookie means a demoted or disabled user keeps their access until
-  the cookie expires.
+- **Session**: `iron-session` encrypted cookie holding **only `userId`** (plus
+  the account's `session_version`). Load the user (and therefore the role) from
+  the DB on each request. Storing the role in the cookie means a demoted or
+  disabled user keeps their access until the cookie expires.
+- **Revocation on password change**: `users.session_version` /
+  `candidates.session_version` is incremented in the same UPDATE as every
+  `password_hash` write, and both session lookups only accept a cookie whose
+  version matches the row. A reset therefore signs out every other session
+  (the resetter gets a fresh cookie with the new version). A cookie without a
+  version reads as 0, the column default. `npm run accounts:verify` asserts it.
 - **Passwords**: bcrypt cost 12. Still no self-serve password reset — admin
   resets via `npm run user:password` (`scripts/set-password.ts`). The original
   trigger ("add self-serve reset with employer accounts") has fired: employer

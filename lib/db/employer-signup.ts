@@ -40,6 +40,7 @@ import { eq } from 'drizzle-orm';
 
 import { activityLog, companies, consents, users } from './schema';
 import { slugify, uniqueSlug } from '../slug';
+import { isDuplicateKeyOn } from './duplicate-key';
 
 async function getDb() {
   return (await import('./index')).db;
@@ -69,31 +70,34 @@ async function companySlugExists(slug: string): Promise<boolean> {
   return rows.length > 0;
 }
 
-function isDuplicateKey(err: unknown): boolean {
-  return (
-    typeof err === 'object' &&
-    err !== null &&
-    (err as { code?: string }).code === 'ER_DUP_ENTRY'
-  );
-}
-
 /**
- * Creates the account, its company, and the terms-acceptance consent.
+ * Creates the account, its company, and the terms-acceptance consent — as ONE
+ * transaction.
  *
- * Write order is load-bearing, and it is "reserve the identity first":
+ * Why a transaction: these five writes (user, company, the user's company
+ * link, consent, activity) are one event. Run as separate statements, a
+ * failure part-way left an account with no consent row — an account nobody can
+ * prove agreed to the terms, which is what the consent row exists to prove —
+ * and the user's retry then failed with "email taken", so the gap could not
+ * even heal itself. Inside one transaction a failure anywhere rolls all of it
+ * back and the retry starts clean. The consent INSERT is the same single
+ * append-only INSERT it always was; nothing here updates a consent row.
+ *
+ * Write order is still load-bearing, and it is still "reserve the identity
+ * first":
  *
  *   1. INSERT the users row with company_id NULL. `users.email` is UNIQUE, so
- *      this is what rejects a duplicate — including the one a pre-check cannot
- *      catch, where two signups for the same address race. Nothing else has
- *      been created at that point, so a rejection leaves no debris.
- *   2. INSERT the company and point the user at it.
+ *      this is what rejects a duplicate — including the one the pre-check
+ *      cannot catch, where two signups for the same address race. InnoDB makes
+ *      the second INSERT wait on the first transaction's lock and then fail
+ *      with ER_DUP_ENTRY once it commits, before the loser has created a
+ *      company.
+ *   2. INSERT the company (always a NEW row — see the module header) and point
+ *      the user at it.
  *
- * The ordering also decides what a crash between the two leaves behind: an
- * employer with no company, which requireCompanyScope() already fails closed
- * on (it redirects to the login with ?error=sin_empresa) rather than an
- * ownerless company that a later signup might be handed. Failing closed on a
- * half-finished write is the same choice lib/auth.ts makes about a NULL
- * company_id.
+ * The caller sends the verification email only after this returns, i.e. after
+ * COMMIT. Sending it from inside the callback could deliver a link to an
+ * account that a later statement then rolled out of existence.
  */
 export async function registerEmployer(
   input: RegisterEmployerInput,
@@ -112,73 +116,88 @@ export async function registerEmployer(
     .limit(1);
   if (existing.length > 0) return { ok: false, reason: 'email_taken' };
 
-  let userId: number;
-  try {
-    const [inserted] = await db.insert(users).values({
-      email,
-      passwordHash: input.passwordHash,
-      name: input.name,
-      role: 'employer',
-      // NULL until the company below exists. Deliberate — see the doc comment.
-      companyId: null,
-      isActive: true,
-      // Not verified yet. The verification email is the route handler's job
-      // and is best-effort; it gates nothing (schema.ts).
-      emailVerifiedAt: null,
-      createdAt: now,
-      updatedAt: now,
-    });
-    userId = inserted.insertId;
-  } catch (err) {
-    if (isDuplicateKey(err)) return { ok: false, reason: 'email_taken' };
-    throw err;
-  }
-
+  // Picked before the transaction opens, so the slug probes do not hold a
+  // second pool connection while the transaction holds the first. A slug a
+  // concurrent signup takes in between fails the company INSERT on its unique
+  // index, which rolls the whole signup back — an error the user can retry,
+  // never a half-created account.
   const companyName = input.companyName.trim();
   const slug = await uniqueSlug(slugify(companyName), (candidate) =>
     companySlugExists(candidate),
   );
 
-  const [company] = await db.insert(companies).values({
-    name: companyName,
-    slug,
-    whatsapp: input.whatsapp,
-    ownerUserId: userId,
-    // The moderation signal, not a permission (schema.ts). Nothing in the app
-    // branches on it.
-    createdVia: 'self_serve',
-    createdAt: now,
-    updatedAt: now,
-  });
-  const companyId = company.insertId;
+  try {
+    return await db.transaction(async (tx) => {
+      const [inserted] = await tx.insert(users).values({
+        email,
+        passwordHash: input.passwordHash,
+        name: input.name,
+        role: 'employer',
+        // NULL until the company below exists, and only ever visible inside
+        // this transaction: nothing outside it sees the account before it has
+        // its company.
+        companyId: null,
+        isActive: true,
+        // Not verified yet. The verification email is the route handler's job
+        // and is best-effort; it gates nothing (schema.ts).
+        emailVerifiedAt: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+      const userId = inserted.insertId;
 
-  await db.update(users).set({ companyId, updatedAt: now }).where(eq(users.id, userId));
+      const [company] = await tx.insert(companies).values({
+        name: companyName,
+        slug,
+        whatsapp: input.whatsapp,
+        ownerUserId: userId,
+        // The moderation signal, not a permission (schema.ts). Nothing in the
+        // app branches on it.
+        createdVia: 'self_serve',
+        createdAt: now,
+        updatedAt: now,
+      });
+      const companyId = company.insertId;
 
-  // Same three-writes-are-one-event shape as acceptInvitation(): the account,
-  // the company, and the record of what was agreed to.
-  await db.insert(consents).values({
-    subjectType: 'employer_user',
-    subjectId: userId,
-    purpose: 'terms_acceptance',
-    granted: true,
-    policyVersion: POLICY_VERSION,
-    relatedCompanyId: companyId,
-    relatedJobId: null,
-    ip: input.ip,
-    userAgent: input.userAgent,
-    createdAt: now,
-  });
+      await tx.update(users).set({ companyId, updatedAt: now }).where(eq(users.id, userId));
 
-  await db.insert(activityLog).values({
-    actorUserId: userId,
-    entityType: 'company',
-    entityId: companyId,
-    action: 'self_serve_signup',
-    meta: { email },
-    createdAt: now,
-  });
+      // Same writes-are-one-event shape as acceptInvitation(): the account, the
+      // company, and the record of what was agreed to.
+      await tx.insert(consents).values({
+        subjectType: 'employer_user',
+        subjectId: userId,
+        purpose: 'terms_acceptance',
+        granted: true,
+        policyVersion: POLICY_VERSION,
+        relatedCompanyId: companyId,
+        relatedJobId: null,
+        ip: input.ip,
+        userAgent: input.userAgent,
+        createdAt: now,
+      });
 
-  return { ok: true, userId, companyId };
+      await tx.insert(activityLog).values({
+        actorUserId: userId,
+        entityType: 'company',
+        entityId: companyId,
+        action: 'self_serve_signup',
+        meta: { email },
+        createdAt: now,
+      });
+
+      return { ok: true as const, userId, companyId };
+    });
+  } catch (err) {
+    // The racing twin of the pre-check: a concurrent signup for this address
+    // committed first. Caught OUTSIDE the callback, so the transaction has
+    // already rolled back and the loser leaves nothing behind, and answered
+    // exactly as the pre-check answers — the result does not depend on which
+    // millisecond the second request arrived in. Narrowed to the email index:
+    // a slug collision is a different failure and must not read as "you
+    // already have an account".
+    if (isDuplicateKeyOn(err, 'users_email_unique')) return { ok: false, reason: 'email_taken' };
+    throw err;
+  }
 }
 
 /** Idempotent: a second redemption of a superseded link changes nothing. */

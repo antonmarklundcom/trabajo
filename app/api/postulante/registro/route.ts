@@ -2,7 +2,11 @@
 // (PLAN-PHASE2.md §4.1). Blocking: no account is created without it.
 import { clientIp } from '@/lib/client-ip';
 import { z } from 'zod';
-import { hashPassword, createCandidateSession } from '@/lib/auth-candidate';
+import {
+  hashPassword,
+  createCandidateSession,
+  NEW_ACCOUNT_SESSION_VERSION,
+} from '@/lib/auth-candidate';
 import { candidateAccountsEnabled } from '@/lib/flags';
 import { registerCandidate } from '@/lib/db/candidate-profile';
 import {
@@ -59,6 +63,6 @@ export async function POST(request: Request) {
   );
   await sendEmail(emailVerificationMessage(email, name, token));
 
-  await createCandidateSession(result.candidateId);
+  await createCandidateSession(result.candidateId, NEW_ACCOUNT_SESSION_VERSION);
   return Response.json({ ok: true, redirectTo: '/postulante/perfil' }, { status: 201 });
 }

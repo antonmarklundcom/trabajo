@@ -9,7 +9,7 @@
 import { z } from 'zod';
 
 import { clientIp, clientIpOrUnknown } from '@/lib/client-ip';
-import { createSession, hashPassword } from '@/lib/auth';
+import { createSession, hashPassword, NEW_ACCOUNT_SESSION_VERSION } from '@/lib/auth';
 import { recordAuthEvent } from '@/lib/db/auth-events';
 import { employerDashboardEnabled, employerSignupEnabled } from '@/lib/flags';
 import { registerEmployer } from '@/lib/db/employer-signup';
@@ -86,6 +86,6 @@ export async function POST(request: Request) {
     ip: trustedIp,
   });
 
-  await createSession(result.userId);
+  await createSession(result.userId, NEW_ACCOUNT_SESSION_VERSION);
   return Response.json({ ok: true, redirectTo: '/empresa/perfil' }, { status: 201 });
 }

@@ -252,3 +252,13 @@ jobs:
       # an event object — no DSN and no network.
       - name: Verify Sentry event scrubbing
         run: npm run sentry:verify
+
+      # Three account-safety properties nothing in a browser shows: a password
+      # write ends every existing session (both lookups compare
+      # session_version, and every hash UPDATE bumps it in the same SET); both
+      # registrations are one transaction with the duplicate-email race mapped
+      # to the pre-check's answer; and GA never receives a token-bearing URL
+      # (no page_view from account areas, allowlisted query parameters only).
+      # Source-reading plus two pure modules — no database, no env.
+      - name: Verify sessions, atomic signup and analytics URLs
+        run: npm run accounts:verify
