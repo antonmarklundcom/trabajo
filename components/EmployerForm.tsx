@@ -66,6 +66,7 @@ export default function EmployerForm({ categories, cities }: Props) {
     description: '',
   });
   const [honeypot, setHoneypot] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   type FieldKey = keyof typeof values;
 
@@ -83,39 +84,29 @@ export default function EmployerForm({ categories, cities }: Props) {
     }
 
     setState('submitting');
+    setErrorMessage('');
     try {
-      const res = await fetch('/api/v1/leads', {
+      // One request: /api/publicar writes the pending job first and fans the
+      // lead out to the CRM/team inbox after it responds, so a success here
+      // means the submission exists somewhere the team will see it.
+      const res = await fetch('/api/publicar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          type: 'employer_post',
           ...values,
           sourcePage: typeof window !== 'undefined' ? window.location.pathname : undefined,
           [HONEYPOT_FIELD]: honeypot,
         }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        captureError('publicar:submit-client', new Error(`HTTP ${res.status}`));
+        setErrorMessage(typeof data?.error === 'string' ? data.error : '');
+        setState('error');
+        return;
+      }
       track('lead_submit', { lead_type: 'employer', channel: 'form' });
       setState('success');
-
-      // Additive: creates the pending job admin approves later. The WhatsApp
-      // sales conversation above is the primary channel, so this never blocks
-      // or fails the employer's submission — a non-OK response is swallowed
-      // for the user but reported so a silent drop doesn't stay silent.
-      fetch('/api/publicar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...values,
-          [HONEYPOT_FIELD]: honeypot,
-        }),
-      })
-        .then((res) => {
-          if (!res.ok) {
-            captureError('publicar:pending-job-create-client', new Error(`HTTP ${res.status}`));
-          }
-        })
-        .catch((err) => captureError('publicar:pending-job-create-client', err));
     } catch {
       setState('error');
     }
@@ -261,8 +252,8 @@ export default function EmployerForm({ categories, cities }: Props) {
       </FormField>
 
       {state === 'error' && (
-        <p className="text-sm text-error bg-error-tint rounded-[10px] px-4 py-3">
-          Hubo un error al enviar. Por favor intentá de nuevo.
+        <p role="alert" className="text-sm text-error bg-error-tint rounded-[10px] px-4 py-3">
+          {errorMessage || 'Hubo un error al enviar. Por favor intentá de nuevo.'}
         </p>
       )}
 

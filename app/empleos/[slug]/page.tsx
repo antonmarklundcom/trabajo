@@ -22,6 +22,8 @@ import { candidateAccountsEnabled } from '@/lib/flags';
 import JobCard from '@/components/JobCard';
 import JobViewBeacon from '@/components/JobViewBeacon';
 import type { ClosedJob, Job } from '@/lib/types';
+import JsonLd from '@/components/JsonLd';
+import { isHttpUrl } from '@/lib/company-website';
 
 // Cached reads are invalidated on demand by every admin mutation
 // (lib/cache.ts), so this timer is only the safety net for job expiry and
@@ -145,7 +147,9 @@ export default async function JobDetailPage({ params }: { params: Params }) {
       '@type': 'Organization',
       name: job.company,
       ...(job.companyLogo ? { logo: `${siteUrl}${job.companyLogo}` } : {}),
-      ...(job.companyWebsite ? { sameAs: job.companyWebsite } : {}),
+      // Rows written before companyWebsiteSchema existed are not re-validated
+      // in the DB, so the read checks too.
+      ...(job.companyWebsite && isHttpUrl(job.companyWebsite) ? { sameAs: job.companyWebsite } : {}),
     },
     jobLocation: {
       '@type': 'Place',
@@ -205,14 +209,8 @@ export default async function JobDetailPage({ params }: { params: Params }) {
           tombstone above returns before this. */}
       <JobViewBeacon slug={job.slug} />
       {/* JSON-LD — only on the detail page */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
-      />
+      <JsonLd data={jsonLd} />
+      <JsonLd data={breadcrumbJsonLd} />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumb */}

@@ -21,6 +21,8 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { listingIndexRule, canonicalFor, siteUrl } from '../lib/seo';
+import { serializeJsonLd } from '../lib/json-ld';
+import { isHttpUrl } from '../lib/company-website';
 
 const ROOT = process.cwd();
 
@@ -290,6 +292,60 @@ for (const file of publicPages) {
     'A paid promotion ending is not a job posting expiring. That conflation is the Search ' +
       'Console error this rule exists to keep fixed.',
   );
+}
+
+// ---------------------------------------------------------------------------
+// 7. JSON-LD cannot close its own <script>.
+//
+//    Company names, websites and job titles typed by outside parties reach
+//    JSON-LD. JSON.stringify leaves `</script>` intact, and the HTML parser
+//    acts on it before any JSON parser runs — so the serialiser is evaluated
+//    against hostile input here, and every page is read to prove it uses it.
+// ---------------------------------------------------------------------------
+
+{
+  const hostile = {
+    name: '</script><script>alert(1)</script>',
+    sameAs: 'https://x.test/?a=<b>&c=\u2028',
+    nested: [{ title: '<!-- --><SCRIPT>' }],
+  };
+  const out = serializeJsonLd(hostile);
+  check('serializeJsonLd output contains no "<"', !out.includes('<'), out);
+  check('serializeJsonLd output contains no ">"', !out.includes('>'), out);
+  check('serializeJsonLd output contains no raw U+2028', !out.includes('\u2028'), out);
+  check(
+    'serializeJsonLd round-trips to the identical value',
+    JSON.stringify(JSON.parse(out)) === JSON.stringify(hostile),
+    out,
+  );
+
+  const inlined = [...walk('app'), ...walk('components')].filter(
+    (file) =>
+      file.endsWith('.tsx') &&
+      /dangerouslySetInnerHTML=\{\{\s*__html:\s*JSON\.stringify/.test(code(read(file))),
+  );
+  check(
+    'no page or component inlines JSON.stringify into dangerouslySetInnerHTML',
+    inlined.length === 0,
+    `Use <JsonLd data={…} /> (components/JsonLd.tsx) instead: ${inlined.join(', ')}`,
+  );
+
+  check('isHttpUrl accepts an https URL', isHttpUrl('https://empresa.com.py'));
+  check('isHttpUrl rejects javascript:', !isHttpUrl('javascript:alert(1)'));
+  check('isHttpUrl rejects markup', !isHttpUrl('</script><script>alert(1)</script>'));
+  check('isHttpUrl rejects data:', !isHttpUrl('data:text/html,<script>alert(1)</script>'));
+
+  const websiteWriters = walk('app/api').filter(
+    (file) => file.endsWith('route.ts') && /\bwebsite\s*:/.test(code(read(file))),
+  );
+  check('the company-website writers are found', websiteWriters.length >= 3, websiteWriters.join(', '));
+  for (const file of websiteWriters) {
+    check(
+      `${file} validates website with companyWebsiteSchema`,
+      /website:\s*companyWebsiteSchema/.test(code(read(file))),
+      'A free-text website ends up in hiringOrganization.sameAs on every job of that company.',
+    );
+  }
 }
 
 if (failures > 0) {

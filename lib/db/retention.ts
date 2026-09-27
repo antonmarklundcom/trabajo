@@ -207,6 +207,26 @@ export async function findApplicationsToRedact(cutoff: Date): Promise<DueApplica
 }
 
 /**
+ * Applications whose job row no longer exists, not yet redacted.
+ *
+ * findApplicationsToRedact() reaches applications through an inner join to
+ * jobs, so it can never see these: before deleteJob() started redacting on
+ * delete, a hard-deleted job left its applicants' names, phones and messages
+ * outside every retention clock, permanently. A deleted job has no close date
+ * to count from and no one left to review its applications, so they are due
+ * now. Returns only ids — there is no date to report that would be true.
+ */
+export async function findApplicationsOfDeletedJobs(): Promise<{ id: number; jobId: number }[]> {
+  const db = await getDb();
+  return db
+    .select({ id: applications.id, jobId: applications.jobId })
+    .from(applications)
+    .leftJoin(jobs, eq(applications.jobId, jobs.id))
+    .where(and(isNull(applications.redactedAt), isNull(jobs.id)))
+    .orderBy(asc(applications.id));
+}
+
+/**
  * NULLs the personal columns of the given applications and stamps
  * `redacted_at`. `candidate_id` is KEPT, unlike §4.4: the candidate still has
  * an account and must keep seeing this application, marked redacted, in their
