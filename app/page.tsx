@@ -6,7 +6,6 @@ import { WHATSAPP_HOURS_COPY, siteWhatsAppNumber } from '@/lib/whatsapp';
 import SearchHero from '@/components/SearchHero';
 import CategoryGrid from '@/components/CategoryGrid';
 import JobCard from '@/components/JobCard';
-import WhatsAppCta from '@/components/WhatsAppCta';
 import FloatingWhatsApp from '@/components/FloatingWhatsApp';
 import Link from 'next/link';
 import { NandutiMotif } from '@/components/Logo';
@@ -196,17 +195,11 @@ export default async function HomePage() {
             </p>
           )}
           <div className="mt-7 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <WhatsAppCta
-              intent="publicar"
-              promoActive={promoActive}
-              sourcePage="/"
-              className="sm:w-auto sm:px-8"
-            />
             <Link
               href="/publicar"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-[12px] border-2 border-white/30 text-white font-semibold text-base hover:bg-white/10 transition-colors"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-[12px] bg-[#E6B25A] text-ink font-bold text-base hover:bg-[#d8a548] transition-colors"
             >
-              Publicar con el formulario
+              Publicá tu empleo
             </Link>
           </div>
           <p className="mt-4">

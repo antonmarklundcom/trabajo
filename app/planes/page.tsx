@@ -218,7 +218,7 @@ export default async function PlanesPage() {
             },
             {
               q: '¿Quién publica los empleos?',
-              a: `Escribinos por WhatsApp con el puesto, la ciudad y un contacto — es la vía más rápida. También podés completar el formulario. En ambos casos, nuestro equipo revisa y publica el aviso una vez aprobado. ${WHATSAPP_HOURS_COPY}`,
+              a: `Completá el formulario de «Publicar empleo» con el puesto, la ciudad y un número de contacto. Nuestro equipo revisa el aviso y lo publica una vez aprobado. ${WHATSAPP_HOURS_COPY}`,
             },
             {
               q: '¿Los candidatos pagan algo?',

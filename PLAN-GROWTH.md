@@ -1013,7 +1013,7 @@ sessions read this table, not the defaults that used to sit here.
 | # | Decision |
 |---|---|
 | **D1** | **No promise of applicant volume or speed anywhere on the site.** The site does not yet have the traffic to keep "postulantes en minutos", so the copy describes what the product does, never how fast candidates arrive. The team's own response time is stated once: `Te respondemos el mismo día hábil (lunes a viernes, 8 a 18).` (`WHATSAPP_HOURS_COPY`). |
-| **D2** | Floating WhatsApp button on employer pages only: `/`, `/publicar`, `/planes`, `/contacto`, labelled `¿Publicás un empleo?`. Never on `/empleos*`, `/trabajo*`, `/blog*`. |
+| **D2** | Floating WhatsApp button on employer pages only: `/`, `/planes`, `/contacto`, labelled `¿Consultas? Escribinos` (`intent="contacto"`). Never on `/empleos*`, `/trabajo*`, `/blog*`. *Superseded 2026-09-27 (§14): originally also `/publicar` and labelled `¿Publicás un empleo?`.* |
 | **D3** | Gold: `#E6B25A` is the button gold (`--color-gold`), `#B0812C` becomes `--color-gold-deep` for text and badges. |
 | **D4** | Blog categories: add `entrevistas`, `derechos-laborales`, `guias-por-sector`, `para-empresas`; relabel `analisis-laboral` → "Mercado laboral" (value unchanged). Header label `Consejos`, footer label `Blog`. |
 | **D5** | Plan Empresa CTA → WhatsApp (`intent="empresa"`). |
@@ -1289,7 +1289,7 @@ has not started.
 
 | Piece | Where | Notes |
 |---|---|---|
-| `lib/whatsapp.ts` — `waLink()`, `WHATSAPP_HOURS_COPY`, per-intent messages with `promoActive` variants | `lib/whatsapp.ts` | The only file that may write `https://wa.me/`; `whatsapp:verify` fails the build otherwise. `<FloatingWhatsApp>` is mounted per-page on `/`, `/publicar`, `/planes`, `/contacto` only — never in `app/layout.tsx`. |
+| `lib/whatsapp.ts` — `waLink()`, `WHATSAPP_HOURS_COPY`, per-intent messages with `promoActive` variants | `lib/whatsapp.ts` | The only file that may write `https://wa.me/`; `whatsapp:verify` fails the build otherwise. `<FloatingWhatsApp>` is mounted per-page on `/`, `/planes`, `/contacto` only — never in `app/layout.tsx` (and, since §14, not on `/publicar`). |
 | `lib/analytics.ts` `track()` overloads | `lib/analytics.ts` | `whatsapp_click` and `lead_submit` are the only two event names a call site can type-check against; `whatsapp:verify` asserts no call routes around it with a cast. |
 | `lib/honeypot.ts` — `HONEYPOT_FIELD`, `isHoneypotFilled()` | `lib/honeypot.ts` | Split out of `lib/leads.ts` in S6 specifically so `HoneypotField.tsx` ('use client') does not drag `lib/leads.ts`'s module-scope zod schemas into the browser. `lib/leads.ts` re-exports both for the two server-side API routes. |
 | `lib/form-validation.ts` — `validateEmail()`, `validateMinLength()` | `lib/form-validation.ts` | The hand validator `LeadForm.tsx`/`EmployerForm.tsx`/`ContactForm.tsx` use instead of zod; mirrors the messages in `lib/leads.ts`'s schemas, which stay the server-side authority. Removing zod from these three forms' bundle needed this split, not just deleting their `import { z }` line — see S6's PR body for the measured delta (~64KB gzipped per page). |
@@ -1332,3 +1332,34 @@ has not started.
   predicate, job status, or `featured_until`** beyond what P2's own
   section specified — no rule in §1 or the session prompt required
   stopping to ask.
+
+## 14. Owner decision 2026-09-27: no "publicá por WhatsApp" path
+
+The WhatsApp publish shortcut that W2–W4 built is removed. A `wa.me` chat
+creates no listing, so every one of those leads meant the team retyping the
+whole job in `/admin/empleos` — manual data entry that does not scale. Every
+listing now comes through a structured path that writes a `pending` row for
+`/admin` approval: the `/publicar` form (`/api/publicar`) or, where the flags
+are on, the self-serve employer dashboard.
+
+What changed, overriding the W2/W3/W4 specs above:
+
+- `lib/whatsapp.ts`: the `publicar` intent (and its promo message variant) is
+  gone from `EMPLOYER_INTENTS`. Do not re-add it.
+- `/publicar`: one card, the form. No WhatsApp card, no `FloatingWhatsApp`;
+  metadata no longer mentions WhatsApp. Lead copy says the team reviews every
+  listing.
+- Form success screen: no "¿Querés acelerarlo? Escribinos ahora" button.
+- Homepage band: the gold `Publicá tu empleo` → `/publicar` is the only CTA.
+- Mobile menu: `Publicá tu empleo` only.
+- `/contacto`: the `Quiero publicar un empleo` WhatsApp pill becomes a link to
+  `/publicar`; the general `intent="contacto"` button stays.
+- `FloatingWhatsApp` (`/`, `/planes`, `/contacto`): `intent="contacto"`,
+  labelled `¿Consultas? Escribinos` — a general-questions chat (§7 D2 updated).
+- `/planes` FAQ "¿Cómo publico?" points at the form only.
+
+Unchanged: `destacado`, `empresa`, `contacto`, `renovar`, `renovar_aviso`
+intents; seeker apply buttons; `teamToEmployerHref()`; the two analytics event
+names. Historical `whatsapp_click` rows with `intent=publicar` stop appearing
+from this date — expected, not a tracking bug.
+

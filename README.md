@@ -278,7 +278,7 @@ primario).
 /trabajo/[categoria]/[ciudad] Landing SEO por categoría + ciudad
 /blog                         Listado de artículos (desde blog_posts)
 /blog/[slug]                  Artículo + JSON-LD BlogPosting; slugs retirados redirigen 301
-/publicar                     Formulario lead para empleadores
+/publicar                     Formulario para empleadores — el único camino para publicar (sin atajo por WhatsApp)
 /planes                       Planes y precios
 /contacto                     Contacto
 /sitemap.xml                  Generado desde datos

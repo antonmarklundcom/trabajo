@@ -1,8 +1,8 @@
 'use client';
 
 // The shared employer WhatsApp CTA (PLAN-GROWTH.md §4 W1). Every WhatsApp
-// entry point where employer intent shows — homepage band, /publicar,
-// /planes, /contacto, the employer dashboard — renders one of these instead
+// entry point where employer intent shows — /planes, /contacto, the footer,
+// the floating bubble, the employer dashboard — renders one of these instead
 // of hand-rolling an <a href="https://wa.me/...">, so the color, the
 // tracked click, and the message are the same one implementation everywhere.
 //
@@ -36,7 +36,6 @@ type Props = {
 };
 
 const DEFAULT_LABEL: Record<EmployerIntent, string> = {
-  publicar: 'Publicá por WhatsApp',
   destacado: 'Consultá precios por WhatsApp',
   empresa: 'Hablemos',
   contacto: 'Escribinos por WhatsApp',
