@@ -38,6 +38,32 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # A throwaway MySQL for `npm run db:test` (the step before Build). A
+    # service container is part of THIS job — not a second job, not a second
+    # runner — so the only thing it bills is its own start-up: the image pull
+    # and InnoDB initialisation, roughly 20-40 s of wall clock before the first
+    # step, measured against a job that took ~1.5 min before it. The data
+    # directory is a tmpfs because nothing here needs to survive the job and
+    # RAM initialises faster than the runner's disk. The health check pings over
+    # TCP (-h 127.0.0.1) on purpose: the image's init phase runs a temporary
+    # server with networking off, which a socket ping would report as ready.
+    # Services take no command-line flags, so the server runs with MySQL 8's
+    # defaults, including STRICT_TRANS_TABLES — the mode in which an over-long
+    # value fails an INSERT instead of being truncated (PR #125's bug).
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: test
+          MYSQL_DATABASE: trabajo_test
+        ports:
+          - 3306:3306
+        options: >-
+          --tmpfs /var/lib/mysql
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -ptest"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 45
     steps:
       - uses: actions/checkout@v4
 
@@ -65,6 +91,22 @@ jobs:
       # production rather than on the PR that introduced it.
       - name: Typecheck
         run: npm run typecheck
+
+      # The real lib/db/* functions against the service above: public
+      # visibility, createApplication's refusals and column fitting, deleteJob's
+      # redaction and the orphan sweep, employer scoping (verify-scoping.ts's
+      # assertions), and acceptInvitation's rollback — each a bug class the
+      # source-reading steps below cannot see. Placed BEFORE the build rather
+      # than with the other verify steps after it: on a green run the order
+      # costs nothing either way (~5 s, mostly tsx start-up), and on a red one
+      # it fails before the build's minute is spent. The script refuses any
+      # non-local DATABASE_URL and needs the explicit flag, so it can never be
+      # pointed at production by a stray env var.
+      - name: DB tests (throwaway MySQL)
+        run: npm run db:test
+        env:
+          DATABASE_URL: mysql://root:test@127.0.0.1:3306/trabajo_test
+          DB_TEST_ALLOW_DESTRUCTIVE: '1'
 
       - name: Build
         run: npm run build
@@ -152,8 +194,8 @@ jobs:
 
       # The one rule self-serve employer signup was not allowed to relax: an
       # employer-created posting reaches the public site only via /admin
-      # approval. db:verify-scoping asserts the runtime half but needs a live
-      # database, so it never runs here; this is the source-reading half, and
+      # approval. db:verify-scoping asserts the runtime half against a live
+      # database (run above, inside db:test); this is the source-reading half, and
       # the failure it guards is silent — a posting that skipped moderation
       # renders exactly like one that passed it.
       - name: Verify employer moderation gate
