@@ -5,7 +5,7 @@
 // after request.formData() has already buffered everything.
 import { authErrorResponse, requireApiCompanyScope } from '@/lib/auth';
 import { employerDashboardEnabled } from '@/lib/flags';
-import { uploadCompanyLogo, removeCompanyLogoObject } from '@/lib/company-logo';
+import { uploadCompanyLogo, removeCompanyLogo } from '@/lib/company-logo';
 import { getEmployerCompany, updateEmployerCompany } from '@/lib/db/employer';
 import { invalidatePublicContent } from '@/lib/cache';
 import { captureError } from '@/lib/observability';
@@ -20,12 +20,12 @@ export async function POST(request: Request) {
     const company = await getEmployerCompany(companyId);
     if (!company) return NOT_FOUND();
 
-    const result = await uploadCompanyLogo(request, company.logoKey);
+    const result = await uploadCompanyLogo(request, company.logoKey, async (key) => {
+      await updateEmployerCompany(companyId, user.id, { logoKey: key });
+    });
     if (!result.ok) {
       return Response.json({ error: result.error }, { status: result.status });
     }
-
-    await updateEmployerCompany(companyId, user.id, { logoKey: result.key });
     invalidatePublicContent();
 
     return Response.json({ key: result.key, url: result.url }, { status: 201 });
@@ -46,8 +46,9 @@ export async function DELETE() {
     if (!company) return NOT_FOUND();
 
     if (company.logoKey) {
-      await removeCompanyLogoObject(company.logoKey);
-      await updateEmployerCompany(companyId, user.id, { logoKey: null });
+      await removeCompanyLogo(company.logoKey, async () => {
+        await updateEmployerCompany(companyId, user.id, { logoKey: null });
+      });
       invalidatePublicContent();
     }
 
