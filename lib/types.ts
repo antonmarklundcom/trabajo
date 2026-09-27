@@ -17,6 +17,13 @@ export type Job = {
   slug: string;
   title: string;
   company: string;
+  /**
+   * `companies.slug` — the address of the company's public page,
+   * `/empresas/{companySlug}` (PLAN-GROWTH.md §4 D5). A live SEO URL like
+   * every other slug. The seed file has no such column, so lib/data.ts derives
+   * it from the name in exactly one place (`seedCompanySlug`).
+   */
+  companySlug: string;
   companyLogo: string | null;
   categorySlug: string;
   citySlug: string;
@@ -67,6 +74,26 @@ export type ClosedJob = {
   closedAt: string | null;
 };
 
+/**
+ * A company as the public site shows it (PLAN-GROWTH.md §4 D5,
+ * `/empresas/[slug]`). Public fields ONLY: no WhatsApp, email, phone or any
+ * other contact detail beyond what a job page already shows — which is none of
+ * the company's own. The type is the allowlist; a field added here is a field
+ * published.
+ */
+export type Company = {
+  slug: string;
+  name: string;
+  /** Resolved public URL, same precedence as a job's `companyLogo`. */
+  logo: string | null;
+  /** Plain text as the employer typed it. Rendered escaped, never as HTML. */
+  description: string | null;
+  /** Only ever an http(s) URL — lib/data.ts drops anything `isHttpUrl` rejects. */
+  website: string | null;
+  /** Jobs that pass the visibility predicate right now. */
+  jobCount: number;
+};
+
 export type Category = {
   slug: string;
   name: string;
@@ -95,6 +122,12 @@ export type JobFilters = {
    */
   orden?: 'recientes' | 'salario' | 'destacados';
   q?: string;
+  /**
+   * A company slug (`companies.slug`): only that company's public jobs. Set by
+   * `/empresas/[slug]` after `getCompany()` has confirmed the company exists;
+   * never read from a query string.
+   */
+  empresa?: string;
   page?: number;
 };
 
