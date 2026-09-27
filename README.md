@@ -344,6 +344,12 @@ npm install
 npm run dev
 ```
 
+Tests contra una base de datos real (`npm run db:test`): corren en CI contra un
+MySQL descartable y, en local, contra un contenedor Docker de un solo uso. Se
+niegan a arrancar si `DATABASE_URL` no apunta a `localhost`/`127.0.0.1` o si
+falta `DB_TEST_ALLOW_DESTRUCTIVE=1` — nunca tocan producción. El comando
+`docker run` exacto está en `DEPLOY.md` («`npm run db:test`»).
+
 ## Deploy (Hostinger Node.js Web App)
 
 1. hPanel → Websites → Add Website → Node.js Apps → Import Git Repository

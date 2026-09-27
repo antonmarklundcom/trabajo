@@ -19,7 +19,13 @@
 // Destructive: it writes fixtures and deletes them again, so it refuses to run
 // against a non-local database unless --force is passed. Do not point it at
 // production.
-import { and, eq, inArray, like } from 'drizzle-orm';
+//
+// The checks themselves are exported as runScopingChecks() so that
+// scripts/db-test.ts (`npm run db:test`, which CI runs against a throwaway
+// MySQL service) runs exactly these assertions rather than a drifting copy.
+// Run directly, this file keeps its own non-local guard; imported, the caller
+// owns the guard.
+import { and, eq, inArray, like, or } from 'drizzle-orm';
 import { requireDatabaseUrl, describeTarget } from './require-db-url';
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
@@ -44,18 +50,14 @@ function isLocal(url: string): boolean {
   }
 }
 
-async function main() {
-  const url = requireDatabaseUrl();
-  console.log(`Target: ${describeTarget(url)}\n`);
-
-  if (!isLocal(url) && !process.argv.includes('--force')) {
-    console.error(
-      'Refusing to write fixtures to a non-local database.\n' +
-        'This script creates and deletes rows. Pass --force only if you really mean it.',
-    );
-    process.exit(1);
-  }
-
+/**
+ * Writes the two-company fixtures, runs every scoping assertion, removes the
+ * fixtures again, and returns the number of FAILED assertions. Needs at least
+ * one category and one city in the database. The caller is responsible for
+ * having checked that DATABASE_URL is a database it may write to.
+ */
+export async function runScopingChecks(): Promise<number> {
+  failures = 0;
   const { db } = await import('../lib/db');
   const schema = await import('../lib/db/schema');
   const employer = await import('../lib/db/employer');
@@ -67,10 +69,23 @@ async function main() {
   // is prefixed so cleanup can find it even if a previous run died halfway.
   // -------------------------------------------------------------------------
   async function cleanup() {
+    // By company as well as by slug: the job createEmployerJob() makes below
+    // gets a slug minted from its title by slugify(), which drops the
+    // underscores of the prefix, so a slug match alone left it behind.
+    const ownCompanyIds = (
+      await db
+        .select({ id: schema.companies.id })
+        .from(schema.companies)
+        .where(like(schema.companies.slug, `${FIXTURE_PREFIX}%`))
+    ).map((c) => c.id);
     const ownJobs = await db
       .select({ id: schema.jobs.id })
       .from(schema.jobs)
-      .where(like(schema.jobs.slug, `${FIXTURE_PREFIX}%`));
+      .where(
+        ownCompanyIds.length > 0
+          ? or(like(schema.jobs.slug, `${FIXTURE_PREFIX}%`), inArray(schema.jobs.companyId, ownCompanyIds))
+          : like(schema.jobs.slug, `${FIXTURE_PREFIX}%`),
+      );
     if (ownJobs.length > 0) {
       await db.delete(schema.applications).where(
         inArray(
@@ -93,8 +108,7 @@ async function main() {
   const [category] = await db.select({ id: schema.categories.id }).from(schema.categories).limit(1);
   const [city] = await db.select({ id: schema.cities.id }).from(schema.cities).limit(1);
   if (!category || !city) {
-    console.error('No categories/cities in the database. Run `npm run db:seed` first.');
-    process.exit(1);
+    throw new Error('No categories/cities in the database. Run `npm run db:seed` first.');
   }
 
   async function makeCompany(label: string) {
@@ -394,15 +408,34 @@ async function main() {
     console.log('\nFixtures removed.');
   }
 
-  if (failures > 0) {
-    console.error(`\n${failures} assertion(s) FAILED.`);
+  return failures;
+}
+
+async function main() {
+  const url = requireDatabaseUrl();
+  console.log(`Target: ${describeTarget(url)}\n`);
+
+  if (!isLocal(url) && !process.argv.includes('--force')) {
+    console.error(
+      'Refusing to write fixtures to a non-local database.\n' +
+        'This script creates and deletes rows. Pass --force only if you really mean it.',
+    );
+    process.exit(1);
+  }
+
+  const failed = await runScopingChecks();
+  if (failed > 0) {
+    console.error(`\n${failed} assertion(s) FAILED.`);
     process.exit(1);
   }
   console.log('\nAll scoping assertions passed.');
   process.exit(0);
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+// Only when run as `npm run db:verify-scoping`, not when db-test.ts imports it.
+if (process.argv[1]?.replace(/\\/g, '/').endsWith('scripts/verify-scoping.ts')) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
