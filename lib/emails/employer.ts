@@ -322,6 +322,12 @@ export function employerWeeklyDigestMessage(
       'Recibís este resumen porque tu empresa lo tiene activado. Podés desactivarlo',
       'en "Perfil de la empresa":',
       emailUrl('/empresa/perfil'),
+      '',
+      '— trabajo.com.py',
+    ].join('\n'),
+  };
+}
+
 /**
  * "¿Tu aviso sigue abierto?" — sent by scripts/listing-confirm.ts a few days
  * before a listing's `expires_at` (lib/listing-confirm.ts).
