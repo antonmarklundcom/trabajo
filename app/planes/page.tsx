@@ -9,6 +9,7 @@ import {
   PLAN_PERIOD,
   activePromo,
   formatGs,
+  INVOICE_NOTE,
   formatPlanPrice,
   formatPrice,
   formatPromoEnd,
@@ -177,7 +178,7 @@ export default async function PlanesPage() {
     },
     {
       q: '¿Cómo pago Destacado o Empresa?',
-      a: 'Escribinos por WhatsApp y te enviamos los datos para pagar por transferencia. El pago compra visibilidad, no la aprobación: todo aviso pasa por la revisión del equipo.',
+      a: `Escribinos por WhatsApp y te enviamos los datos para pagar por transferencia. ${INVOICE_NOTE} El pago compra visibilidad, no la aprobación: todo aviso pasa por la revisión del equipo.`,
     },
     {
       q: '¿Qué incluye la publicidad del plan Empresa?',
@@ -199,8 +200,8 @@ export default async function PlanesPage() {
       <div className="text-center mb-10">
         <h1 className="text-3xl sm:text-4xl font-bold text-ink">Planes para empleadores</h1>
         <p className="mt-4 text-base text-ink-secondary max-w-xl mx-auto">
-          Precios claros en guaraníes, sin contratos. Nuestro equipo revisa cada aviso antes de
-          publicarlo.
+          Precios claros en guaraníes, sin contratos. {INVOICE_NOTE} Nuestro equipo revisa cada
+          aviso antes de publicarlo.
         </p>
       </div>
 

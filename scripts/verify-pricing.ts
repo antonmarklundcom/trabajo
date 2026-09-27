@@ -159,6 +159,7 @@ const PRICE_SURFACES = [
   'app/planes/page.tsx',
   'app/publicar/page.tsx',
   'app/publicar-gratis/page.tsx',
+  'app/buscar-personal/page.tsx',
   'app/layout.tsx',
   'components/PromoTopBar.tsx',
   'components/EmployerBenefits.tsx',
@@ -196,7 +197,12 @@ check(
   'PromoTopBar re-checks the end date in the browser (static pages bake the layout)',
   /Date\.now\(\)\s*>=\s*new Date\(endsAt\)/.test(topBar),
 );
-const valueCopy = ['app/publicar-gratis/page.tsx', 'components/EmployerBenefits.tsx', 'app/planes/page.tsx']
+const valueCopy = [
+  'app/publicar-gratis/page.tsx',
+  'app/buscar-personal/page.tsx',
+  'components/EmployerBenefits.tsx',
+  'app/planes/page.tsx',
+]
   .filter((f) => /más (postulantes|candidatos)|miles de|en minutos|garantiz/i.test(code(read(f))));
 check(
   'the value copy promises no candidate volume or speed (PLAN-GROWTH.md §7 D1)',

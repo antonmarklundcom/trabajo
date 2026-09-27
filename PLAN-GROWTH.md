@@ -1425,3 +1425,23 @@ instead of straight to the form:
 Next, once there is traffic worth quoting: real numbers ("X personas buscaron
 empleo este mes") from `/admin/estadisticas`, never invented ones.
 
+## 17. SEO from the 2026-09-27 Keyword Planner pull
+
+Data and the keyword → page map live in `docs/seo/KEYWORDS.md` and
+`docs/seo/keywords-2026-09-27.csv`. Shipped with it:
+
+- `/` title "Empleos PY — Bolsa de trabajo en Paraguay" (empleos py 14.800,
+  bolsa de trabajo paraguay 8.100) and a "Bolsa de trabajo en Paraguay" text
+  block linking every city landing as "Bolsa de trabajo en {ciudad}".
+- `/trabajo-en/[ciudad]`: title and H1 "Bolsa de trabajo en {ciudad}"
+  (bolsa de trabajo en asuncion 1.300).
+- `/empleos`: title "Ofertas laborales en Paraguay — todos los empleos".
+- `/buscar-personal`: new evergreen employer page (busco empleados, buscar
+  personal, se necesita personal, reclutamiento/selección de personal), in the
+  sitemap and the footer. Honest about not being a selection agency (§4 of
+  /terminos).
+- `/publicar-gratis` stays `noindex`; its title carries the "publicar empleos
+  gratis" wording for Google Ads relevance only.
+- Invoices: `INVOICE_NOTE` in `lib/plans.ts`, shown on /planes,
+  /publicar-gratis and /buscar-personal.
+

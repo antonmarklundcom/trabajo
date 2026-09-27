@@ -58,6 +58,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: siteUrl, lastModified: new Date(), changeFrequency: 'daily', priority: 1.0 },
     { url: `${siteUrl}/empleos`, lastModified: new Date(), changeFrequency: 'hourly', priority: 0.9 },
     { url: `${siteUrl}/publicar`, changeFrequency: 'monthly', priority: 0.7 },
+    { url: `${siteUrl}/buscar-personal`, changeFrequency: 'monthly', priority: 0.7 },
     { url: `${siteUrl}/planes`, changeFrequency: 'monthly', priority: 0.6 },
     { url: `${siteUrl}/contacto`, changeFrequency: 'monthly', priority: 0.5 },
     { url: `${siteUrl}/blog`, changeFrequency: 'weekly', priority: 0.6 },

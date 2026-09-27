@@ -69,6 +69,15 @@ export function formatPlanPrice(key: PlanKey, amount: number): string {
   return `${PLAN_PRICE_PREFIX[key]}${formatGs(amount)}`;
 }
 
+/**
+ * The invoice line, stated once so /planes, /publicar-gratis and
+ * /buscar-personal cannot word it differently. Formal companies need a
+ * factura to book the expense; saying so up front is a reason to choose us
+ * over an informal page. Owner decision 2026-09-27: every payment is
+ * invoiced — if that ever stops being true, change it here.
+ */
+export const INVOICE_NOTE = 'Emitimos factura por cada pago.';
+
 /** How many days the price covers, for the "menos de Gs. X por día" line. */
 export const PLAN_DAYS: Record<PlanKey, number> = {
   basico: 30,

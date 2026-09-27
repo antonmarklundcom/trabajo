@@ -6,7 +6,7 @@ import { WHATSAPP_HOURS_COPY } from '@/lib/whatsapp';
 import { getCategories, getCities } from '@/lib/data';
 import { getPlanPricing } from '@/lib/pricing';
 import { employerDashboardEnabled, employerSignupEnabled } from '@/lib/flags';
-import { activePromo, formatGs, formatPromoEnd, promoDaysLeft } from '@/lib/plans';
+import { INVOICE_NOTE, activePromo, formatGs, formatPromoEnd, promoDaysLeft } from '@/lib/plans';
 import EmployerForm from '@/components/EmployerForm';
 import FloatingWhatsApp from '@/components/FloatingWhatsApp';
 import { EmployerBenefits, PostVsListing } from '@/components/EmployerBenefits';
@@ -24,7 +24,9 @@ import { EmployerBenefits, PostVsListing } from '@/components/EmployerBenefits';
 export const revalidate = 300;
 
 export const metadata: Metadata = {
-  title: 'Publicá tu empleo gratis — promoción por tiempo limitado',
+  // "publicar empleos gratis" / "publicar trabajos gratis" wording, for Google
+  // Ads relevance (docs/seo/KEYWORDS.md) — the page itself stays noindex.
+  title: 'Publicar empleos gratis en Paraguay — promoción por tiempo limitado',
   description:
     'Por tiempo limitado, publicar tu aviso de empleo en trabajo.com.py es gratis: 30 días publicado, fácil de buscar por categoría y ciudad, postulaciones directo a tu WhatsApp.',
   alternates: { canonical: canonicalFor('/publicar-gratis') },
@@ -178,7 +180,7 @@ export default async function PublicarGratisPage() {
               },
               {
                 q: '¿Puedo destacar mi aviso?',
-                a: `Sí. Con Destacado tu aviso aparece primero en los resultados y en la portada, por ${formatGs(pricing.destacado.priceGs)} por 30 días.`,
+                a: `Sí. Con Destacado tu aviso aparece primero en los resultados y en la portada, por ${formatGs(pricing.destacado.priceGs)} por 30 días. ${INVOICE_NOTE}`,
               },
             ].map((item) => (
               <div key={item.q} className="bg-white rounded-[10px] border border-border p-5">

@@ -25,9 +25,13 @@ export const revalidate = 300;
 // `/` is the one URL a site is most likely to be reached at under a second
 // address (a preview host, a trailing-slash variant, a tracking parameter).
 export const metadata: Metadata = {
-  title: 'Empleos en Paraguay — trabajo.com.py',
+  // "empleos py" (14.800/mes) and "bolsa de trabajo paraguay" (8.100/mes) are
+  // the two biggest searches in docs/seo/keywords-2026-09-27.csv; the title
+  // carries both verbatim. Absolute rather than templated: this page sits in
+  // the root segment, where the layout's "%s | trabajo.com.py" does not apply.
+  title: 'Empleos PY — Bolsa de trabajo en Paraguay | trabajo.com.py',
   description:
-    'Buscá trabajo en Asunción, Ciudad del Este, Encarnación y todo Paraguay. Publicá tu empleo. El portal de empleos hecho para el móvil.',
+    'Bolsa de trabajo en Paraguay: ofertas laborales en Asunción, Ciudad del Este, Encarnación y todo el país. Buscá por categoría y ciudad, y postulate gratis por WhatsApp.',
   alternates: { canonical: canonicalFor('/') },
 };
 
@@ -141,6 +145,47 @@ export default async function HomePage() {
           </div>
         </section>
       )}
+
+      {/* The one block of plain text on the homepage, for the searches it
+          targets (docs/seo/KEYWORDS.md): "bolsa de trabajo paraguay", "empleos
+          py", "ofertas laborales en paraguay", and one internal link per city
+          landing with "bolsa de trabajo en {ciudad}" as its anchor. */}
+      <section className="pb-10 sm:pb-12 px-4" aria-labelledby="bolsa">
+        <div className="max-w-7xl mx-auto">
+          <h2 id="bolsa" className="text-xl sm:text-2xl font-bold text-ink">
+            Bolsa de trabajo en Paraguay
+          </h2>
+          <p className="mt-3 text-sm sm:text-base text-ink-secondary max-w-3xl leading-relaxed">
+            trabajo.com.py es la bolsa de trabajo de Paraguay hecha para el celular: ofertas
+            laborales en Asunción, Ciudad del Este, Encarnación y todo el país, ordenadas por
+            categoría y ciudad. Buscá, filtrá y postulate gratis, directo al WhatsApp de la empresa.
+            Cada aviso lo revisa nuestro equipo antes de publicarse.
+          </p>
+          {cities.length > 0 && (
+            <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm">
+              {cities
+                .filter((c) => (c.jobCount ?? 0) > 0)
+                .map((city) => (
+                  <li key={city.slug}>
+                    <Link href={`/trabajo-en/${city.slug}`} className="text-brand hover:underline">
+                      Bolsa de trabajo en {city.name}
+                    </Link>
+                  </li>
+                ))}
+              <li>
+                <Link href="/empleos" className="text-brand hover:underline">
+                  Todas las ofertas laborales
+                </Link>
+              </li>
+              <li>
+                <Link href="/buscar-personal" className="text-brand hover:underline">
+                  ¿Buscás personal?
+                </Link>
+              </li>
+            </ul>
+          )}
+        </div>
+      </section>
 
       {/* Featured jobs — a paid slot, so below what the seeker came for
           (§7 D10), and still on the homepage, as /planes promises

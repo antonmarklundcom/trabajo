@@ -83,7 +83,7 @@ export async function generateMetadata({
         ? `Empleos de ${categoryLabel(params.categoria)} en Paraguay${pageSuffix}`
         : params.ciudad
           ? `Empleos en ${cityLabel(params.ciudad)}${pageSuffix}`
-          : `Todos los empleos en Paraguay${pageSuffix}`;
+          : `Ofertas laborales en Paraguay — todos los empleos${pageSuffix}`;
 
   return {
     title,
