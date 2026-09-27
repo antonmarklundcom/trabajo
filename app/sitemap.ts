@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { getAllPublishedJobSummaries, getCategories, getCities } from '@/lib/data';
 import { getBlogPosts } from '@/lib/blog';
+import { companiesWithPublicJobs } from '@/lib/seo';
 
 // Left at an hour on purpose: a new listing reaches the sitemap immediately
 // because every admin mutation revalidates '/sitemap.xml' (lib/cache.ts), so
@@ -106,6 +107,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
     }));
 
+  // Company pages (PLAN-GROWTH.md §4 D5) — only while the company has a
+  // public job, derived from the same walk: a company whose listings all
+  // expired renders noindex, and is therefore not listed here either.
+  const companyPages: MetadataRoute.Sitemap = [...companiesWithPublicJobs(jobs)].map(
+    ([companySlug, lastModified]) => ({
+      url: `${siteUrl}/empresas/${companySlug}`,
+      lastModified,
+      changeFrequency: 'weekly' as const,
+      priority: 0.5,
+    }),
+  );
+
   const blogPages: MetadataRoute.Sitemap = posts.map((post) => ({
     url: `${siteUrl}/blog/${post.slug}`,
     lastModified: new Date(post.updatedAt),
@@ -119,6 +132,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...categoryPages,
     ...cityPages,
     ...landingPages,
+    ...companyPages,
     ...blogPages,
   ];
 }

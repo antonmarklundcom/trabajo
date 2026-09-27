@@ -157,3 +157,37 @@ function nonEmpty(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
 }
+
+// ---------------------------------------------------------------------------
+// Company pages, /empresas/[slug] (PLAN-GROWTH.md §4 D5).
+//
+// One rule, stated once and evaluated by `npm run seo:verify`: a company page
+// is indexable exactly while the company has at least one public job, and the
+// sitemap lists exactly those companies. A company whose listings all expired
+// keeps its URL (it has inbound links) but renders `noindex, follow` — a
+// profile with nothing to apply to is a thin page, and the sitemap must not
+// list what the page itself tells crawlers not to index.
+// ---------------------------------------------------------------------------
+
+/** robots for a company page. `follow` stays true for the same reason as above. */
+export function companyRobots(publicJobCount: number): { index: boolean; follow: true } {
+  return { index: publicJobCount > 0, follow: true };
+}
+
+/**
+ * The companies the sitemap lists, from the same walk of public jobs the
+ * sitemap already makes — slug → latest `updatedAt` among its jobs. A company
+ * with no public job is simply never a key, which is the whole rule.
+ */
+export function companiesWithPublicJobs(
+  jobs: ReadonlyArray<{ companySlug: string; updatedAt: string }>,
+): Map<string, Date> {
+  const latest = new Map<string, Date>();
+  for (const job of jobs) {
+    if (!job.companySlug) continue;
+    const updated = new Date(job.updatedAt);
+    const seen = latest.get(job.companySlug);
+    if (!seen || updated > seen) latest.set(job.companySlug, updated);
+  }
+  return latest;
+}

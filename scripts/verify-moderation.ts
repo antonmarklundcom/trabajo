@@ -427,6 +427,72 @@ check(
   }
 }
 
+// ---------------------------------------------------------------------------
+// 9. Company pages (PLAN-GROWTH.md §4 D5). Two new public reads, and each is
+//    only as safe as the predicate under it:
+//
+//    - getJobs({ empresa }) must narrow the SAME condition list that
+//      visiblePredicate() opens, not build a second one beside it.
+//    - queryCompany() decides whether a page exists at all. A company that no
+//      human ever approved a listing for gets no page — otherwise self-serve
+//      signup publishes an unreviewed name, description and website link.
+// ---------------------------------------------------------------------------
+
+{
+  const queryJobsBody = code(functionBody(queries, 'queryJobs'));
+  check(
+    'queryJobs() starts its conditions from visiblePredicate()',
+    /const conditions = \[visiblePredicate\(\)\]/.test(queryJobsBody),
+  );
+  check(
+    'the empresa filter narrows that same condition list',
+    /if \(filters\.empresa\) conditions\.push\(eq\(companies\.slug, filters\.empresa\)\)/.test(queryJobsBody),
+    "A company's page must list exactly the jobs the rest of the site would show for it.",
+  );
+
+  const listedBody = code(functionBody(queries, 'companyListedPredicate'));
+  const listedStatuses = (listedBody.match(/jobs\.status,\s*'(\w+)'/g) ?? []).map((m) =>
+    m.slice(m.indexOf("'") + 1, m.lastIndexOf("'")),
+  );
+  check(
+    "companyListedPredicate() names only 'published'",
+    listedStatuses.length === 1 && listedStatuses[0] === 'published',
+    `Found: ${listedStatuses.join(', ') || 'none'}. 'archived' can be set straight from ` +
+      "'pending', and 'pending' is exactly the company nobody has reviewed.",
+  );
+  check(
+    'companyListedPredicate() is used only by queryCompany()',
+    (code(queries).match(/companyListedPredicate\(\)/g) ?? []).length === 2 &&
+      code(functionBody(queries, 'queryCompany')).includes('companyListedPredicate()'),
+    'Expected two: the declaration and queryCompany()\'s JOIN. It is not a visibility ' +
+      'predicate — a job list built on it would show expired listings.',
+  );
+
+  const companyBody = code(functionBody(queries, 'queryCompany'));
+  check(
+    "queryCompany()'s job count is visiblePredicate()",
+    /SUM\(CASE WHEN \$\{visiblePredicate\(\)\}/.test(companyBody),
+  );
+  check(
+    'queryCompany() selects no job column and no company contact detail',
+    !/jobs\.(title|slug|description|whatsapp|salary\w*)\b|companies\.whatsapp/.test(companyBody),
+    'The company page shows no contact detail of the company (PLAN-GROWTH.md §4 D5), and its ' +
+      'jobs come from getJobs(), never from this row.',
+  );
+
+  const data = code(read('lib/data.ts'));
+  check(
+    'the seed empresa filter lives in matchesFilters(), behind isVisible()',
+    /if \(filters\.empresa && job\.companySlug !== filters\.empresa\) return false;/.test(
+      code(functionBody(data, 'matchesFilters')),
+    ) && /isVisible\(j\) && matchesFilters\(j, filters\)/.test(code(functionBody(data, 'seedGetJobs'))),
+  );
+  check(
+    "the seed company's jobCount counts visible rows only",
+    /jobCount:\s*rows\.filter\(isVisible\)\.length/.test(code(functionBody(data, 'seedGetCompany'))),
+  );
+}
+
 if (failures > 0) {
   console.error(`\n${failures} assertion(s) FAILED.`);
   process.exit(1);

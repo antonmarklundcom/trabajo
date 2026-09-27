@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import NavMenu from './NavMenu';
 import { Wordmark } from './Logo';
+import { employerDashboardEnabled } from '@/lib/flags';
 
 export default function Header() {
   return (
@@ -17,7 +18,9 @@ export default function Header() {
           </Link>
 
           {/* Nav */}
-          <NavMenu />
+          {/* The employer login is linked only while the panel is switched on —
+              a nav link to a 404 is worse than none. */}
+          <NavMenu employerLogin={employerDashboardEnabled()} />
         </div>
       </div>
     </header>

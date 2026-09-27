@@ -173,6 +173,7 @@ export default async function CategoriaPage({
           </div>
         ) : (
           <>
+            <h2 className="sr-only">Empleos publicados</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {jobs.map((job) => (
                 <JobCard key={job.slug} job={job} />
