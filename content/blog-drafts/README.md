@@ -27,3 +27,24 @@ corroborated from general knowledge plus unreachable-but-consistent search
 snippets. Verify article numbers and current figures (period lengths,
 contribution percentages) against the official Código del Trabajo or MTESS
 before publishing anything in this category.
+
+## Markers in the second batch (2026-09-27)
+
+The 23 drafts added on 2026-09-27 use two markers the owner must clear before
+pasting anything into `/admin/blog`:
+
+- **`[VERIFICAR: …]`** wraps every legal claim, article number, rate, amount or
+  period that could not be read in a primary source during the writing
+  session. Outbound access to bacn.gov.py, mtess.gov.py, ips.gov.py and ilo.org
+  was blocked again; where a web search returned a consistent figure, the
+  marker carries it plus the source to check (e.g. "art. 87 según búsqueda
+  web"), but **none of them has been read in the official text**. Resolve each
+  one against the source and delete the marker, or cut the sentence.
+- **`> **Revisión pendiente:** …`** opens every `derechos-laborales` draft
+  (PLAN-GROWTH.md §7 D14). Those drafts stay unpublished until a lawyer has
+  read them; delete the line only then. They also carry the standing line
+  `Esta nota es informativa y no reemplaza el asesoramiento de un profesional.`
+
+All 23 have `published: false`; the admin form's **Estado** is what actually
+decides, so set it to `Borrador` when pasting unless the draft is fully
+reviewed.

@@ -304,6 +304,8 @@ primario).
 /api/v1/jobs/[slug]/vista     Cuenta una visita del aviso (beacon del navegador; siempre 204)
 /api/empresa/registro         Alta — con límite de tasa; crea SIEMPRE una empresa nueva
 /api/empresa/verificar        Confirma el email con un token de un solo uso
+/empresa/confirmar-aviso      "¿Tu aviso sigue abierto?" — página con botón; el GET no cambia nada
+/api/empresa/confirmar-aviso  Renueva (+30 días) o archiva el aviso del enlace firmado — con límite de tasa
 ```
 
 Las rutas `/empresa/*` y `/postulante/*` están detrás de
@@ -319,6 +321,13 @@ de oferta cerrada (HTTP 200, `noindex`). Se renueva desde `/admin/empleos/[id]`
 lista los avisos y Destacados que vencen en los próximos 7 días con el mensaje
 de WhatsApp ya armado. Para los avisos publicados antes de este cambio (sin
 vencimiento): `npm run db:backfill-expiry` (simulación) y luego `-- --write`.
+
+Una vez por día, `npm run listings:confirm -- --apply` (sin `--apply` es una
+simulación) les pregunta por correo a las empresas cuyos avisos vencen en los
+próximos 7 días "¿Tu aviso sigue abierto?", con dos enlaces firmados: "Sí, sigue
+abierto" (+30 días) y "Ya lo cubrimos, cerralo" (archiva). El enlace abre
+`/empresa/confirmar-aviso`, que pide confirmar con un botón; nunca publica ni
+toca Destacado. Requisitos y el control de la clave: `DEPLOY.md`.
 
 Al aprobar o rechazar un aviso, los usuarios de esa empresa reciben un correo;
 cuando una empresa carga o edita un aviso desde su panel, el equipo recibe
