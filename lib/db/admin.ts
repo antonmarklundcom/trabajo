@@ -1243,13 +1243,19 @@ export async function createApplication(
   if (!job || job.status !== 'published') return null;
   if (job.expiresAt && job.expiresAt.getTime() <= Date.now()) return null;
 
+  // Fitted to the columns (schema.ts: phone varchar(20), source_page
+  // varchar(255)). The lead schema allows a 30-char phone and a 300-char
+  // source page, and under MySQL strict mode an over-long value fails the
+  // whole INSERT — which the caller swallows, so the application reached the
+  // webhooks but never the employer's panel. A phone that does not fit is
+  // stored as its digits (what WhatsApp needs anyway).
   const [result] = await db.insert(applications).values({
     jobId: job.id,
-    name: input.name,
-    phone: input.phone,
+    name: input.name.slice(0, 200),
+    phone: input.phone.length <= 20 ? input.phone : normalizePhone(input.phone).slice(0, 20),
     email: input.email,
     message: input.message,
-    sourcePage: input.sourcePage,
+    sourcePage: input.sourcePage?.slice(0, 255) ?? null,
     status: 'new',
     createdAt: new Date(),
   });

@@ -48,7 +48,15 @@ export async function POST(request: Request) {
 
   const parsed = employerPostSchema.safeParse({ ...body, type: 'employer_post' });
   if (!parsed.success) {
-    return Response.json({ error: 'Revisá los datos del formulario.' }, { status: 400 });
+    const badPhone = parsed.error.issues.some((issue) => issue.path[0] === 'contactWhatsapp');
+    return Response.json(
+      {
+        error: badPhone
+          ? 'Revisá el número de WhatsApp (por ejemplo 0981 123 456).'
+          : 'Revisá los datos del formulario.',
+      },
+      { status: 400 },
+    );
   }
   const lead = {
     ...parsed.data,

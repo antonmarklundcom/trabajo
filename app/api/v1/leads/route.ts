@@ -62,7 +62,9 @@ export async function POST(req: NextRequest) {
 
   // Populate source_page from the Referer header when the client didn't send it
   // (e.g. a bare beacon), so leads always carry where they came from.
-  const referer = req.headers.get('referer') ?? undefined;
+  // Capped like the schema's own sourcePage (max 300): the header is not
+  // validated by Zod and has no length limit of its own.
+  const referer = req.headers.get('referer')?.slice(0, 300) ?? undefined;
   const lead = parsed.data.sourcePage
     ? parsed.data
     : { ...parsed.data, sourcePage: referer };

@@ -130,7 +130,10 @@ export function teamToEmployerHref(
   kind: TeamToEmployerMessage,
   job: { title: string; url?: string },
 ): string | null {
-  const digits = number?.replace(/D/g, '');
+  // `\D`, not `D`: the old pattern stripped the letter D and left every space,
+  // `+` and dash in place, so an admin-typed "+595 981 123 456" became a wa.me
+  // link WhatsApp cannot open.
+  const digits = number?.replace(/\D/g, '');
   if (!digits) return null;
   const message =
     kind === 'published'
