@@ -8,6 +8,8 @@ import { useState } from 'react';
 import {
   PLAN_LABELS,
   PLAN_PERIOD,
+  PLAN_PRICE_PREFIX,
+  formatPlanPrice,
   formatPrice,
   promoEndFromDateInput,
   validatePlanPricing,
@@ -97,7 +99,8 @@ export default function PricingForm({ plans }: { plans: PricingFormPlan[] }) {
           <fieldset key={row.key} className="bg-white rounded-[10px] border border-border p-5">
             <legend className="px-1 text-base font-bold text-ink">{PLAN_LABELS[row.key]}</legend>
             <label className="block text-sm font-medium text-ink mb-1" htmlFor={`price-${row.key}`}>
-              Precio regular (Gs.) <span className="font-normal text-ink-secondary">— {PLAN_PERIOD[row.key]}</span>
+              {PLAN_PRICE_PREFIX[row.key] ? 'Precio base' : 'Precio regular'} (Gs.){' '}
+              <span className="font-normal text-ink-secondary">— {PLAN_PERIOD[row.key]}</span>
             </label>
             <input
               id={`price-${row.key}`}
@@ -107,7 +110,9 @@ export default function PricingForm({ plans }: { plans: PricingFormPlan[] }) {
               onChange={(e) => update(row.key, { price: e.target.value })}
             />
             {Number.isFinite(price) && (
-              <p className="mt-1 text-xs text-ink-secondary">Se muestra como {formatPrice(price)}</p>
+              <p className="mt-1 text-xs text-ink-secondary">
+                Se muestra como {formatPlanPrice(row.key, price)}
+              </p>
             )}
 
             <label className="mt-4 flex items-center gap-2 text-sm font-medium text-ink">

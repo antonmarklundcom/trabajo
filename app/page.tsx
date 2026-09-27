@@ -209,7 +209,7 @@ export default async function HomePage() {
           )}
           <div className="mt-7 flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
-              href="/publicar"
+              href={basicoPromo ? '/publicar-gratis' : '/publicar'}
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-[12px] bg-[#E6B25A] text-ink font-bold text-base hover:bg-[#d8a548] transition-colors"
             >
               {basicoPromo?.priceGs === 0 ? 'Publicá gratis ahora' : 'Publicá tu empleo'}

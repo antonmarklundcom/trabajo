@@ -108,23 +108,15 @@ export function invalidateLaunchPromo(): void {
 }
 
 /**
- * The package prices (lib/pricing.ts), after /admin/precios saves. The paths
- * are the pages that print a price or say "gratis" to an employer; the job and
- * company pages carry EmployerBand, which does too.
+ * The package prices (lib/pricing.ts), after /admin/precios saves. The whole
+ * site, not a list of paths: the root layout renders PromoTopBar from the
+ * price table, so every page embeds it. A price change is a rare admin action;
+ * re-rendering everything on demand is the price of never leaving a stale
+ * offer on a page nobody thought to list.
  */
-const PRICING_PATHS: ReadonlyArray<readonly [path: string, type?: 'page' | 'layout']> = [
-  ['/'],
-  ['/planes'],
-  ['/publicar'],
-  ['/empleos/[slug]', 'page'],
-  ['/empresas/[slug]', 'page'],
-];
-
 export function invalidatePricing(): void {
   revalidateTag(CACHE_TAGS.pricing, { expire: 0 });
-  for (const [path, type] of PRICING_PATHS) {
-    revalidatePath(path, type);
-  }
+  revalidatePath('/', 'layout');
 }
 
 /**

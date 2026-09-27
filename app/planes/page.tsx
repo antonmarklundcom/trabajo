@@ -9,6 +9,7 @@ import {
   PLAN_PERIOD,
   activePromo,
   formatGs,
+  formatPlanPrice,
   formatPrice,
   formatPromoEnd,
   pricePerDayGs,
@@ -19,6 +20,7 @@ import FloatingWhatsApp from '@/components/FloatingWhatsApp';
 import WhatsAppCta from '@/components/WhatsAppCta';
 import LaunchPromoStrip from '@/components/LaunchPromoStrip';
 import PublishPromoBanner from '@/components/PublishPromoBanner';
+import { EmployerBenefits } from '@/components/EmployerBenefits';
 import BlogPostLinks from '@/components/BlogPostLinks';
 import { blogCategoryPath, getLatestBlogPosts } from '@/lib/blog';
 import Link from 'next/link';
@@ -92,10 +94,12 @@ const PLAN_COPY: Record<
     features: [
       'Publicaciones ilimitadas durante el mes',
       'Avisos destacados incluidos',
+      // Run by the team on the customer's own Meta ad budget — which is why
+      // the price is "desde" and states no maximum (PLAN_PRICE_PREFIX).
+      'Campañas en Facebook e Instagram para tus búsquedas',
       'Perfil de empresa con logo',
       // Only what exists (/empresa/postulaciones).
       'Panel para gestionar las postulaciones',
-      'Asesoría para redactar tus avisos',
       'Un contacto directo en el equipo',
     ],
     cta: 'Hablemos',
@@ -123,9 +127,13 @@ function PriceBlock({ plan, pricing }: { plan: PlanKey; pricing: PlanPricingTabl
   }
   return (
     <>
-      <p className="text-3xl font-bold text-ink">{formatGs(row.priceGs)}</p>
+      <p className="text-3xl font-bold text-ink">{formatPlanPrice(plan, row.priceGs)}</p>
       <p className="text-sm text-ink-secondary mt-1">{PLAN_PERIOD[plan]}</p>
-      {plan !== 'empresa' && (
+      {plan === 'empresa' ? (
+        <p className="text-xs text-ink-secondary mt-1">
+          La inversión en anuncios la definís vos y se paga aparte.
+        </p>
+      ) : (
         <p className="text-xs text-ink-secondary mt-1">
           Menos de {formatGs(pricePerDayGs(row))} por día
         </p>
@@ -152,8 +160,8 @@ export default async function PlanesPage() {
     {
       q: '¿Cuánto cuesta publicar un empleo?',
       a: basicoPromo
-        ? `Por la promoción, publicar un aviso Básico ${basicoPromo.priceGs === 0 ? 'es gratis' : `cuesta ${formatGs(basicoPromo.priceGs)}`} hasta el ${formatPromoEnd(basicoPromo.endsAt)}. Después, ${formatGs(pricing.basico.priceGs)} por aviso por 30 días. Destacado: ${formatGs(pricing.destacado.priceGs)} por aviso. Empresa: ${formatGs(pricing.empresa.priceGs)} por mes.`
-        : `Básico: ${formatGs(pricing.basico.priceGs)} por aviso por 30 días. Destacado: ${formatGs(pricing.destacado.priceGs)} por aviso. Empresa: ${formatGs(pricing.empresa.priceGs)} por mes.`,
+        ? `Por la promoción, publicar un aviso Básico ${basicoPromo.priceGs === 0 ? 'es gratis' : `cuesta ${formatGs(basicoPromo.priceGs)}`} hasta el ${formatPromoEnd(basicoPromo.endsAt)}. Después, ${formatGs(pricing.basico.priceGs)} por aviso por 30 días. Destacado: ${formatGs(pricing.destacado.priceGs)} por aviso. Empresa: desde ${formatGs(pricing.empresa.priceGs)} por mes, más tu inversión en anuncios.`
+        : `Básico: ${formatGs(pricing.basico.priceGs)} por aviso por 30 días. Destacado: ${formatGs(pricing.destacado.priceGs)} por aviso. Empresa: desde ${formatGs(pricing.empresa.priceGs)} por mes, más tu inversión en anuncios.`,
     },
     ...(basicoPromo
       ? [
@@ -170,6 +178,10 @@ export default async function PlanesPage() {
     {
       q: '¿Cómo pago Destacado o Empresa?',
       a: 'Escribinos por WhatsApp y te enviamos los datos para pagar por transferencia. El pago compra visibilidad, no la aprobación: todo aviso pasa por la revisión del equipo.',
+    },
+    {
+      q: '¿Qué incluye la publicidad del plan Empresa?',
+      a: 'Armamos y gestionamos campañas en Facebook e Instagram (Meta) para tus búsquedas. El monto que invertís en anuncios lo definís vos y se paga aparte del plan.',
     },
     {
       q: '¿Los candidatos pagan algo?',
@@ -273,6 +285,16 @@ export default async function PlanesPage() {
           })}
         </div>
       )}
+
+      {/* The value case, after the prices: why a listing here beats a post
+          in a feed (components/EmployerBenefits.tsx). */}
+      <section className="mt-16">
+        <h2 className="text-2xl font-bold text-ink mb-2">Por qué publicar en trabajo.com.py</h2>
+        <p className="text-sm text-ink-secondary mb-6">
+          Un portal de empleos, no un feed: tu aviso queda ordenado y se puede buscar.
+        </p>
+        <EmployerBenefits />
+      </section>
 
       {/* A quiet "Leé más" row under the cards (PLAN-GROWTH.md §4 C2). */}
       <BlogPostLinks

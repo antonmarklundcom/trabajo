@@ -20,7 +20,7 @@ export default async function EmployerBand({ className = 'mt-10' }: { className?
           : 'Publicá tu empleo. Los postulantes te escriben directo a tu WhatsApp.'}
       </p>
       <Link
-        href="/publicar"
+        href={promo ? '/publicar-gratis' : '/publicar'}
         className="mt-5 inline-flex items-center justify-center min-h-11 px-5 rounded-[10px] bg-white text-ink font-semibold hover:bg-surface-2"
       >
         {free ? 'Publicar un empleo gratis' : 'Publicar un empleo'}

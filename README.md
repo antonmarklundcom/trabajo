@@ -279,6 +279,7 @@ primario).
 /blog                         Listado de artículos (desde blog_posts)
 /blog/[slug]                  Artículo + JSON-LD BlogPosting; slugs retirados redirigen 301
 /publicar                     Formulario para empleadores — el único camino para publicar (sin atajo por WhatsApp)
+/publicar-gratis              Landing de la promoción (Básico gratis): beneficios + formulario. Redirige a /publicar si no hay promoción
 /planes                       Los 3 paquetes (Básico, Destacado, Empresa) con precios de lib/pricing.ts
 /planes                       Planes y precios
 /contacto                     Contacto

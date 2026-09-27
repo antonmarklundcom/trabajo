@@ -53,6 +53,22 @@ export const PLAN_PERIOD: Record<PlanKey, string> = {
   empresa: 'por mes',
 };
 
+/**
+ * Printed before the amount. Empresa is a base price: the Meta ad campaigns
+ * it includes run on the customer's own ad budget, which is theirs to set, so
+ * the page never states a maximum (owner decision 2026-09-27).
+ */
+export const PLAN_PRICE_PREFIX: Record<PlanKey, string> = {
+  basico: '',
+  destacado: '',
+  empresa: 'Desde ',
+};
+
+/** `Desde Gs. 1.490.000` / `Gs. 99.000` — the amount as a package is sold. */
+export function formatPlanPrice(key: PlanKey, amount: number): string {
+  return `${PLAN_PRICE_PREFIX[key]}${formatGs(amount)}`;
+}
+
 /** How many days the price covers, for the "menos de Gs. X por día" line. */
 export const PLAN_DAYS: Record<PlanKey, number> = {
   basico: 30,
@@ -93,20 +109,22 @@ export function dateInputFromPromoEnd(end: Date | null): string {
  * time-limited promotion, the other two are paid. Used as-is until
  * /admin/precios saves a row, and in seed mode, which has no database.
  *
- * Suggested anchors, in guaraníes, against a 2026 minimum wage of
- * Gs. 3.044.000: Básico ≈ 5% of one month's minimum wage; Destacado ≈ 2.3x
- * Básico, the obvious upgrade; Empresa is the high-ticket anchor that makes
- * Destacado look cheap. The owner changes all three in /admin/precios.
+ * Set against the local market (owner decision 2026-09-27): social-media job
+ * boards sell a 7-day post for about Gs. 35.000, so Básico stays above that
+ * but reads as better value per day (30 days, searchable, reviewed); Destacado
+ * stays under the Gs. 250.000 line; Empresa is a base price ("desde") that
+ * includes running Meta ads on the customer's own budget. The owner changes
+ * all three in /admin/precios.
  */
 export const DEFAULT_PLAN_PRICING: PlanPricingTable = {
   basico: {
     key: 'basico',
-    priceGs: 149_000,
+    priceGs: 99_000,
     promoPriceGs: 0,
     promoEndsAt: promoEndFromDateInput('2026-10-31'),
   },
-  destacado: { key: 'destacado', priceGs: 349_000, promoPriceGs: null, promoEndsAt: null },
-  empresa: { key: 'empresa', priceGs: 1_990_000, promoPriceGs: null, promoEndsAt: null },
+  destacado: { key: 'destacado', priceGs: 249_000, promoPriceGs: null, promoEndsAt: null },
+  empresa: { key: 'empresa', priceGs: 1_490_000, promoPriceGs: null, promoEndsAt: null },
 };
 
 export type ActivePromo = { priceGs: number; endsAt: Date };

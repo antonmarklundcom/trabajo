@@ -23,6 +23,7 @@ import {
   currentPriceGs,
   dateInputFromPromoEnd,
   formatGs,
+  formatPlanPrice,
   formatPrice,
   pricePerDayGs,
   promoDaysLeft,
@@ -128,6 +129,10 @@ check(
       ).length === 0,
   ),
 );
+check(
+  'Empresa is sold as a base price ("Desde"), never with a maximum',
+  formatPlanPrice('empresa', 1_490_000) === 'Desde Gs. 1.490.000' && formatPlanPrice('basico', 99_000) === 'Gs. 99.000',
+);
 check('Gs. formatting uses the dot separator', formatGs(1_990_000) === 'Gs. 1.990.000' && formatPrice(0) === 'Gratis');
 check(
   '"menos de X por día" stays true',
@@ -153,6 +158,10 @@ const PRICE_SURFACES = [
   'app/page.tsx',
   'app/planes/page.tsx',
   'app/publicar/page.tsx',
+  'app/publicar-gratis/page.tsx',
+  'app/layout.tsx',
+  'components/PromoTopBar.tsx',
+  'components/EmployerBenefits.tsx',
   'app/terminos/page.tsx',
   'app/empresa/(dashboard)/page.tsx',
   'components/EmployerBand.tsx',
@@ -166,6 +175,33 @@ check(
   'no page that sells a package hardcodes a price',
   offenders.length === 0,
   `found in: ${offenders.join(', ')} — read the price from lib/pricing.ts instead`,
+);
+
+// ---------------------------------------------------------------------------
+// 4b. The promotion's landing page and site-wide bar exist only while it runs,
+//     and the value copy makes no promise about candidate volume (D1).
+// ---------------------------------------------------------------------------
+
+const landing = code(read('app/publicar-gratis/page.tsx'));
+check(
+  '/publicar-gratis hands off to /publicar once the promotion is over',
+  /if \(!promo\) redirect\('\/publicar'\)/.test(landing),
+);
+check(
+  '/publicar-gratis posts through the same moderated form as /publicar',
+  landing.includes('<EmployerForm') && !landing.includes('fetch('),
+);
+const topBar = code(read('components/PromoTopBar.tsx'));
+check(
+  'PromoTopBar re-checks the end date in the browser (static pages bake the layout)',
+  /Date\.now\(\)\s*>=\s*new Date\(endsAt\)/.test(topBar),
+);
+const valueCopy = ['app/publicar-gratis/page.tsx', 'components/EmployerBenefits.tsx', 'app/planes/page.tsx']
+  .filter((f) => /más (postulantes|candidatos)|miles de|en minutos|garantiz/i.test(code(read(f))));
+check(
+  'the value copy promises no candidate volume or speed (PLAN-GROWTH.md §7 D1)',
+  valueCopy.length === 0,
+  `found in: ${valueCopy.join(', ')}`,
 );
 
 // ---------------------------------------------------------------------------

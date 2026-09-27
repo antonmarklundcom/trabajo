@@ -57,6 +57,7 @@ const sections = [
     body: [
       'Los precios vigentes de los planes para empresas se publican en la página de planes, en guaraníes. Pagar un plan compra visibilidad o volumen de publicación, nunca la aprobación: todo aviso pasa por la revisión de nuestro equipo antes de publicarse.',
       'Una promoción por tiempo limitado indica siempre su fecha de fin y termina ese día a las 23:59, hora de Paraguay. Los avisos enviados durante la promoción se publican con ella por su período completo, aunque la promoción termine antes.',
+      'El plan Empresa se ofrece desde el precio publicado y puede incluir la gestión de campañas publicitarias en Meta (Facebook e Instagram). El monto de inversión en esos anuncios lo define la empresa y se paga aparte del plan.',
     ],
   },
   {

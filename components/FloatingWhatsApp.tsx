@@ -1,8 +1,8 @@
 'use client';
 
 // The floating employer WhatsApp entry point (PLAN-GROWTH.md §4 W2, §7 D2).
-// Mounted per PAGE — /, /planes, /contacto — never in app/layout.tsx, so it
-// never shows up on /empleos*, /trabajo*, /blog* where a seeker would tap it
+// Mounted per PAGE — /, /planes, /contacto, /publicar-gratis — never in
+// app/layout.tsx, so it never shows up on /empleos*, /trabajo*, /blog* where a seeker would tap it
 // expecting to apply.
 //
 // A general-questions chat, not a way to publish: a WhatsApp chat creates no

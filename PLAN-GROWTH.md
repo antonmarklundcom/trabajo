@@ -1370,9 +1370,13 @@ Publishing is no longer "free, always". There are three packages, priced in
 
 | Package | Launch default | Role |
 |---|---|---|
-| Básico | Gs. 149.000 / aviso / 30 días — **Gratis hasta el 31/10/2026** (promotion) | Entry point; the free promotion is the acquisition hook |
-| Destacado | Gs. 349.000 / aviso / 30 días | The package the page steers toward (middle, highlighted, "Recomendado") |
-| Empresa | Gs. 1.990.000 / mes | High-ticket anchor that makes Destacado read as the sensible choice |
+| Básico | Gs. 99.000 / aviso / 30 días — **Gratis hasta el 31/10/2026** (promotion) | Entry point; the free promotion is the acquisition hook |
+| Destacado | Gs. 249.000 / aviso / 30 días | The package the page steers toward (middle, highlighted, "Recomendado") |
+| Empresa | **Desde** Gs. 1.490.000 / mes + the customer's own Meta ad spend (no maximum stated) | High-ticket anchor; includes running Facebook/Instagram campaigns on their budget |
+
+Priced against the local market: social-media job boards sell a 7-day post for
+~Gs. 35.000 (1 day Gs. 15.000). Básico stays above that but is better value
+per day — 30 days, searchable and filterable, reviewed, no daily spam.
 
 Rules the code enforces (`npm run pricing:verify`):
 
@@ -1395,4 +1399,29 @@ The launch promotion (§7 D15, `LAUNCH_PROMO_ENABLED`) is untouched and still
 gives Destacado away to the first 100 approved listings while it is on — it
 now competes with the paid Destacado, so the owner should decide whether to
 turn it off.
+
+## 16. The free-publishing promotion funnel (2026-09-27)
+
+While the Básico promotion runs, employers are sent to a dedicated landing page
+instead of straight to the form:
+
+- **`PromoTopBar`** (root layout, every public page except `/publicar*`,
+  `/admin`, `/empresa`, `/postulante`): "¿Contratás? Publicá tu empleo gratis
+  hasta el {fecha}. Ver promoción →". It re-checks the end date in the browser,
+  because the layout also wraps fully static pages that no timer re-renders.
+- **Homepage band and `EmployerBand`** link to the landing while the promotion
+  runs, to `/publicar` otherwise.
+- **`/publicar-gratis`**: hero with the real deadline and the after-price,
+  benefits (`components/EmployerBenefits.tsx`), "un posteo en redes vs. un
+  aviso en el portal" comparison (no competitor named), how it works, the same
+  `EmployerForm` as `/publicar` (so a lead is an ordinary `pending` listing),
+  FAQ. `noindex` so it does not compete with `/publicar`; redirects to
+  `/publicar` once no promotion is active.
+- **Value copy** describes what the product does — 30 days, search and filters
+  by category/city/salary, a page prepared for Google, WhatsApp applications,
+  reviewed listings, no daily spam — and never claims more candidates or speed
+  (§7 D1; `pricing:verify` checks the wording).
+
+Next, once there is traffic worth quoting: real numbers ("X personas buscaron
+empleo este mes") from `/admin/estadisticas`, never invented ones.
 
