@@ -18,12 +18,21 @@
 // `role` is checked as exactly `admin`. `editor` does not get candidate access,
 // which is a deliberate narrowing versus today's admin/editor parity: the
 // curation team needs jobs, not CVs.
+//
+// ONE exception, and it is a preserved status quo rather than a new grant:
+// listApplicationsForStaff() (the /admin/postulaciones table) accepts `admin`
+// AND `editor`, because both roles have read that table since before this
+// module existed. What changed is that the read is now logged; who may make it
+// did not. Narrowing it to `admin` is an owner decision, not a side effect.
 // ===========================================================================
 //
 // PR 7 populated this module with the CV path only, because that was the one
 // admin candidate-data read that existed then. PR 12 adds listCandidates() /
 // viewCandidate() and the /admin/postulantes surface on top of the same
-// construction.
+// construction. The staff application list moved here from lib/db/admin.ts,
+// where it returned names, phones, emails and messages with no log row at all
+// — the one staff read of applicant data that /privacidad §6 ("ese acceso
+// queda registrado") did not actually cover.
 //
 // What this module deliberately does NOT export, and must never grow
 // (PLAN-PHASE2.md §5.2 and Phase 4):
@@ -51,6 +60,7 @@ import {
   dataAccessLogs,
   jobs,
   users,
+  type applicationStatusEnum,
   type dataAccessActionEnum,
 } from './schema';
 import { AuthError, type SessionUser } from '../auth';
@@ -86,6 +96,18 @@ function requireAdmin(actor: SessionUser): void {
   }
 }
 
+/**
+ * The role gate for listApplicationsForStaff() only — `admin` or `editor`, the
+ * same pair the /admin layout and PATCH /api/admin/postulaciones/[id] admit.
+ * See the header: this preserves who could already read that table. It is not
+ * a template for widening any other function here.
+ */
+function requireApplicationStaff(actor: SessionUser): void {
+  if (actor.role !== 'admin' && actor.role !== 'editor') {
+    throw new AuthError(403, `Role "${actor.role}" may not access application data.`);
+  }
+}
+
 export type AccessContext = {
   /** From `clientIp()` (lib/client-ip.ts) at the route boundary. Null when
    *  the request did not arrive through the trusted proxy chain — never a
@@ -96,7 +118,7 @@ export type AccessContext = {
 async function logAccess(
   actor: SessionUser,
   action: (typeof dataAccessActionEnum)[number],
-  subjectType: string,
+  subjectType: AccessSubject['subjectType'],
   subjectId: number,
   // Nullable only for `list_candidates`, where §2.4 makes the reason optional.
   // Every drill-down action goes through requireReason() first, so a NULL here
@@ -104,17 +126,48 @@ async function logAccess(
   reason: string | null,
   context: AccessContext,
 ): Promise<void> {
+  await logAccessMany(actor, action, [{ subjectType, subjectId }], reason, context);
+}
+
+/**
+ * Who a log row is about. `candidate` for anyone with an account — that is the
+ * key the candidate's own export (/postulante/mis-datos, candidate-arco.ts)
+ * reads, so "who has seen my data" finds the row. `application` for an
+ * anonymous lead-form application, which has no account id to name: the
+ * application id is the only stable handle on that person's data.
+ */
+type AccessSubject = { subjectType: 'candidate' | 'application'; subjectId: number };
+
+/**
+ * The multi-row form of logAccess(), for a read that discloses several data
+ * subjects at once — one INSERT with one row per subject, all stamped with the
+ * same time. An empty list writes nothing, because nothing was disclosed.
+ *
+ * `reason` is NULL only for the list reads (`list_candidates`, and the
+ * `view_application` rows written by the un-gated /admin/postulaciones table).
+ */
+async function logAccessMany(
+  actor: SessionUser,
+  action: (typeof dataAccessActionEnum)[number],
+  subjects: readonly AccessSubject[],
+  reason: string | null,
+  context: AccessContext,
+): Promise<void> {
+  if (subjects.length === 0) return;
   const db = await getDb();
-  await db.insert(dataAccessLogs).values({
-    actorUserId: actor.id,
-    actorRole: actor.role,
-    action,
-    subjectType,
-    subjectId,
-    reason,
-    ip: context.ip,
-    createdAt: new Date(),
-  });
+  const createdAt = new Date();
+  await db.insert(dataAccessLogs).values(
+    subjects.map(({ subjectType, subjectId }) => ({
+      actorUserId: actor.id,
+      actorRole: actor.role,
+      action,
+      subjectType,
+      subjectId,
+      reason,
+      ip: context.ip,
+      createdAt,
+    })),
+  );
 }
 
 export type AdminCv = {
@@ -564,6 +617,136 @@ export async function viewCandidate(
     cvs,
     applications: applicationRows,
   };
+}
+
+// ===========================================================================
+// listApplicationsForStaff — /admin/postulaciones
+//
+// Moved here from lib/db/admin.ts (getAdminApplications), where the portal team
+// read every applicant's name, phone, email and message with no log row. That
+// is exactly the access /privacidad §6 tells the public "queda registrado", so
+// the read now lives behind the same construction as the rest of this file:
+// the log rows are written INSIDE the function, before it returns.
+//
+// Granularity: ONE ROW PER DATA SUBJECT WHOSE PERSONAL DATA THIS CALL RETURNS.
+//   - A row whose `redacted_at` is set carries no personal data (every personal
+//     column is NULL by then), so nothing about anyone was disclosed and no
+//     log row is written for it.
+//   - An application from a candidate account is logged against that
+//     candidate (`subject_type = 'candidate'`), the key the candidate's own
+//     export reads — the same choice viewCandidateCvAsAdmin() makes for a CV.
+//   - An anonymous lead-form application has no account, so it is logged
+//     against the application itself (`subject_type = 'application'`). No
+//     schema change was needed: `subject_type` is a free varchar(30).
+//   - A candidate who appears several times on one page gets one row for that
+//     page view, not one per application: identical rows add nothing a reader
+//     of the log can use.
+// The action is `view_application`, which the enum has carried since PR 1 with
+// no writer until now.
+//
+// `reason` is NULL: this table has no reason gate, and adding one changes what
+// the operators see — an owner decision, not something this move gets to make.
+// The table is paged at 20, so the batch insert is at most 20 rows.
+// ===========================================================================
+
+export type StaffApplicationFilters = {
+  jobId?: number;
+  status?: (typeof applicationStatusEnum)[number];
+  page?: number;
+};
+
+export type StaffApplicationRow = {
+  id: number;
+  jobId: number;
+  jobTitle: string;
+  jobSlug: string;
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+  message: string | null;
+  status: (typeof applicationStatusEnum)[number];
+  /** Set means every personal column above is already NULL: the candidate
+   *  withdrew consent (§4.2), deleted their account (§4.4) or the row aged out
+   *  (§4.3). Returned so the table can say so, rather than rendering three
+   *  empty cells that look like a bug. */
+  redactedAt: Date | null;
+  createdAt: Date;
+};
+
+const STAFF_APPLICATION_PAGE_SIZE = 20;
+
+export async function listApplicationsForStaff(
+  actor: SessionUser,
+  filters: StaffApplicationFilters,
+  context: AccessContext,
+): Promise<{ applications: StaffApplicationRow[]; total: number; pageSize: number }> {
+  requireApplicationStaff(actor);
+
+  const db = await getDb();
+  const page = filters.page ?? 1;
+  const conditions = [];
+  if (filters.jobId) conditions.push(eq(applications.jobId, filters.jobId));
+  if (filters.status) conditions.push(eq(applications.status, filters.status));
+  const where = conditions.length ? and(...conditions) : undefined;
+
+  const [rows, [{ total }]] = await Promise.all([
+    db
+      .select({
+        id: applications.id,
+        jobId: applications.jobId,
+        candidateId: applications.candidateId,
+        jobTitle: jobs.title,
+        jobSlug: jobs.slug,
+        name: applications.name,
+        phone: applications.phone,
+        email: applications.email,
+        message: applications.message,
+        status: applications.status,
+        redactedAt: applications.redactedAt,
+        createdAt: applications.createdAt,
+      })
+      .from(applications)
+      .innerJoin(jobs, eq(applications.jobId, jobs.id))
+      .where(where)
+      .orderBy(desc(applications.createdAt))
+      .limit(STAFF_APPLICATION_PAGE_SIZE)
+      .offset((page - 1) * STAFF_APPLICATION_PAGE_SIZE),
+    db
+      .select({ total: count() })
+      .from(applications)
+      .innerJoin(jobs, eq(applications.jobId, jobs.id))
+      .where(where),
+  ]);
+
+  const subjects = new Map<string, AccessSubject>();
+  for (const row of rows) {
+    if (row.redactedAt) continue;
+    const subject: AccessSubject =
+      row.candidateId !== null
+        ? { subjectType: 'candidate', subjectId: row.candidateId }
+        : { subjectType: 'application', subjectId: row.id };
+    subjects.set(`${subject.subjectType}:${subject.subjectId}`, subject);
+  }
+
+  // Before the return, always. If this insert throws, the caller gets the error
+  // and not the applicants.
+  await logAccessMany(actor, 'view_application', [...subjects.values()], null, context);
+
+  // candidateId was selected for the log only; the table never showed it.
+  const applicationRows: StaffApplicationRow[] = rows.map((row) => ({
+    id: row.id,
+    jobId: row.jobId,
+    jobTitle: row.jobTitle,
+    jobSlug: row.jobSlug,
+    name: row.name,
+    phone: row.phone,
+    email: row.email,
+    message: row.message,
+    status: row.status,
+    redactedAt: row.redactedAt,
+    createdAt: row.createdAt,
+  }));
+  return { applications: applicationRows, total, pageSize: STAFF_APPLICATION_PAGE_SIZE };
 }
 
 // ===========================================================================
