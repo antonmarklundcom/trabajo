@@ -26,6 +26,11 @@ export function relativeAgo(iso: string): string {
   return `hace ${Math.floor(days / 30)} meses`;
 }
 
+/** True while a listing is younger than `days` — JobCard's "Nuevo" tag. */
+export function isPostedWithin(iso: string, days: number): boolean {
+  return Date.now() - new Date(iso).getTime() < days * 86_400_000;
+}
+
 /** "Publicado hace 3 días" — the verb is part of the string. */
 export function formatRelativeDate(iso: string): string {
   return `Publicado ${relativeAgo(iso)}`;
