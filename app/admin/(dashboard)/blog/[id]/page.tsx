@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getAdminBlogPost, listBlogRedirects } from '@/lib/db/blog';
+import { getAdminBlogPost, listBlogRedirects, paraguayToday } from '@/lib/db/blog';
 import { listCategoryOptions, listCityOptions } from '@/lib/db/taxonomy';
 import { blogCoverUrl } from '@/lib/blog';
 import BlogPostForm, { type BlogPostFormInitial } from '@/components/admin/BlogPostForm';
@@ -41,14 +41,21 @@ export default async function EditarArticuloPage({
     relatedCategory: post.relatedCategorySlug ?? '',
     relatedCity: post.relatedCitySlug ?? '',
     originalSlug: post.slug,
-    originalStatus: post.status,
+    originalPublishedAt: post.publishedAt,
   };
+  const today = paraguayToday();
+  const scheduled = post.status === 'published' && post.publishedAt !== null && post.publishedAt > today;
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
         <h1 className="text-2xl font-bold text-ink">Editar artículo</h1>
-        {post.status === 'published' && (
+        {scheduled && (
+          <span className="text-sm font-medium text-ink-secondary">
+            Programado para el {post.publishedAt}
+          </span>
+        )}
+        {post.status === 'published' && !scheduled && (
           <Link
             href={`/blog/${post.slug}`}
             target="_blank"
@@ -66,6 +73,7 @@ export default async function EditarArticuloPage({
           cities={cities}
           initial={initial}
           siteUrl={siteUrl}
+          today={today}
         />
       </div>
 
@@ -86,7 +94,7 @@ export default async function EditarArticuloPage({
           <h2 className="text-lg font-bold text-ink mb-1">URLs anteriores</h2>
           <p className="text-sm text-ink-secondary mb-4">
             Estas direcciones redirigen con un 301 hacia <span className="font-medium">/blog/{post.slug}</span>.
-            Se crean solas cada vez que cambiás el slug de un artículo publicado.
+            Se crean solas cada vez que cambiás el slug de un artículo que ya se publicó.
           </p>
           <ul className="text-sm text-ink-secondary space-y-1">
             {redirects.map((redirect) => (

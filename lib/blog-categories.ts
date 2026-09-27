@@ -19,6 +19,28 @@ export const BLOG_CATEGORIES = [
 
 export type BlogCategory = (typeof BLOG_CATEGORIES)[number];
 
+/** Narrows an untrusted string (a route param, a query string) to a category. */
+export function isBlogCategory(value: unknown): value is BlogCategory {
+  return typeof value === 'string' && (BLOG_CATEGORIES as readonly string[]).includes(value);
+}
+
+/**
+ * The path segment the category archives live under: `/blog/categoria/{slug}`.
+ * A post may never take it as its own slug — `/blog/categoria` would then be
+ * a post and a route prefix at once — so lib/db/blog.ts's blogSlugExists()
+ * reports it as taken and uniqueSlug() steps over it.
+ */
+export const BLOG_ARCHIVE_SEGMENT = 'categoria';
+
+export function isReservedBlogSlug(slug: string): boolean {
+  return slug === BLOG_ARCHIVE_SEGMENT;
+}
+
+/** `/blog/categoria/{category}`. One function, so the URL shape is one edit. */
+export function blogCategoryPath(category: BlogCategory): string {
+  return `/blog/${BLOG_ARCHIVE_SEGMENT}/${category}`;
+}
+
 // `analisis-laboral` keeps its stored value (§7 D4) — renaming it would move
 // every published URL under it — only the label visitors read changes.
 export const BLOG_CATEGORY_LABELS: Record<BlogCategory, string> = {
@@ -32,10 +54,11 @@ export const BLOG_CATEGORY_LABELS: Record<BlogCategory, string> = {
 };
 
 /**
- * Copy for each category's archive page (`/blog/categoria/{slug}`, shipped
- * in C2 once the ≥5-published-posts gate is met). Written now, alongside the
- * enum, so C2 has nothing left to invent about what a category *is* — only
- * the listing and pagination around it.
+ * Copy for each category's archive page (`/blog/categoria/{slug}`, C2). Written
+ * in C1 alongside the enum, so C2 had nothing left to invent about what a
+ * category *is* — only the listing and pagination around it. `title` is the
+ * archive's h1 and <title>, `description` its meta description, `intro` the
+ * paragraph under the h1.
  */
 export const BLOG_CATEGORY_COPY: Record<
   BlogCategory,

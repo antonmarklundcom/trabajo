@@ -191,3 +191,37 @@ export function companiesWithPublicJobs(
   }
   return latest;
 }
+
+// ---------------------------------------------------------------------------
+// Blog listings: /blog and /blog/categoria/[categoria] (PLAN-GROWTH.md §4 C2).
+//
+// The same two rules the job listings follow, stated for the blog:
+//
+//   - `?page=N` is indexable and SELF-canonical; page 1 is the bare URL. Same
+//     reasoning as listingIndexRule(): page 2 is the rest of the content, not
+//     a duplicate of page 1.
+//   - A category archive with no published post renders `noindex, follow`
+//     and is left out of the sitemap — the same convention as an empty
+//     taxonomy landing and a company with no public job. The URL keeps
+//     working (the chips and the article breadcrumb may point at it the
+//     moment its only post is unpublished), it just stops asking to be
+//     indexed while it is a thin page. `/blog` itself is exempt: it is the
+//     hub, and it has its own copy even with nothing under it.
+// ---------------------------------------------------------------------------
+
+/** Site-relative canonical for page `page` of a blog listing at `basePath`. */
+export function blogListingCanonical(basePath: string, page: number): string {
+  return page > 1 ? `${basePath}?page=${page}` : basePath;
+}
+
+/** robots for a category archive. `follow` stays true, as everywhere else. */
+export function blogArchiveRobots(publishedPostCount: number): { index: boolean; follow: true } {
+  return { index: publishedPostCount > 0, follow: true };
+}
+
+/** The archives the sitemap lists: exactly the categories with a published post. */
+export function blogArchivesForSitemap<C extends string>(
+  counts: ReadonlyArray<{ category: C; total: number }>,
+): C[] {
+  return counts.filter((row) => row.total > 0).map((row) => row.category);
+}

@@ -108,14 +108,25 @@ export function invalidateLaunchPromo(): void {
 }
 
 /**
- * Blog routes. Kept apart from PUBLIC_PATHS because the blog and the job
- * catalog have no write in common: an article edit cannot change a job listing
- * and a job edit cannot change an article. The sitemap appears in both lists —
- * it is the one page derived from both.
+ * Routes whose rendered output embeds blog posts. Kept apart from
+ * PUBLIC_PATHS because the two lists answer different writes: an article edit
+ * cannot change a job listing. Since C2 the blog's linking surfaces put posts
+ * on job and landing pages too, so several routes now appear in both lists —
+ * a page derived from both kinds of content is refreshed by either write.
+ * `npm run blog:verify` finds every public page that imports a read from
+ * lib/blog.ts and fails if its route is missing here.
  */
 const BLOG_PATHS: ReadonlyArray<readonly [path: string, type?: 'page' | 'layout']> = [
   ['/blog'],
   ['/blog/[slug]', 'page'],
+  ['/blog/categoria/[categoria]', 'page'],
+  // Linking surfaces (PLAN-GROWTH.md §4 C2).
+  ['/'],
+  ['/empleos/[slug]', 'page'],
+  ['/trabajo/[categoria]', 'page'],
+  ['/trabajo/[categoria]/[ciudad]', 'page'],
+  ['/publicar'],
+  ['/planes'],
   ['/sitemap.xml'],
 ];
 
