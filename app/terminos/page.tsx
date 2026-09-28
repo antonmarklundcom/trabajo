@@ -53,43 +53,51 @@ const sections = [
     ],
   },
   {
-    title: '7. Uso correcto del sitio',
+    title: '7. Precios y promociones por tiempo limitado',
+    body: [
+      'Los precios vigentes de los planes para empresas se publican en la página de planes, en guaraníes. Pagar un plan compra visibilidad o volumen de publicación, nunca la aprobación: todo aviso pasa por la revisión de nuestro equipo antes de publicarse.',
+      'Una promoción por tiempo limitado indica siempre su fecha de fin y termina ese día a las 23:59, hora de Paraguay. Los avisos enviados durante la promoción se publican con ella por su período completo, aunque la promoción termine antes.',
+      'El plan Empresa se ofrece desde el precio publicado y puede incluir la gestión de campañas publicitarias en Meta (Facebook e Instagram). El monto de inversión en esos anuncios lo define la empresa y se paga aparte del plan.',
+    ],
+  },
+  {
+    title: '8. Uso correcto del sitio',
     body: [
       'Te comprometés a usar el sitio de buena fe: no cargar información falsa, no suplantar a otras personas o empresas, no extraer datos de forma masiva (scraping) y no interferir con el funcionamiento técnico del portal.',
     ],
   },
   {
-    title: '8. Contenido de terceros',
+    title: '9. Contenido de terceros',
     body: [
       'Las ofertas publicadas son responsabilidad de las empresas anunciantes. Hacemos esfuerzos razonables de curaduría, pero no garantizamos la exactitud de cada anuncio. Si detectás una oferta sospechosa, avisanos desde la página de contacto. Nunca pagues dinero para postularte a un empleo: ninguna oferta legítima lo exige.',
     ],
   },
   {
-    title: '9. Propiedad intelectual',
+    title: '10. Propiedad intelectual',
     body: [
       'La marca, el diseño y el contenido propio del sitio pertenecen a trabajo.com.py. No podés reproducirlos con fines comerciales sin autorización.',
     ],
   },
   {
-    title: '10. Limitación de responsabilidad',
+    title: '11. Limitación de responsabilidad',
     body: [
       'El sitio se ofrece "tal cual". En la medida permitida por la ley, no respondemos por daños derivados del uso del portal, de la relación entre candidatos y empresas, ni de interrupciones técnicas del servicio.',
     ],
   },
   {
-    title: '11. Privacidad',
+    title: '12. Privacidad',
     body: [
       'El tratamiento de tus datos personales se rige por nuestra Política de privacidad, disponible en /privacidad.',
     ],
   },
   {
-    title: '12. Ley aplicable',
+    title: '13. Ley aplicable',
     body: [
       'Estos términos se rigen por las leyes de la República del Paraguay. Cualquier controversia se someterá a los tribunales ordinarios de la ciudad de Asunción.',
     ],
   },
   {
-    title: '13. Cambios',
+    title: '14. Cambios',
     body: [
       'Podemos actualizar estos términos; la versión vigente estará siempre publicada en esta página. El uso continuado del sitio implica la aceptación de los términos actualizados.',
     ],

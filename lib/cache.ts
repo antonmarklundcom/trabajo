@@ -108,6 +108,18 @@ export function invalidateLaunchPromo(): void {
 }
 
 /**
+ * The package prices (lib/pricing.ts), after /admin/precios saves. The whole
+ * site, not a list of paths: the root layout renders PromoTopBar from the
+ * price table, so every page embeds it. A price change is a rare admin action;
+ * re-rendering everything on demand is the price of never leaving a stale
+ * offer on a page nobody thought to list.
+ */
+export function invalidatePricing(): void {
+  revalidateTag(CACHE_TAGS.pricing, { expire: 0 });
+  revalidatePath('/', 'layout');
+}
+
+/**
  * Routes whose rendered output embeds blog posts. Kept apart from
  * PUBLIC_PATHS because the two lists answer different writes: an article edit
  * cannot change a job listing. Since C2 the blog's linking surfaces put posts

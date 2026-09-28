@@ -6,6 +6,7 @@
 // that actually works: a WhatsApp message to the team.
 import Link from 'next/link';
 import WhatsAppCta from '@/components/WhatsAppCta';
+import { formatPromoEnd } from '@/lib/plans';
 
 type Props = {
   activeFeaturedCount: number;
@@ -14,6 +15,8 @@ type Props = {
   companyName: string;
   /** Whether the active window's last grant came from the launch promotion. */
   activeIsLaunchPromo?: boolean;
+  /** End of the free-Básico promotion (lib/plans.ts), or null when none runs. */
+  freePublishingUntil: Date | null;
 };
 
 function formatDate(date: Date): string {
@@ -26,6 +29,7 @@ export default function PlanCard({
   lastFeaturedUntil,
   companyName,
   activeIsLaunchPromo,
+  freePublishingUntil,
 }: Props) {
   const isFeatured = featuredUntil !== null;
 
@@ -68,7 +72,9 @@ export default function PlanCard({
       ) : (
         <>
           <p className="text-base font-semibold text-ink mt-2">
-            Tus empleos se publican gratis
+            {freePublishingUntil
+              ? `Tus empleos se publican gratis hasta el ${formatPromoEnd(freePublishingUntil)}`
+              : 'Publicás con el plan Básico'}
           </p>
           <p className="text-sm text-ink-secondary mt-1">
             {lastFeaturedUntil

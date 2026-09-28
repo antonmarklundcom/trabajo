@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Keyword Library</title>
+<style>
+  :root {
+    --bg: #f7f5f1; --panel: #ffffff; --ink: #1f1c18; --ink2: #6b645a; --line: #e4dfd6;
+    --brand: #c0362a; --brand-tint: #fbeae8; --ok: #1e7a46; --ok-tint: #e6f4ec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #151311; --panel: #1f1c19; --ink: #f1ede6; --ink2: #a79f93; --line: #37322c;
+      --brand: #ef6a5c; --brand-tint: #3a1f1c; --ok: #5cc28a; --ok-tint: #173226; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--ink); }
+  header { padding: 12px 20px; border-bottom: 1px solid var(--line); background: var(--panel); display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  header a { color: inherit; text-decoration: none; }
+  h1 { font-size: 18px; margin: 0; }
+  h2 { font-size: 15px; margin: 0 0 10px; }
+  main { padding: 18px 20px; max-width: 1280px; margin: 0 auto; display: grid; gap: 16px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+  .proj { display: block; text-decoration: none; color: inherit; border: 1px solid var(--line); border-radius: 10px; padding: 14px; background: var(--panel); }
+  .proj:hover { border-color: var(--brand); }
+  .proj b { font-size: 16px; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--brand-tint); color: var(--brand); }
+  label { display: block; font-size: 12px; color: var(--ink2); margin: 10px 0 4px; }
+  input[type=text], input[type=number], textarea, select { width: 100%; padding: 8px 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--ink); font: inherit; }
+  textarea { min-height: 130px; font: 12px/1.4 ui-monospace, Menlo, Consolas, monospace; }
+  button { font: inherit; padding: 8px 13px; border-radius: 7px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; }
+  button.primary { background: var(--brand); border-color: var(--brand); color: #fff; font-weight: 600; }
+  button.big { font-size: 15px; padding: 11px 18px; }
+  button.small { padding: 4px 9px; font-size: 12px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .cols { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+  .stat { background: var(--bg); border-radius: 8px; padding: 8px 10px; }
+  .stat b { display: block; font-size: 18px; font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 11px; color: var(--ink2); }
+  #drop { border: 2px dashed var(--line); border-radius: 10px; padding: 26px 12px; text-align: center; cursor: pointer; color: var(--ink2); }
+  #drop.over { border-color: var(--brand); background: var(--brand-tint); color: var(--ink); }
+  #drop b { color: var(--ink); font-size: 15px; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 10px; flex-wrap: wrap; }
+  .tabs button.on { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th, td { padding: 5px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  th { position: sticky; top: 0; background: var(--panel); font-size: 12px; color: var(--ink2); cursor: pointer; }
+  td.n, th.n { text-align: right; }
+  .scroll { max-height: 68vh; overflow: auto; }
+  .muted { color: var(--ink2); font-size: 12px; }
+  .variants { color: var(--ink2); font-size: 11px; }
+  .bar { height: 6px; background: var(--brand); border-radius: 3px; }
+  .note { border-radius: 8px; padding: 8px 10px; font-size: 13px; margin-top: 8px; }
+  .note.ok { background: var(--ok-tint); color: var(--ok); }
+  .note.warn { background: var(--brand-tint); color: var(--brand); }
+  pre { white-space: pre-wrap; background: var(--bg); border-radius: 8px; padding: 10px; font-size: 12px; margin: 8px 0 0; }
+  code { font-size: 12px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1><a href="#/">Keyword Library</a></h1>
+  <span class="muted">Google Keyword Planner data, organized per project — runs on this computer, no AI, nothing uploaded.</span>
+</header>
+<main id="app"></main>
+
+<script type="module">
+import { groupBy, themeGroups, placeGroups, topTerms, excluder, fold, keywordsCsv } from '/lib.mjs';
+
+const COUNTRIES = ['Paraguay', 'Worldwide (all countries)', 'Sverige', 'Argentina', 'Brasil', 'Bolivia', 'Uruguay', 'Chile', 'España', 'México', 'Estados Unidos'];
+const LANGUAGES = ['Español', 'Svenska', 'English', 'Português', 'All languages'];
+
+const $ = (sel, el = document) => el.querySelector(sel);
+const fmt = (n) => (n === null || n === undefined ? '' : Number(n).toLocaleString('es-PY'));
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const app = $('#app');
+
+async function api(path, opts = {}) {
+  const res = await fetch('/api' + path, { ...opts, headers: { 'x-keyword-library': '1', ...(opts.json ? { 'Content-Type': 'application/json' } : {}), ...(opts.headers || {}) }, body: opts.json ? JSON.stringify(opts.json) : opts.body });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+const options = (list, value) => list.map((c) => `<option ${c === value ? 'selected' : ''}>${esc(c)}</option>`).join('');
+
+// ---------------------------------------------------------------------------
+// Home: projects + search across everything
+// ---------------------------------------------------------------------------
+async function home() {
+  const { projects, root, index } = await api('/projects');
+  app.innerHTML = `
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <h2 style="margin:0">Projects</h2>
+        <div class="row"><button id="openRoot">Open data folder</button><button class="primary big" id="newBtn">+ New project</button></div>
+      </div>
+      <form id="newForm" hidden style="margin-top:12px">
+        <div class="cols">
+          <div><label>Name (for example a domain)</label><input id="nName" type="text" placeholder="trabajo.com.py" required></div>
+          <div><label>Country / location you chose in Keyword Planner</label><input id="nCountry" type="text" list="countries" value="Paraguay"></div>
+          <div><label>Language</label><input id="nLang" type="text" list="languages" value="Español"></div>
+        </div>
+        <label>Notes (optional)</label><input id="nNotes" type="text" placeholder="e.g. job market research, September 2026">
+        <p class="muted">One project = one country setting. Volumes for Paraguay and for "worldwide" are different numbers, so research the same domain for both as two projects (e.g. <code>trabajo.com.py</code> and <code>trabajo.com.py worldwide</code>).</p>
+        <div class="row"><button class="primary" type="submit">Create project</button><button type="button" id="cancelNew">Cancel</button></div>
+        <div id="newErr"></div>
+      </form>
+      <div class="grid" style="margin-top:14px">
+        ${projects.length ? projects.map((p) => `
+          <a class="proj" href="#/p/${encodeURIComponent(p.slug)}">
+            <b>${esc(p.name)}</b> <span class="badge">${esc(p.country || 'no country')}</span>
+            <div class="muted" style="margin-top:6px">${fmt(p.phrases)} phrases · ${fmt(p.files)} files · ${fmt(p.totalSearches)} searches/mo</div>
+            ${p.notes ? `<div class="muted">${esc(p.notes)}</div>` : ''}
+          </a>`).join('') : '<p class="muted">No projects yet — click <b>+ New project</b>.</p>'}
+      </div>
+      <p class="muted" style="margin-bottom:0">Data folder: <code>${esc(root)}</code> · Index for AI: <code>${esc(index)}</code></p>
+    </div>
+    <div class="card">
+      <h2>Search all projects</h2>
+      <div class="cols"><div><input id="sq" type="text" placeholder="e.g. medio tiempo   or   /trabajo en \\w+/"></div><div><input id="smin" type="number" min="0" value="0" title="Minimum monthly searches"></div></div>
+      <div class="scroll" id="sres" style="margin-top:10px"></div>
+    </div>
+    <datalist id="countries">${COUNTRIES.map((c) => `<option>${esc(c)}</option>`).join('')}</datalist>
+    <datalist id="languages">${LANGUAGES.map((c) => `<option>${esc(c)}</option>`).join('')}</datalist>`;
+
+  $('#openRoot').onclick = () => api('/open-root', { method: 'POST' });
+  $('#newBtn').onclick = () => { $('#newForm').hidden = false; $('#nName').focus(); };
+  $('#cancelNew').onclick = () => { $('#newForm').hidden = true; };
+  $('#newForm').onsubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const { slug } = await api('/projects', { method: 'POST', json: { name: $('#nName').value, country: $('#nCountry').value, language: $('#nLang').value, notes: $('#nNotes').value } });
+      location.hash = `#/p/${encodeURIComponent(slug)}`;
+    } catch (err) { $('#newErr').innerHTML = `<div class="note warn">${esc(err.message)}</div>`; }
+  };
+  let t = null;
+  const search = async () => {
+    const q = $('#sq').value.trim();
+    if (!q) { $('#sres').innerHTML = ''; return; }
+    const { results, total } = await api(`/search?q=${encodeURIComponent(q)}&min=${Number($('#smin').value) || 0}`);
+    $('#sres').innerHTML = `<p class="muted">${fmt(total)} matches${total > results.length ? ` — showing the top ${fmt(results.length)}` : ''}.</p>
+      <table><thead><tr><th>Phrase</th><th class="n">Searches/mo</th><th>Project</th><th>Country</th></tr></thead><tbody>
+      ${results.map((r) => `<tr><td>${esc(r.phrase)}</td><td class="n">${fmt(r.vol)}</td><td><a href="#/p/${encodeURIComponent(r.slug)}">${esc(r.project)}</a></td><td class="muted">${esc(r.country)}</td></tr>`).join('')}
+      </tbody></table>`;
+  };
+  $('#sq').oninput = $('#smin').oninput = () => { clearTimeout(t); t = setTimeout(search, 250); };
+}
+
+// ---------------------------------------------------------------------------
+// Project
+// ---------------------------------------------------------------------------
+const view = { tab: 'kw', sort: ['vol', -1], q: '', min: 0 };
+
+async function project(slug) {
+  const [info, { rows }] = await Promise.all([api(`/projects/${encodeURIComponent(slug)}`), api(`/projects/${encodeURIComponent(slug)}/rows`)]);
+  const p = info.project, cfg = info.config;
+  app.innerHTML = `
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <div><a href="#/" class="muted">← All projects</a><h2 style="margin:4px 0 0;font-size:20px">${esc(p.name)} <span class="badge">${esc(p.country || 'no country')}</span></h2>
+          <div class="muted">${esc(p.language || '')}${p.notes ? ' · ' + esc(p.notes) : ''}</div></div>
+        <div class="row"><button class="primary" id="copyAI">Copy for AI</button><button id="openDir">Open folder</button></div>
+      </div>
+      <pre id="aiText" hidden></pre>
+      <div class="stats" style="margin-top:12px">
+        <div class="stat"><b>${fmt(p.files)}</b><span>files</span></div>
+        <div class="stat"><b>${fmt(p.rowsRead)}</b><span>rows read</span></div>
+        <div class="stat"><b>${fmt(p.phrases)}</b><span>unique phrases</span></div>
+        <div class="stat"><b>${fmt(p.merged)}</b><span>variants merged</span></div>
+        <div class="stat"><b>${fmt(p.totalSearches)}</b><span>searches / month</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Add Keyword Planner exports</h2>
+      <div id="drop"><b>Drop CSV files here</b><br><span class="muted">or click to choose · Keyword Planner → download → "Keyword ideas (.csv)" · set to <b>${esc(p.country || 'the country of this project')}</b></span></div>
+      <input id="picker" type="file" accept=".csv,.tsv,.txt" multiple hidden>
+      <div id="upNote"></div>
+      ${info.files.length ? `<table style="margin-top:10px"><tbody>${info.files.map((f) => `<tr><td>${esc(f.name)}</td><td class="n muted">${fmt(f.rows)} rows</td><td class="n"><button class="small" data-del="${esc(f.name)}">Remove</button></td></tr>`).join('')}</tbody></table>` : ''}
+    </div>
+    <div class="card">
+      <div class="tabs">
+        ${[['kw', 'Keywords'], ['themes', 'Themes'], ['places', 'Places'], ['words', 'Top words & pairs'], ['typos', 'Possible typos'], ['settings', 'Settings']].map(([k, l]) => `<button data-tab="${k}" class="${view.tab === k ? 'on' : ''}">${l}</button>`).join('')}
+      </div>
+      <div class="cols" id="filters">
+        <div><input id="q" type="text" placeholder="Filter: contains…  or  /regex/" value="${esc(view.q)}"></div>
+        <div class="row"><input id="min" type="number" min="0" value="${view.min}" title="Minimum monthly searches" style="flex:1"><button id="dl">Download shown (CSV)</button></div>
+      </div>
+      <div class="scroll" id="tab" style="margin-top:10px"></div>
+    </div>`;
+
+  // Upload
+  const drop = $('#drop'), picker = $('#picker');
+  const upload = async (files) => {
+    const notes = [];
+    for (const f of files) {
+      try { const r = await api(`/projects/${encodeURIComponent(slug)}/files?name=${encodeURIComponent(f.name)}`, { method: 'POST', body: await f.arrayBuffer() }); notes.push(`<div class="note ok">Saved ${esc(r.saved)}</div>`); }
+      catch (err) { notes.push(`<div class="note warn">${esc(err.message)}</div>`); }
+      $('#upNote').innerHTML = notes.join('') + '<div class="muted">Updating…</div>';
+    }
+    await project(slug);
+    $('#upNote').innerHTML = notes.join('');
+  };
+  drop.onclick = () => picker.click();
+  picker.onchange = () => upload([...picker.files]);
+  drop.ondragover = (e) => { e.preventDefault(); drop.classList.add('over'); };
+  drop.ondragleave = () => drop.classList.remove('over');
+  drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove('over'); upload([...e.dataTransfer.files]); };
+  app.querySelectorAll('[data-del]').forEach((b) => b.onclick = async () => {
+    if (!confirm(`Remove ${b.dataset.del} from this project? (The file is deleted from raw/.)`)) return;
+    await api(`/projects/${encodeURIComponent(slug)}/files?name=${encodeURIComponent(b.dataset.del)}`, { method: 'DELETE' });
+    project(slug);
+  });
+  $('#copyAI').onclick = async () => {
+    $('#aiText').textContent = info.ai; $('#aiText').hidden = false;
+    try { await navigator.clipboard.writeText(info.ai); $('#copyAI').textContent = 'Copied ✓'; } catch { /* text is shown */ }
+  };
+  $('#openDir').onclick = () => api(`/projects/${encodeURIComponent(slug)}/open`, { method: 'POST' });
+
+  // Tabs
+  const isExcluded = excluder(cfg);
+  const filtered = () => {
+    const q = view.q.trim();
+    let test = () => true;
+    if (q) { const m = q.match(/^\/(.+)\/$/); try { const re = m ? new RegExp(m[1], 'i') : null; test = re ? (s) => re.test(fold(s)) : (s) => fold(s).includes(fold(q)); } catch { test = () => false; } }
+    return rows.filter((r) => r.vol >= view.min && test(r.phrase) && !isExcluded(r));
+  };
+  const renderTab = async () => {
+    const el = $('#tab');
+    $('#filters').hidden = ['typos', 'settings'].includes(view.tab);
+    const list = filtered();
+    if (view.tab === 'kw') {
+      const [col, dir] = view.sort;
+      const get = { phrase: (r) => r.phrase, vol: (r) => r.vol, low: (r) => r.low ?? -1, high: (r) => r.high ?? -1 }[col];
+      list.sort((a, b) => { const x = get(a), y = get(b); return (x > y ? 1 : x < y ? -1 : 0) * dir; });
+      el.innerHTML = `<p class="muted">${fmt(list.length)} phrases${list.length > 2000 ? ' — showing 2.000; narrow the filter or download' : ''}. Excluded words are hidden here (edit them in Settings).</p>
+        <table><thead><tr><th data-s="phrase">Phrase</th><th class="n" data-s="vol">Searches/mo</th><th class="n" data-s="low">Low CPC</th><th class="n" data-s="high">High CPC</th></tr></thead><tbody>
+        ${list.slice(0, 2000).map((r) => `<tr><td>${esc(r.phrase)}${r.variants.length ? `<div class="variants">also: ${esc(r.variants.join(', '))}</div>` : ''}</td><td class="n">${fmt(r.vol)}</td><td class="n">${fmt(r.low)}</td><td class="n">${fmt(r.high)}</td></tr>`).join('')}
+        </tbody></table>`;
+      el.querySelectorAll('th[data-s]').forEach((th) => th.onclick = () => { view.sort = [th.dataset.s, view.sort[0] === th.dataset.s ? -view.sort[1] : (th.dataset.s === 'phrase' ? 1 : -1)]; renderTab(); });
+    } else if (view.tab === 'themes' || view.tab === 'places') {
+      const res = groupBy(list, view.tab === 'themes' ? themeGroups(cfg) : placeGroups(cfg)).filter((g) => g.count);
+      const max = Math.max(1, ...res.map((g) => g.total));
+      el.innerHTML = `<table><thead><tr><th>${view.tab === 'themes' ? 'Theme' : 'Place'}</th><th class="n">Phrases</th><th class="n">Searches/mo</th><th>Top phrases</th></tr></thead><tbody>
+        ${res.map((g) => `<tr><td>${esc(g.name)}<div class="bar" style="width:${(g.total / max) * 100}%"></div></td><td class="n">${fmt(g.count)}</td><td class="n">${fmt(g.total)}</td><td class="muted">${g.top.map((r) => `${esc(r.phrase)} (${fmt(r.vol)})`).join('; ')}</td></tr>`).join('')}
+        </tbody></table><p class="muted">Totals add every matching phrase, including the long tail. Edit the lists in Settings.</p>`;
+    } else if (view.tab === 'words') {
+      const { words, pairs } = topTerms(list);
+      const tbl = (t, l) => `<div><h2>${t}</h2><table><tbody>${l.map(([k, v]) => `<tr><td>${esc(k)}</td><td class="n">${fmt(v)}</td></tr>`).join('')}</tbody></table></div>`;
+      el.innerHTML = `<div class="cols">${tbl('Words', words)}${tbl('Word pairs', pairs)}</div><p class="muted">Weighted by the monthly searches of every phrase containing the word — shows themes nobody thought to look for.</p>`;
+    } else if (view.tab === 'typos') {
+      el.innerHTML = '<p class="muted">Looking for phrases one letter apart…</p>';
+      const { pairs } = await api(`/projects/${encodeURIComponent(slug)}/typos`);
+      el.innerHTML = `<p class="muted">Phrases exactly one letter apart. <b>Merge</b> folds the smaller one into the bigger one (kept as "also: …"); <b>Different</b> hides the pair for good. Plurals and different numbers are never suggested.</p>
+        ${pairs.length ? `<table><thead><tr><th>Keep</th><th class="n">Searches</th><th>Possible typo</th><th class="n">Searches</th><th></th></tr></thead><tbody>
+        ${pairs.map((x, i) => `<tr><td>${esc(x.keep)}</td><td class="n">${fmt(x.keepVol)}</td><td>${esc(x.typo)}</td><td class="n">${fmt(x.typoVol)}</td>
+          <td class="n"><button class="small primary" data-merge="${i}">Merge</button> <button class="small" data-ignore="${i}">Different</button></td></tr>`).join('')}
+        </tbody></table>` : '<p>No possible typos left.</p>'}
+        ${Object.keys(cfg.merges || {}).length ? `<p class="muted">${Object.keys(cfg.merges).length} merges confirmed so far (stored in config.json).</p>` : ''}`;
+      const act = async (body) => { await api(`/projects/${encodeURIComponent(slug)}/typos`, { method: 'POST', json: body }); await project(slug); };
+      el.querySelectorAll('[data-merge]').forEach((b) => b.onclick = () => { const x = pairs[b.dataset.merge]; act({ action: 'merge', typoKey: x.typoKey, keepKey: x.keepKey }); });
+      el.querySelectorAll('[data-ignore]').forEach((b) => b.onclick = () => act({ action: 'ignore', id: pairs[b.dataset.ignore].id }));
+    } else {
+      el.innerHTML = `
+        <div class="cols">
+          <div><label>Country / location of the data</label><input id="sCountry" type="text" list="countries" value="${esc(p.country)}"></div>
+          <div><label>Language</label><input id="sLang" type="text" list="languages" value="${esc(p.language)}"></div>
+          <div><label>Notes</label><input id="sNotes" type="text" value="${esc(p.notes)}"></div>
+        </div>
+        <div class="cols">
+          <div><label>Themes — one per line, "Name: regex"</label><textarea id="sThemes">${esc(cfg.themes)}</textarea></div>
+          <div><label>Places — one per line</label><textarea id="sPlaces">${esc(cfg.places)}</textarea></div>
+          <div><label>Exclude phrases containing — one per line (hidden from views and summary, kept in keywords.csv)</label><textarea id="sExclude">${esc(cfg.exclude)}</textarea></div>
+        </div>
+        <div class="row" style="margin-top:10px"><button class="primary" id="saveSettings">Save settings</button><span id="saved" class="muted"></span></div>
+        <datalist id="countries">${COUNTRIES.map((c) => `<option>${esc(c)}</option>`).join('')}</datalist>
+        <datalist id="languages">${LANGUAGES.map((c) => `<option>${esc(c)}</option>`).join('')}</datalist>`;
+      $('#saveSettings').onclick = async () => {
+        await api(`/projects/${encodeURIComponent(slug)}/settings`, { method: 'PUT', json: { country: $('#sCountry').value, language: $('#sLang').value, notes: $('#sNotes').value, themes: $('#sThemes').value, places: $('#sPlaces').value, exclude: $('#sExclude').value } });
+        await project(slug);
+      };
+    }
+  };
+  app.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => { view.tab = b.dataset.tab; app.querySelectorAll('[data-tab]').forEach((x) => x.classList.toggle('on', x === b)); renderTab(); });
+  let t = null;
+  $('#q').oninput = () => { view.q = $('#q').value; clearTimeout(t); t = setTimeout(renderTab, 200); };
+  $('#min').oninput = () => { view.min = Number($('#min').value) || 0; clearTimeout(t); t = setTimeout(renderTab, 200); };
+  $('#dl').onclick = () => {
+    const blob = new Blob(['\uFEFF' + keywordsCsv(filtered())], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${slug}-filtered.csv`; a.click();
+  };
+  renderTab();
+}
+
+// ---------------------------------------------------------------------------
+// Router
+// ---------------------------------------------------------------------------
+async function routeTo() {
+  const m = location.hash.match(/^#\/p\/(.+)$/);
+  try { if (m) await project(decodeURIComponent(m[1])); else await home(); }
+  catch (err) { app.innerHTML = `<div class="card"><div class="note warn">${esc(err.message)}</div><p><a href="#/">← All projects</a></p></div>`; }
+}
+window.addEventListener('hashchange', routeTo);
+routeTo();
+</script>
+</body>
+</html>

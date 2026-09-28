@@ -48,8 +48,10 @@ export async function generateMetadata({
   const canonicalPath = page > 1 ? `/trabajo-en/${ciudad}?page=${page}` : `/trabajo-en/${ciudad}`;
 
   return {
-    title: `Trabajo en ${city.name} — empleos en ${city.name}, Paraguay${pageSuffix}`,
-    description: `Encontrá empleos en ${city.name}, Paraguay. Postulate gratis en trabajo.com.py.`,
+    // "bolsa de trabajo en asuncion" is 1.300/mes in docs/seo/keywords-2026-09-27.csv;
+    // the same shape is used for every city.
+    title: `Bolsa de trabajo en ${city.name} — empleos y ofertas laborales${pageSuffix}`,
+    description: `Bolsa de trabajo en ${city.name}, Paraguay: ofertas laborales actualizadas, filtradas por categoría. Postulate gratis por WhatsApp en trabajo.com.py.`,
     robots: (city.jobCount ?? 0) === 0 ? { index: false, follow: true } : { index: true, follow: true },
     alternates: { canonical: canonicalFor(canonicalPath) },
   };
@@ -126,7 +128,7 @@ export default async function CiudadPage({
 
         {/* Hero */}
         <div className="mb-8">
-          <h1 className="text-3xl sm:text-4xl font-bold text-ink">Trabajo en {city.name}</h1>
+          <h1 className="text-3xl sm:text-4xl font-bold text-ink">Bolsa de trabajo en {city.name}</h1>
           <p className="mt-3 text-base text-ink-secondary max-w-2xl">
             Explorá las {total > 0 ? total : 'últimas'} oportunidades laborales en {city.name}.
             Postulate gratis y encontrá el empleo ideal para vos.

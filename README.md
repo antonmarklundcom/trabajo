@@ -278,7 +278,9 @@ primario).
 /trabajo/[categoria]/[ciudad] Landing SEO por categoría + ciudad
 /blog                         Listado de artículos (desde blog_posts)
 /blog/[slug]                  Artículo + JSON-LD BlogPosting; slugs retirados redirigen 301
-/publicar                     Formulario lead para empleadores
+/publicar                     Formulario para empleadores — el único camino para publicar (sin atajo por WhatsApp)
+/publicar-gratis              Página permanente "publicar empleos gratis": vende la promoción cuando hay una; si no, lo dice y muestra el precio vigente. Beneficios + formulario
+/planes                       Los 3 paquetes (Básico, Destacado, Empresa) con precios de lib/pricing.ts
 /planes                       Planes y precios
 /contacto                     Contacto
 /sitemap.xml                  Generado desde datos
@@ -297,6 +299,7 @@ primario).
 /admin/usuarios                CRUD de usuarios (solo admin)
 /admin/postulaciones          Bandeja de postulaciones por empleo
 /admin/blog                   CRUD de artículos: Markdown, portada, borrador/publicado
+/admin/precios                Precios de los 3 paquetes + promoción temporal con fecha de fin (solo admin)
 /api/admin/*                  Mutaciones — todas verifican rol server-side
 
 /api/postulante/cv            Subida de CV del postulante (magic bytes, 5 MB)

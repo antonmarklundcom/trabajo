@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { Wordmark, NandutiMotif } from './Logo';
-import WhatsAppCta from './WhatsAppCta';
 
 // Desktop keeps "Publicá tu empleo" out of the text links: the gold
 // "Publicar empleo" button beside them goes to the same page, and two links to
@@ -188,12 +187,6 @@ export default function NavMenu({ employerLogin }: Props) {
             ))}
 
             <div className="mt-auto pt-6 flex flex-col gap-3">
-              <WhatsAppCta
-                intent="publicar"
-                label="Publicá por WhatsApp"
-                sourcePage={pathname}
-                onNavigate={() => setOpen(false)}
-              />
               <Link
                 href="/publicar"
                 onClick={() => setOpen(false)}
