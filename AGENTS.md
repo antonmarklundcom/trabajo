@@ -20,6 +20,7 @@ Read before writing code:
 | `PLAN-NEXT.md` | The current build program (2026-08-19): audit fixes B1–B7 + email core + notifications + ops hardening + public UX, as two ordered PR batches with owner ops checklist |
 | `PLAN-PAGOPAR.md` | Not started, on purpose: the self-serve Destacado checkout — processor decision, webhook rules, schema, and a copy-paste prompt (§9) for the session that builds it. Read §1 before touching `featured_until`. |
 | `PLAN-GROWTH.md` | In progress (2026-09-08; Opus PRs #85–#87 merged, §12 records their hand-offs): employer WhatsApp conversion (Batch W), the 100-listing launch promotion (Batch P), SEO structural fixes (Batch S), blog content architecture (Batch C), redesign direction (Batch D) — all owner decisions recorded (§7), one prompt per build session (§10), job-supply playbook (§11). |
+| `PLAN-SEO.md` | Keyword-driven SEO program (2026-09-28): the resource guides (`lib/guides.ts`), type-of-work landings, labour-law figures (`lib/labor-law.ts` — update every July), owner to-dos and what comes next |
 | `ARCHITECTURE.md` | Target backend design: the data seam, DB schema, auth, job lifecycle, caching |
 | `MIGRATION.md` | WordPress → MySQL cutover runbook and rollback |
 | `DEPLOY.md` | Hostinger + MySQL operations and their known traps |

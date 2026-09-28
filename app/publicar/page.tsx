@@ -3,6 +3,7 @@ import { canonicalFor } from '@/lib/seo';
 import { WHATSAPP_HOURS_COPY } from '@/lib/whatsapp';
 import { getLaunchPromoStatus } from '@/lib/promo';
 import Link from 'next/link';
+import { GUIDES } from '@/lib/guides';
 import { getCategories, getCities } from '@/lib/data';
 import { employerDashboardEnabled, employerSignupEnabled } from '@/lib/flags';
 import EmployerForm from '@/components/EmployerForm';
@@ -18,9 +19,11 @@ import { blogCategoryPath, getLatestBlogPosts } from '@/lib/blog';
 export const revalidate = 300;
 
 export const metadata: Metadata = {
-  title: 'Publicá tu empleo gratis en Paraguay — por WhatsApp o formulario',
+  // "buscar personal" is the employer-side query in the keyword data
+  // (PLAN-SEO.md §1 Q8).
+  title: 'Publicá tu empleo gratis y encontrá personal en Paraguay',
   description:
-    'Publicá tu oferta de empleo en trabajo.com.py por WhatsApp o con el formulario. Nuestro equipo revisa y publica cada aviso. Gratuito para comenzar.',
+    '¿Buscás personal? Publicá tu oferta de empleo gratis en trabajo.com.py por WhatsApp o con el formulario y recibí postulantes en tu WhatsApp. Revisamos cada aviso.',
   alternates: { canonical: canonicalFor('/publicar') },
 };
 
@@ -40,7 +43,7 @@ export default async function PublicarPage() {
     <>
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div className="text-center mb-10">
-        <h1 className="text-3xl sm:text-4xl font-bold text-ink">Publicá tu empleo gratis</h1>
+        <h1 className="text-3xl sm:text-4xl font-bold text-ink">Publicá tu empleo gratis y encontrá personal</h1>
         <p className="mt-4 text-base text-ink-secondary max-w-xl mx-auto">
           Elegí cómo preferís hacerlo.
         </p>
@@ -86,6 +89,27 @@ export default async function PublicarPage() {
           </div>
         )}
       </div>
+
+      {/* The employer-facing guides (lib/guides.ts): the payroll questions a
+          small business looks up around the time it hires. */}
+      <section className="mt-10" aria-labelledby="recursos-empleadores">
+        <h2 id="recursos-empleadores" className="text-sm font-semibold text-ink-secondary uppercase tracking-wide mb-3">
+          Recursos para empleadores
+        </h2>
+        <ul className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {(['contrato', 'salarioMinimo', 'aguinaldo'] as const).map((key) => (
+            <li key={key}>
+              <Link
+                href={GUIDES[key].href}
+                className="block h-full rounded-[10px] border border-border bg-white p-4 hover:border-brand transition-colors"
+              >
+                <span className="block text-sm font-semibold text-ink">{GUIDES[key].label}</span>
+                <span className="mt-1 block text-xs text-ink-secondary">{GUIDES[key].blurb}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       {/* A quiet "Leé más" row under the cards (PLAN-GROWTH.md §4 C2) —
           the employer articles' way in from the page employers land on. */}

@@ -13,6 +13,7 @@ import { NandutiMotif } from '@/components/Logo';
 import JsonLd from '@/components/JsonLd';
 import BlogPostLinks from '@/components/BlogPostLinks';
 import { getLatestBlogPosts } from '@/lib/blog';
+import { GUIDES } from '@/lib/guides';
 
 // Cached reads are invalidated on demand by every admin mutation
 // (lib/cache.ts), so this timer is only the safety net for job expiry and
@@ -24,9 +25,13 @@ export const revalidate = 300;
 // `/` is the one URL a site is most likely to be reached at under a second
 // address (a preview host, a trailing-slash variant, a tracking parameter).
 export const metadata: Metadata = {
-  title: 'Empleos en Paraguay — trabajo.com.py',
+  // `absolute` is belt and braces: the layout's template does not apply to a
+  // page in its own segment, but the brand is in this string on purpose.
+  // "bolsa de trabajo" is the second-largest query family the site serves
+  // (PLAN-SEO.md §1 Q1) and appeared nowhere on the page.
+  title: { absolute: 'Empleos en Paraguay — bolsa de trabajo | trabajo.com.py' },
   description:
-    'Buscá trabajo en Asunción, Ciudad del Este, Encarnación y todo Paraguay. Publicá tu empleo gratis. El portal de empleos hecho para el móvil.',
+    'La bolsa de trabajo de Paraguay: ofertas de empleo en Asunción, Ciudad del Este, Encarnación y todo el país. Postulate gratis por WhatsApp. ¿Buscás personal? Publicá gratis.',
   alternates: { canonical: canonicalFor('/') },
 };
 
@@ -178,6 +183,56 @@ export default async function HomePage() {
           />
         </div>
       )}
+
+      {/* The page's editorial block (PLAN-SEO.md §1 Q1): what the site is,
+          in the words people search it with, and the resource guides. Below
+          the listings — the jobs are what a visitor came for. */}
+      <section className="py-10 sm:py-12 px-4 border-t border-border" aria-labelledby="bolsa-de-trabajo">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+          <div>
+            <h2 id="bolsa-de-trabajo" className="text-xl sm:text-2xl font-bold text-ink">
+              La bolsa de trabajo de Paraguay
+            </h2>
+            <div className="mt-3 space-y-3 text-ink-secondary leading-relaxed">
+              <p>
+                trabajo.com.py reúne ofertas de empleo de empresas de todo el país: desde{' '}
+                <Link href="/trabajo-en/asuncion" className="text-brand hover:underline">trabajo en Asunción</Link>{' '}
+                y Gran Asunción hasta{' '}
+                <Link href="/trabajo-en/ciudad-del-este" className="text-brand hover:underline">Ciudad del Este</Link>{' '}
+                y{' '}
+                <Link href="/trabajo-en/encarnacion" className="text-brand hover:underline">Encarnación</Link>.
+                Cada aviso lo revisa nuestro equipo antes de publicarse, y te postulás gratis, sin crear cuenta,
+                escribiéndole a la empresa por WhatsApp.
+              </p>
+              <p>
+                Si estás buscando tu primer empleo, mirá los{' '}
+                <Link href="/trabajo-sin-experiencia" className="text-brand hover:underline">trabajos sin experiencia</Link>,
+                los de{' '}
+                <Link href="/trabajo-medio-tiempo" className="text-brand hover:underline">medio tiempo</Link>{' '}
+                o el{' '}
+                <Link href="/trabajo-remoto" className="text-brand hover:underline">trabajo remoto</Link>.
+                Y si tenés una empresa, publicar tu oferta de trabajo también es gratis.
+              </p>
+            </div>
+          </div>
+          <div>
+            <h2 className="text-xl sm:text-2xl font-bold text-ink">Recursos para tu búsqueda</h2>
+            <ul className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {(['curriculum', 'curriculumPlantillas', 'cartaPresentacion', 'entrevista', 'aguinaldo', 'salarioMinimo'] as const).map((key) => (
+                <li key={key}>
+                  <Link
+                    href={GUIDES[key].href}
+                    className="block h-full rounded-card border border-border bg-surface p-4 hover:border-brand transition-colors"
+                  >
+                    <span className="block font-semibold text-ink">{GUIDES[key].label}</span>
+                    <span className="mt-1 block text-sm text-ink-secondary">{GUIDES[key].blurb}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
 
       {/* CTA for employers */}
       <section className="relative overflow-hidden bg-ink py-12 sm:py-16 px-4">

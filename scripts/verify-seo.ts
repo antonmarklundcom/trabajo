@@ -131,11 +131,31 @@ for (const page of [2, 3, 17]) {
   );
 }
 
+// The type-of-work landings (PLAN-SEO.md §1): one such filter ALONE is the
+// landing's slice; anything more is a search again.
+for (const [key, value, landing] of [
+  ['modalidad', 'remoto', '/trabajo-remoto'],
+  ['nivel', 'sin_experiencia', '/trabajo-sin-experiencia'],
+  ['tipo', 'medio_tiempo', '/trabajo-medio-tiempo'],
+] as const) {
+  const rule = listingIndexRule({ [key]: value });
+  check(`?${key}=${value} is noindexed`, rule.index === false);
+  check(`?${key}=${value} canonicalises to ${landing}`, rule.canonical === landing, rule.canonical);
+  check(
+    `?${key}=${value}&page=2 still canonicalises to ${landing}`,
+    listingIndexRule({ [key]: value, page: 2 }).canonical === landing,
+  );
+  check(
+    `?${key}=${value} with a second filter is a search, not the landing`,
+    listingIndexRule({ [key]: value, ciudad: 'asuncion' }).canonical === '/empleos',
+  );
+}
+
 for (const [key, value] of [
   ['q', 'vendedor'],
-  ['tipo', 'medio_tiempo'],
+  ['tipo', 'tiempo_completo'],
   ['nivel', 'junior'],
-  ['modalidad', 'remoto'],
+  ['modalidad', 'hibrido'],
   ['salario_min', '3000000'],
   ['orden', 'salario'],
 ] as const) {

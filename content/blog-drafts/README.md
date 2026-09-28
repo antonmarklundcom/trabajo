@@ -1,5 +1,16 @@
 # content/blog-drafts/ — C0 pilot, not yet imported
 
+> **Folded into site guides (PLAN-SEO.md §2 item 3) — do not publish as blog posts:**
+> `cv-sin-experiencia-paraguay`, `carta-de-presentacion-con-ejemplo`,
+> `preguntas-frecuentes-en-una-entrevista-de-trabajo`, `aguinaldo-en-paraguay`,
+> `salario-minimo-en-paraguay`, `despido-preaviso-e-indemnizacion-en-paraguay`,
+> `trabajo-de-medio-tiempo-para-estudiantes`,
+> `como-buscar-trabajo-sin-experiencia-en-asuncion`. Their content now lives on
+> fixed pages (`/curriculum-vitae/sin-experiencia`, `/carta-de-presentacion`,
+> `/entrevista-de-trabajo`, `/calculadora-de-aguinaldo`, `/salario-minimo`,
+> `/preaviso-e-indemnizacion`, `/trabajo-medio-tiempo`,
+> `/trabajo-sin-experiencia`); a blog copy would compete with them in search.
+
 These are drafts for the C0 content sprint (`PLAN-GROWTH.md` §4). They are
 **not** read by the site and are **not** picked up by `scripts/blog-import.ts`
 (that script is a one-time historical importer scoped to the original three

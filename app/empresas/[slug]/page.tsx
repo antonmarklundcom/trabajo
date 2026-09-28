@@ -38,7 +38,12 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const company = await getCompany(slug);
   if (!company) return { title: 'Empresa no encontrada', robots: { index: false, follow: true } };
 
-  const title = `Empleos en ${company.name}`;
+  // "{empresa} trabaja con nosotros" is how people look for a company's jobs
+  // (PLAN-SEO.md §1 Q7) — only claimed while the company actually has some.
+  const title =
+    company.jobCount > 0
+      ? `${company.name}: trabaja con nosotros — empleos`
+      : `Empleos en ${company.name}`;
   const description =
     company.jobCount > 0
       ? `${company.jobCount === 1 ? 'Un empleo publicado' : `${company.jobCount} empleos publicados`} por ${company.name} en trabajo.com.py. Postulate gratis y te contactás directo con la empresa.`
