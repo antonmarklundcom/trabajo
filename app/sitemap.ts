@@ -1,7 +1,9 @@
 import type { MetadataRoute } from 'next';
 import { getAllPublishedJobSummaries, getCategories, getCities } from '@/lib/data';
 import { blogCategoryPath, getBlogCategoryCounts, getBlogPosts } from '@/lib/blog';
-import { blogArchivesForSitemap, companiesWithPublicJobs } from '@/lib/seo';
+import { blogArchivesForSitemap, companiesWithPublicJobs, jobTypeRobots } from '@/lib/seo';
+import { GUIDES, GUIDE_ORDER } from '@/lib/guides';
+import { INTENT_LANDINGS, INTENT_LANDING_ORDER, jobMatchesIntent } from '@/lib/seo/intent-landings';
 
 // Left at an hour on purpose: a new listing reaches the sitemap immediately
 // because every admin mutation revalidates '/sitemap.xml' (lib/cache.ts), so
@@ -66,6 +68,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${siteUrl}/privacidad`, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${siteUrl}/terminos`, changeFrequency: 'yearly', priority: 0.3 },
   ];
+
+  // Resource guides (lib/guides.ts). lastModified is the guide's own
+  // reviewed-on date, which only moves when its copy does.
+  const guidePages: MetadataRoute.Sitemap = GUIDE_ORDER.map((key) => ({
+    url: `${siteUrl}${GUIDES[key].href}`,
+    lastModified: new Date(`${GUIDES[key].updated}T00:00:00Z`),
+    changeFrequency: 'monthly' as const,
+    priority: 0.7,
+  }));
+
+  // Type-of-work landings (lib/seo/intent-landings.ts) — only the ones
+  // jobTypeRobots() lets Google index, counted from the same walk.
+  const intentPages: MetadataRoute.Sitemap = INTENT_LANDING_ORDER.filter(
+    (key) => jobTypeRobots(jobs.filter((job) => jobMatchesIntent(job, key)).length).index,
+  ).map((key) => ({
+    url: `${siteUrl}${INTENT_LANDINGS[key].path}`,
+    changeFrequency: 'daily' as const,
+    priority: 0.7,
+  }));
 
   // Job detail pages
   const jobPages: MetadataRoute.Sitemap = jobs.map((job) => ({
@@ -150,6 +171,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return [
     ...staticPages,
+    ...guidePages,
+    ...intentPages,
     ...jobPages,
     ...categoryPages,
     ...cityPages,

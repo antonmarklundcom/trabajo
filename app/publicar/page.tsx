@@ -6,6 +6,7 @@ import { getPlanPricing } from '@/lib/pricing';
 import { activePromo, formatGs, publishingIsFree } from '@/lib/plans';
 import PublishPromoBanner from '@/components/PublishPromoBanner';
 import Link from 'next/link';
+import { GUIDES } from '@/lib/guides';
 import { getCategories, getCities } from '@/lib/data';
 import { employerDashboardEnabled, employerSignupEnabled } from '@/lib/flags';
 import EmployerForm from '@/components/EmployerForm';
@@ -110,6 +111,27 @@ export default async function PublicarPage() {
           </div>
         )}
       </div>
+
+      {/* The employer-facing guides (lib/guides.ts): the payroll questions a
+          small business looks up around the time it hires. */}
+      <section className="mt-10" aria-labelledby="recursos-empleadores">
+        <h2 id="recursos-empleadores" className="text-sm font-semibold text-ink-secondary uppercase tracking-wide mb-3">
+          Recursos para empleadores
+        </h2>
+        <ul className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {(['contrato', 'salarioMinimo', 'aguinaldo'] as const).map((key) => (
+            <li key={key}>
+              <Link
+                href={GUIDES[key].href}
+                className="block h-full rounded-[10px] border border-border bg-white p-4 hover:border-brand transition-colors"
+              >
+                <span className="block text-sm font-semibold text-ink">{GUIDES[key].label}</span>
+                <span className="mt-1 block text-xs text-ink-secondary">{GUIDES[key].blurb}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       {/* A quiet "Leé más" row under the cards (PLAN-GROWTH.md §4 C2) —
           the employer articles' way in from the page employers land on. */}

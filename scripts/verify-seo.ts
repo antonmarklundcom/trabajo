@@ -26,6 +26,8 @@ import {
   siteUrl,
   companyRobots,
   companiesWithPublicJobs,
+  jobTypeRobots,
+  JOB_TYPE_MIN_JOBS,
 } from '../lib/seo';
 import robots from '../app/robots';
 import { serializeJsonLd } from '../lib/json-ld';
@@ -131,11 +133,48 @@ for (const page of [2, 3, 17]) {
   );
 }
 
+// The type-of-work landings (PLAN-SEO.md §0): one such filter ALONE is the
+// landing's slice; anything more is a search again.
+for (const [key, value, landing] of [
+  ['modalidad', 'remoto', '/trabajo-remoto'],
+  ['nivel', 'sin_experiencia', '/trabajo-sin-experiencia'],
+  ['tipo', 'medio_tiempo', '/trabajo-medio-tiempo'],
+] as const) {
+  const rule = listingIndexRule({ [key]: value });
+  check(`?${key}=${value} is noindexed`, rule.index === false);
+  check(`?${key}=${value} canonicalises to ${landing}`, rule.canonical === landing, rule.canonical);
+  check(
+    `?${key}=${value}&page=2 still canonicalises to ${landing}`,
+    listingIndexRule({ [key]: value, page: 2 }).canonical === landing,
+  );
+  check(
+    `?${key}=${value} with a second filter is a search, not the landing`,
+    listingIndexRule({ [key]: value, ciudad: 'asuncion' }).canonical === '/empleos',
+  );
+}
+
+// The type-of-work landings are indexable only from JOB_TYPE_MIN_JOBS live
+// jobs, and the pages and the sitemap both take that from jobTypeRobots().
+check('a type-of-work landing below the minimum is noindex', jobTypeRobots(JOB_TYPE_MIN_JOBS - 1).index === false);
+check('a type-of-work landing at the minimum is indexable', jobTypeRobots(JOB_TYPE_MIN_JOBS).index === true);
+check('a type-of-work landing is always follow', jobTypeRobots(0).follow === true);
+for (const file of ['app/trabajo-remoto/page.tsx', 'app/trabajo-sin-experiencia/page.tsx', 'app/trabajo-medio-tiempo/page.tsx']) {
+  check(
+    `${file} takes robots from jobTypeRobots()`,
+    /robots:\s*jobTypeRobots\(await intentLandingTotal\(/.test(code(read(file))),
+    'A second copy of the rule inside generateMetadata is a second rule.',
+  );
+}
+check(
+  'the sitemap lists type-of-work landings only through jobTypeRobots()',
+  code(read('app/sitemap.ts')).includes('jobTypeRobots(jobs.filter((job) => jobMatchesIntent(job, key)).length).index'),
+);
+
 for (const [key, value] of [
   ['q', 'vendedor'],
-  ['tipo', 'medio_tiempo'],
+  ['tipo', 'tiempo_completo'],
   ['nivel', 'junior'],
-  ['modalidad', 'remoto'],
+  ['modalidad', 'hibrido'],
   ['salario_min', '3000000'],
   ['orden', 'salario'],
 ] as const) {

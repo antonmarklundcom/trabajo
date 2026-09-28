@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { Wordmark } from './Logo';
 import WhatsAppCta from './WhatsAppCta';
 import { WHATSAPP_HOURS_COPY } from '@/lib/whatsapp';
+import { GUIDES } from '@/lib/guides';
+import { INTENT_LANDINGS, INTENT_LANDING_ORDER } from '@/lib/seo/intent-landings';
 
 // All ten categories and all seven cities (PLAN-GROWTH.md §4 S4) — the
 // footer used to link only 6 of 10 and 4 of 7 (§3.2 finding S-4). Hardcoded
@@ -21,6 +23,16 @@ const categoryLinks = [
   { href: '/trabajo/marketing', label: 'Marketing' },
 ];
 
+// Resource guides and type-of-work landings (PLAN-SEO.md): linked from every
+// page so a new guide is never an orphan the crawler has to find through the
+// sitemap alone.
+const seekerResourceLinks = [
+  ...INTENT_LANDING_ORDER.map((key) => ({ href: INTENT_LANDINGS[key].path, label: INTENT_LANDINGS[key].label })),
+  ...(['curriculum', 'curriculumPlantillas', 'cartaPresentacion', 'entrevista', 'aguinaldo', 'salarioMinimo'] as const).map(
+    (key) => ({ href: GUIDES[key].href, label: GUIDES[key].label }),
+  ),
+];
+
 const cityLinks = [
   { href: '/trabajo-en/asuncion', label: 'Asunción' },
   { href: '/trabajo-en/ciudad-del-este', label: 'Ciudad del Este' },
@@ -35,7 +47,7 @@ export default function Footer() {
   return (
     <footer className="bg-white border-t border-border mt-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8">
           {/* Brand */}
           <div className="col-span-1">
             <Link href="/" className="inline-block" aria-label="trabajo.com.py — Inicio">
@@ -101,6 +113,25 @@ export default function Footer() {
             </ul>
           </div>
 
+          {/* Recursos para postulantes */}
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-ink-secondary mb-4">
+              Recursos
+            </h3>
+            <ul className="space-y-1.5">
+              {seekerResourceLinks.map((l) => (
+                <li key={l.href}>
+                  <Link
+                    href={l.href}
+                    className="text-sm text-ink-secondary hover:text-brand transition-colors"
+                  >
+                    {l.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
           {/* Empresa */}
           <div>
             <h3 className="text-xs font-semibold uppercase tracking-wider text-ink-secondary mb-4">
@@ -120,6 +151,16 @@ export default function Footer() {
               <li>
                 <Link href="/planes" className="text-sm text-ink-secondary hover:text-brand transition-colors">
                   Planes y precios
+                </Link>
+              </li>
+              <li>
+                <Link href={GUIDES.contrato.href} className="text-sm text-ink-secondary hover:text-brand transition-colors">
+                  Modelo de contrato
+                </Link>
+              </li>
+              <li>
+                <Link href={GUIDES.preaviso.href} className="text-sm text-ink-secondary hover:text-brand transition-colors">
+                  Preaviso e indemnización
                 </Link>
               </li>
               <li>

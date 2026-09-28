@@ -29,6 +29,7 @@ import JsonLd from '@/components/JsonLd';
 import { isHttpUrl } from '@/lib/company-website';
 import EmployerBand from '@/components/EmployerBand';
 import BlogPostLinks from '@/components/BlogPostLinks';
+import { GUIDES } from '@/lib/guides';
 import { getPostsForJobCategory } from '@/lib/blog';
 
 // Cached reads are invalidated on demand by every admin mutation
@@ -525,6 +526,28 @@ export default async function JobDetailPage({ params }: { params: Params }) {
                 similar jobs rather than under the description so it never
                 sits between a phone reader and the apply card. */}
             <BlogPostLinks title="Consejos para postularte" posts={blogPosts} className="mt-10" />
+
+            {/* The resource guides (lib/guides.ts). Every job page links them,
+                which is most of the site's internal link weight — and the
+                visitor here is exactly the one about to need a CV. */}
+            <section className="mt-10" aria-labelledby="prepara-postulacion">
+              <h2 id="prepara-postulacion" className="text-lg font-bold text-ink mb-3">
+                Prepará tu postulación
+              </h2>
+              <ul className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {(['curriculumPlantillas', 'cartaPresentacion', 'entrevista'] as const).map((key) => (
+                  <li key={key}>
+                    <Link
+                      href={GUIDES[key].href}
+                      className="block h-full rounded-card border border-border bg-surface p-4 hover:border-brand transition-colors"
+                    >
+                      <span className="block text-sm font-semibold text-ink">{GUIDES[key].label}</span>
+                      <span className="mt-1 block text-xs text-ink-secondary">{GUIDES[key].blurb}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
 
             <EmployerBand />
           </div>

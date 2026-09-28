@@ -3,7 +3,9 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { canonicalFor } from '@/lib/seo';
 import { getJobs, getCity, getCities, getTaxonomyCounts } from '@/lib/data';
-import { cityCopyFor } from '@/lib/seo/city-copy';
+import { cityCopyFor, cityDisplayName } from '@/lib/seo/city-copy';
+import { GUIDES } from '@/lib/guides';
+import { INTENT_LANDINGS } from '@/lib/seo/intent-landings';
 import { JOBS_PAGE_SIZE } from '@/lib/pagination';
 import JobCard from '@/components/JobCard';
 import Pagination from '@/components/Pagination';
@@ -48,10 +50,11 @@ export async function generateMetadata({
   const canonicalPath = page > 1 ? `/trabajo-en/${ciudad}?page=${page}` : `/trabajo-en/${ciudad}`;
 
   return {
-    // "bolsa de trabajo en asuncion" is 1.300/mes in docs/seo/keywords-2026-09-27.csv;
-    // the same shape is used for every city.
-    title: `Bolsa de trabajo en ${city.name} — empleos y ofertas laborales${pageSuffix}`,
-    description: `Bolsa de trabajo en ${city.name}, Paraguay: ofertas laborales actualizadas, filtradas por categoría. Postulate gratis por WhatsApp en trabajo.com.py.`,
+    // Title shape from docs/seo/keywords-2026-09-27.csv ("bolsa de trabajo en
+    // asuncion" 1.300/mes); the alias is how "trabajo cde" finds Ciudad del
+    // Este (PLAN-SEO.md §0).
+    title: `Bolsa de trabajo en ${cityDisplayName(ciudad, city.name)} — empleos y ofertas laborales${pageSuffix}`,
+    description: `Bolsa de trabajo en ${cityDisplayName(ciudad, city.name)}, Paraguay: ofertas laborales actualizadas, filtradas por categoría. Postulate gratis por WhatsApp en trabajo.com.py.`,
     robots: (city.jobCount ?? 0) === 0 ? { index: false, follow: true } : { index: true, follow: true },
     alternates: { canonical: canonicalFor(canonicalPath) },
   };
@@ -128,7 +131,7 @@ export default async function CiudadPage({
 
         {/* Hero */}
         <div className="mb-8">
-          <h1 className="text-3xl sm:text-4xl font-bold text-ink">Bolsa de trabajo en {city.name}</h1>
+          <h1 className="text-3xl sm:text-4xl font-bold text-ink">Bolsa de trabajo en {cityDisplayName(ciudad, city.name)}</h1>
           <p className="mt-3 text-base text-ink-secondary max-w-2xl">
             Explorá las {total > 0 ? total : 'últimas'} oportunidades laborales en {city.name}.
             Postulate gratis y encontrá el empleo ideal para vos.
@@ -186,6 +189,34 @@ export default async function CiudadPage({
 
         {/* After the listings, never above them (components/JobAlertForm.tsx). */}
         {jobAlertsEnabled() && <JobAlertForm citySlug={city.slug} cityName={city.name} />}
+
+        {/* Editorial block (PLAN-SEO.md §0): the query in the words
+            people use for it, and the paths a first-time seeker needs. */}
+        <section className="mt-12 pt-8 border-t border-border max-w-3xl" aria-labelledby="buscar-trabajo-ciudad">
+          <h2 id="buscar-trabajo-ciudad" className="text-xl font-bold text-ink">
+            Cómo buscar trabajo en {city.name}
+          </h2>
+          <div className="mt-3 space-y-3 text-ink-secondary leading-relaxed">
+            <p>
+              Esta es la bolsa de trabajo de {city.name} en trabajo.com.py: cada oferta de empleo la
+              publica una empresa y la revisa nuestro equipo antes de salir. Te postulás gratis,
+              escribiéndole directo a la empresa por WhatsApp, sin crear una cuenta.
+            </p>
+            <p>
+              Si es tu primer empleo, empezá por los{' '}
+              <Link href={INTENT_LANDINGS.sinExperiencia.path} className="text-brand hover:underline">trabajos sin experiencia</Link>{' '}
+              y los de{' '}
+              <Link href={INTENT_LANDINGS.medioTiempo.path} className="text-brand hover:underline">medio tiempo</Link>.
+              Antes de postularte, tené listo tu{' '}
+              <Link href={GUIDES.curriculum.href} className="text-brand hover:underline">curriculum vitae</Link>{' '}
+              —hay{' '}
+              <Link href={GUIDES.curriculumPlantillas.href} className="text-brand hover:underline">plantillas gratis</Link>{' '}
+              para descargar— y repasá las{' '}
+              <Link href={GUIDES.entrevista.href} className="text-brand hover:underline">preguntas de entrevista</Link>{' '}
+              más comunes.
+            </p>
+          </div>
+        </section>
       </div>
     </>
   );

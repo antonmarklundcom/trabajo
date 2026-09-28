@@ -47,7 +47,7 @@ export default function SearchHero({ cities, activeJobCount, activeCityCount }: 
           Encontrá tu próximo trabajo en Paraguay
         </h1>
         <p className="mt-2.5 sm:mt-4 text-[15px] sm:text-lg text-white/85 max-w-2xl">
-          Postulate gratis, en un toque, por WhatsApp.
+          La bolsa de trabajo de Paraguay. Postulate gratis, en un toque, por WhatsApp.
         </p>
 
         <form

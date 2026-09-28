@@ -53,9 +53,14 @@ export async function generateMetadata({
   // rule: one canonical form for the first page, `?page=N` for the rest.
   const canonicalPath = page > 1 ? `/trabajo/${categoria}?page=${page}` : `/trabajo/${categoria}`;
 
+  const copy = categoryCopyFor(categoria);
   return {
-    title: `Trabajo de ${category.name} en Paraguay${pageSuffix}`,
-    description: `Encontrá los mejores empleos de ${category.name} en Paraguay. Postulate gratis en trabajo.com.py`,
+    title: copy
+      ? `Trabajo de ${category.name} en Paraguay: ${copy.titleRoles}${pageSuffix}`
+      : `Trabajo de ${category.name} en Paraguay${pageSuffix}`,
+    description: copy
+      ? `Empleos de ${category.name} en Paraguay: ${copy.roles.map((r) => r.name.toLowerCase()).join(', ')}. Ofertas de trabajo publicadas hoy; postulate gratis por WhatsApp.`
+      : `Encontrá los mejores empleos de ${category.name} en Paraguay. Postulate gratis en trabajo.com.py`,
     robots:
       category.jobCount === 0 ? { index: false, follow: true } : { index: true, follow: true },
     alternates: { canonical: canonicalFor(canonicalPath) },
@@ -198,6 +203,30 @@ export default async function CategoriaPage({
         {jobAlertsEnabled() && (
           <JobAlertForm categorySlug={category.slug} categoryName={category.name} />
         )}
+        {/* "Puestos más buscados" (PLAN-SEO.md §0): the role names the
+            keyword data shows people search for, each explained plainly. */}
+        {copy && page === 1 && (
+          <section className="mt-12 pt-8 border-t border-border max-w-3xl" aria-labelledby="puestos">
+            <h2 id="puestos" className="text-xl font-bold text-ink">
+              Puestos más buscados en {category.name}
+            </h2>
+            <dl className="mt-4 space-y-4">
+              {copy.roles.map((role) => (
+                <div key={role.name}>
+                  <dt className="font-semibold text-ink">{role.name}</dt>
+                  <dd className="mt-1 text-ink-secondary leading-relaxed">{role.text}</dd>
+                </div>
+              ))}
+            </dl>
+            <p className="mt-4 text-sm text-ink-secondary">
+              ¿Vas a postularte? Prepará tu{' '}
+              <Link href="/curriculum-vitae" className="text-brand hover:underline">curriculum vitae</Link>{' '}
+              y mirá también los{' '}
+              <Link href="/trabajo-sin-experiencia" className="text-brand hover:underline">trabajos sin experiencia</Link>.
+            </p>
+          </section>
+        )}
+
         <BlogPostLinks
           title={`Cómo conseguir trabajo en ${category.name}`}
           posts={guides}

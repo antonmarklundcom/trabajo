@@ -14,6 +14,7 @@ import { NandutiMotif } from '@/components/Logo';
 import JsonLd from '@/components/JsonLd';
 import BlogPostLinks from '@/components/BlogPostLinks';
 import { getLatestBlogPosts } from '@/lib/blog';
+import { GUIDES } from '@/lib/guides';
 
 // Cached reads are invalidated on demand by every admin mutation
 // (lib/cache.ts), so this timer is only the safety net for job expiry and
@@ -226,6 +227,36 @@ export default async function HomePage() {
           />
         </div>
       )}
+
+      {/* Resource guides and type-of-work landings (PLAN-SEO.md §0). The
+          "bolsa de trabajo" copy lives in the block above; this one only
+          routes seekers to the guides. */}
+      <section className="py-10 sm:py-12 px-4 border-t border-border" aria-labelledby="recursos">
+        <div className="max-w-7xl mx-auto">
+          <h2 id="recursos" className="text-xl sm:text-2xl font-bold text-ink">Recursos para tu búsqueda</h2>
+          <p className="mt-2 text-sm sm:text-base text-ink-secondary">
+            ¿Primer empleo? Mirá los{' '}
+            <Link href="/trabajo-sin-experiencia" className="text-brand hover:underline">trabajos sin experiencia</Link>,
+            los de{' '}
+            <Link href="/trabajo-medio-tiempo" className="text-brand hover:underline">medio tiempo</Link>{' '}
+            o el{' '}
+            <Link href="/trabajo-remoto" className="text-brand hover:underline">trabajo remoto</Link>.
+          </p>
+          <ul className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {(['curriculum', 'curriculumPlantillas', 'cartaPresentacion', 'entrevista', 'aguinaldo', 'salarioMinimo'] as const).map((key) => (
+              <li key={key}>
+                <Link
+                  href={GUIDES[key].href}
+                  className="block h-full rounded-card border border-border bg-surface p-4 hover:border-brand transition-colors"
+                >
+                  <span className="block font-semibold text-ink">{GUIDES[key].label}</span>
+                  <span className="mt-1 block text-sm text-ink-secondary">{GUIDES[key].blurb}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
 
       {/* CTA for employers */}
       <section className="relative overflow-hidden bg-ink py-12 sm:py-16 px-4">

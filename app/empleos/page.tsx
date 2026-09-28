@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import Link from 'next/link';
+import { INTENT_LANDINGS, INTENT_LANDING_ORDER } from '@/lib/seo/intent-landings';
 import { notFound } from 'next/navigation';
 import { getJobs, getCategories, getCities } from '@/lib/data';
 import { canonicalFor, listingIndexRule, type ListingParams } from '@/lib/seo';
@@ -87,7 +88,8 @@ export async function generateMetadata({
 
   return {
     title,
-    description: `Buscá empleos en Paraguay. Filtrá por categoría, ciudad, modalidad y más.`,
+    description:
+      'Ofertas de trabajo y vacancias laborales en Paraguay, actualizadas cada día. Buscá trabajo por categoría, ciudad o modalidad y postulate gratis por WhatsApp.',
     // `follow` is true on every row of the table, including the noindexed
     // ones: a filtered page nobody should index is still a crawl path to the
     // listings on it (lib/seo.ts).
@@ -149,7 +151,7 @@ export default async function EmpleosPage({
         ? `Empleos de ${headingCategory.name} en Paraguay`
         : headingCity
           ? `Empleos en ${headingCity.name}`
-          : 'Empleos en Paraguay';
+          : 'Ofertas de trabajo en Paraguay';
 
   const currentFilters = {
     categoria: filters.categoria,
@@ -293,6 +295,19 @@ function TaxonomyLinks({ categories, cities }: { categories: Category[]; cities:
             <Link href={`/trabajo-en/${city.slug}`} className={chipCls}>
               {city.name}
               <span className="text-xs text-ink-3">{city.jobCount}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+
+      {/* The type-of-work landings (lib/seo/intent-landings.ts) — each one is
+          the indexable home of a single tipo/nivel/modalidad filter. */}
+      <h2 className="mt-8 text-lg font-bold text-ink">Explorá por tipo de trabajo</h2>
+      <ul className="mt-3 flex flex-wrap gap-2">
+        {INTENT_LANDING_ORDER.map((key) => (
+          <li key={key}>
+            <Link href={INTENT_LANDINGS[key].path} className={chipCls}>
+              {INTENT_LANDINGS[key].label}
             </Link>
           </li>
         ))}

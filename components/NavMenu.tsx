@@ -11,6 +11,9 @@ import { Wordmark, NandutiMotif } from './Logo';
 // because there the buttons sit at the bottom of a long screen.
 const seekerLinks = [
   { href: '/empleos', label: 'Empleos' },
+  // The largest query family the site targets (PLAN-SEO.md §0): a header link
+  // from every page is the strongest internal link the CV hub can get.
+  { href: '/curriculum-vitae', label: 'Curriculum' },
   { href: '/blog', label: 'Consejos' },
 ];
 const employerLinks = [

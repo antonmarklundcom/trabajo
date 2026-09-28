@@ -17,6 +17,8 @@
 // scripts/verify-seo.ts imports it under plain tsx, and there is nothing in it
 // a client could learn.
 
+import { intentLandingFor } from './seo/intent-landings';
+
 /**
  * The site's own origin, with no trailing slash.
  *
@@ -65,6 +67,7 @@ export type IndexRule = {
     | 'categoria'
     | 'categoria+ciudad'
     | 'ciudad'
+    | 'intent'
     | 'open-ended';
 };
 
@@ -89,7 +92,10 @@ const OPEN_ENDED_PARAMS = ['q', 'tipo', 'nivel', 'modalidad', 'salario_min', 'or
  * | /empleos?page=N                   | index          | self, /empleos?page=N  |
  * | /empleos?categoria=X [+page]      | noindex, follow| /trabajo/X             |
  * | /empleos?categoria=X&ciudad=Y [+] | noindex, follow| /trabajo/X/Y           |
- * | /empleos?ciudad=Y [+page]         | noindex, follow| /empleos (until S4)    |
+ * | /empleos?ciudad=Y [+page]         | noindex, follow| /trabajo-en/Y          |
+ * | /empleos?modalidad=remoto [+page] | noindex, follow| /trabajo-remoto        |
+ * | /empleos?nivel=sin_experiencia [+]| noindex, follow| /trabajo-sin-experiencia |
+ * | /empleos?tipo=medio_tiempo [+page]| noindex, follow| /trabajo-medio-tiempo  |
  * | anything with an open-ended param | noindex, follow| /empleos               |
  *
  * Two decisions worth stating out loud, because both are easy to "fix" wrongly:
@@ -116,6 +122,21 @@ export function listingIndexRule(params: ListingParams): IndexRule {
     const value = params[key];
     return typeof value === 'string' && value.trim() !== '';
   });
+
+  // One type-of-work filter ALONE is the catalogue slice a landing serves
+  // (lib/seo/intent-landings.ts) — `?modalidad=remoto` is /trabajo-remoto
+  // under a query string. Combined with anything else it is a search again
+  // and falls through to the open-ended row below.
+  const setKeys = (Object.keys(params) as (keyof ListingParams)[]).filter((key) => {
+    if (key === 'page') return false;
+    const value = params[key];
+    return typeof value === 'string' && value.trim() !== '';
+  });
+  if (setKeys.length === 1) {
+    const key = setKeys[0];
+    const landing = intentLandingFor(key, String(params[key]).trim());
+    if (landing) return { index: false, canonical: landing.path, reason: 'intent' };
+  }
 
   // Anything open-ended wins over everything: `?categoria=ventas&q=zona` is a
   // search inside a category, not the category landing, and pointing its
@@ -224,4 +245,21 @@ export function blogArchivesForSitemap<C extends string>(
   counts: ReadonlyArray<{ category: C; total: number }>,
 ): C[] {
   return counts.filter((row) => row.total > 0).map((row) => row.category);
+}
+
+// ---------------------------------------------------------------------------
+// Type-of-work landings: /trabajo-remoto, /trabajo-sin-experiencia,
+// /trabajo-medio-tiempo (lib/seo/intent-landings.ts, PLAN-SEO.md §2 S3).
+//
+// Indexable from JOB_TYPE_MIN_JOBS live jobs up. Below that the page still
+// renders — its guide copy is useful to a visitor — but asks not to be
+// indexed and the sitemap leaves it out, so a slice with one or two listings
+// is never a thin page in Google's index.
+// ---------------------------------------------------------------------------
+
+export const JOB_TYPE_MIN_JOBS = 3;
+
+/** robots for a type-of-work landing. `follow` stays true, as everywhere else. */
+export function jobTypeRobots(liveJobCount: number): { index: boolean; follow: true } {
+  return { index: liveJobCount >= JOB_TYPE_MIN_JOBS, follow: true };
 }
