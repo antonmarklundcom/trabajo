@@ -1,6 +1,6 @@
 # content/blog-drafts/ — C0 pilot, not yet imported
 
-> **Folded into site guides (PLAN-SEO.md §2 item 3) — do not publish as blog posts:**
+> **Folded into site guides (PLAN-SEO.md §0) — do not publish as blog posts:**
 > `cv-sin-experiencia-paraguay`, `carta-de-presentacion-con-ejemplo`,
 > `preguntas-frecuentes-en-una-entrevista-de-trabajo`, `aguinaldo-en-paraguay`,
 > `salario-minimo-en-paraguay`, `despido-preaviso-e-indemnizacion-en-paraguay`,

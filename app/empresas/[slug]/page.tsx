@@ -39,7 +39,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   if (!company) return { title: 'Empresa no encontrada', robots: { index: false, follow: true } };
 
   // "{empresa} trabaja con nosotros" is how people look for a company's jobs
-  // (PLAN-SEO.md §1 Q7) — only claimed while the company actually has some.
+  // (PLAN-SEO.md §0) — only claimed while the company actually has some.
   const title =
     company.jobCount > 0
       ? `${company.name}: trabaja con nosotros — empleos`

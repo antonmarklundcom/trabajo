@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { canonicalFor } from '@/lib/seo';
+import Link from 'next/link';
 import { WHATSAPP_HOURS_COPY } from '@/lib/whatsapp';
 import ContactForm from '@/components/ContactForm';
 import WhatsAppCta from '@/components/WhatsAppCta';
@@ -36,14 +37,12 @@ export default function ContactoPage() {
             </div>
           </div>
           <WhatsAppCta intent="contacto" sourcePage="/contacto" />
-          <WhatsAppCta
-            intent="publicar"
-            variant="pill"
-            size="sm"
-            label="Quiero publicar un empleo"
-            sourcePage="/contacto"
-            className="self-start"
-          />
+          <p className="text-sm text-ink-secondary">
+            ¿Querés publicar un empleo?{' '}
+            <Link href="/publicar" className="text-brand hover:underline font-medium">
+              Cargalo con el formulario
+            </Link>
+          </p>
         </div>
 
         {/* General contact / form */}

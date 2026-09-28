@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { canonicalFor } from '@/lib/seo';
 import { getJobs, getCity, getCities, getTaxonomyCounts } from '@/lib/data';
-import { cityAliasFor, cityCopyFor, cityDisplayName } from '@/lib/seo/city-copy';
+import { cityCopyFor, cityDisplayName } from '@/lib/seo/city-copy';
 import { GUIDES } from '@/lib/guides';
 import { INTENT_LANDINGS } from '@/lib/seo/intent-landings';
 import { JOBS_PAGE_SIZE } from '@/lib/pagination';
@@ -49,17 +49,12 @@ export async function generateMetadata({
   const pageSuffix = page > 1 ? ` — página ${page}` : '';
   const canonicalPath = page > 1 ? `/trabajo-en/${ciudad}?page=${page}` : `/trabajo-en/${ciudad}`;
 
-  // "bolsa de trabajo {ciudad}" is the top phrase for every city in the
-  // keyword data (PLAN-SEO.md §1 Q3); the alias is how "trabajo cde" finds
-  // Ciudad del Este (Q4).
-  const alias = cityAliasFor(ciudad);
-  const title = alias
-    ? `Trabajo en ${city.name} (${alias}): bolsa de trabajo y empleos hoy`
-    : `Trabajo en ${city.name}: bolsa de trabajo y empleos hoy`;
-
   return {
-    title: `${title}${pageSuffix}`,
-    description: `Bolsa de trabajo en ${cityDisplayName(ciudad, city.name)}: ofertas de empleo publicadas por empresas de la zona. Postulate gratis por WhatsApp, también a trabajos sin experiencia.`,
+    // Title shape from docs/seo/keywords-2026-09-27.csv ("bolsa de trabajo en
+    // asuncion" 1.300/mes); the alias is how "trabajo cde" finds Ciudad del
+    // Este (PLAN-SEO.md §0).
+    title: `Bolsa de trabajo en ${cityDisplayName(ciudad, city.name)} — empleos y ofertas laborales${pageSuffix}`,
+    description: `Bolsa de trabajo en ${cityDisplayName(ciudad, city.name)}, Paraguay: ofertas laborales actualizadas, filtradas por categoría. Postulate gratis por WhatsApp en trabajo.com.py.`,
     robots: (city.jobCount ?? 0) === 0 ? { index: false, follow: true } : { index: true, follow: true },
     alternates: { canonical: canonicalFor(canonicalPath) },
   };
@@ -136,7 +131,7 @@ export default async function CiudadPage({
 
         {/* Hero */}
         <div className="mb-8">
-          <h1 className="text-3xl sm:text-4xl font-bold text-ink">Trabajo en {cityDisplayName(ciudad, city.name)}</h1>
+          <h1 className="text-3xl sm:text-4xl font-bold text-ink">Bolsa de trabajo en {cityDisplayName(ciudad, city.name)}</h1>
           <p className="mt-3 text-base text-ink-secondary max-w-2xl">
             Explorá las {total > 0 ? total : 'últimas'} oportunidades laborales en {city.name}.
             Postulate gratis y encontrá el empleo ideal para vos.
@@ -195,7 +190,7 @@ export default async function CiudadPage({
         {/* After the listings, never above them (components/JobAlertForm.tsx). */}
         {jobAlertsEnabled() && <JobAlertForm citySlug={city.slug} cityName={city.name} />}
 
-        {/* Editorial block (PLAN-SEO.md §1 Q3–Q5): the query in the words
+        {/* Editorial block (PLAN-SEO.md §0): the query in the words
             people use for it, and the paths a first-time seeker needs. */}
         <section className="mt-12 pt-8 border-t border-border max-w-3xl" aria-labelledby="buscar-trabajo-ciudad">
           <h2 id="buscar-trabajo-ciudad" className="text-xl font-bold text-ink">

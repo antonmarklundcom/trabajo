@@ -246,3 +246,20 @@ export function blogArchivesForSitemap<C extends string>(
 ): C[] {
   return counts.filter((row) => row.total > 0).map((row) => row.category);
 }
+
+// ---------------------------------------------------------------------------
+// Type-of-work landings: /trabajo-remoto, /trabajo-sin-experiencia,
+// /trabajo-medio-tiempo (lib/seo/intent-landings.ts, PLAN-SEO.md §2 S3).
+//
+// Indexable from JOB_TYPE_MIN_JOBS live jobs up. Below that the page still
+// renders — its guide copy is useful to a visitor — but asks not to be
+// indexed and the sitemap leaves it out, so a slice with one or two listings
+// is never a thin page in Google's index.
+// ---------------------------------------------------------------------------
+
+export const JOB_TYPE_MIN_JOBS = 3;
+
+/** robots for a type-of-work landing. `follow` stays true, as everywhere else. */
+export function jobTypeRobots(liveJobCount: number): { index: boolean; follow: true } {
+  return { index: liveJobCount >= JOB_TYPE_MIN_JOBS, follow: true };
+}

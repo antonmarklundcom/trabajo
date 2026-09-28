@@ -6,7 +6,7 @@ import CvSheet from '@/components/guide/CvSheet';
 import { CV_EXAMPLES } from '@/lib/cv-examples';
 import { GUIDES } from '@/lib/guides';
 
-// Keyword groups served here (PLAN-SEO.md §1): "curriculum vitae",
+// Keyword groups served here (PLAN-SEO.md §0): "curriculum vitae",
 // "currículum", "como hacer un curriculum", "como hacer curriculum vitae",
 // "como crear un cv", "curriculum vitae ejemplos", "ejemplo de cv",
 // "curriculum de modelos", "curriculum vitae modelo", "formato de curriculum

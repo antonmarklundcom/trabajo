@@ -5,8 +5,8 @@
 // that slice (paginated, through lib/data.ts), ItemList + BreadcrumbList —
 // plus an editorial guide below the list, because each of these pages answers
 // a question ("¿cómo consigo trabajo remoto desde Paraguay?") as well as
-// listing jobs. That copy is also why the page stays indexable while the list
-// is empty: it is a guide with a job list, not a thin filter page.
+// listing jobs. Indexability follows jobTypeRobots() in lib/seo.ts: the copy
+// helps a visitor, but a slice with too few jobs stays out of the index.
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -34,6 +34,11 @@ export function intentJobFilters(key: IntentLandingKey): JobFilters {
   if (filter.param === 'modalidad') return { modality: filter.value };
   if (filter.param === 'nivel') return { nivel: filter.value };
   return { tipo: filter.value };
+}
+
+/** Live jobs in a landing's slice — generateMetadata's input to jobTypeRobots(). */
+export async function intentLandingTotal(key: IntentLandingKey): Promise<number> {
+  return (await getJobs({ ...intentJobFilters(key), orden: 'recientes', page: 1 })).total;
 }
 
 type Props = {

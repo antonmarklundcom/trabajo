@@ -39,8 +39,11 @@ export function waHref(number: string | null | undefined, message: string): stri
  * §2.3). One prefilled message per intent so the team knows what the chat is
  * about before opening it — the whole point of offering WhatsApp first.
  */
+//
+// There is deliberately no "publish a job" intent: a chat creates no listing,
+// so the team would have to retype it in /admin. Every job goes through the
+// /publicar form (/api/publicar → `pending` → /admin approval).
 export const EMPLOYER_INTENTS = [
-  'publicar',
   'destacado',
   'empresa',
   'contacto',
@@ -48,6 +51,9 @@ export const EMPLOYER_INTENTS = [
   // Renewing the LISTING itself (lib/listing-expiry.ts), as opposed to
   // 'renovar' above, which is renewing a Destacado window.
   'renovar_aviso',
+  // "Avisame de la próxima promoción" on /publicar-gratis while no promotion
+  // runs — a question, not a way to publish (§14 of PLAN-GROWTH.md).
+  'promocion',
 ] as const;
 
 export type EmployerIntent = (typeof EMPLOYER_INTENTS)[number];
@@ -61,8 +67,8 @@ export type EmployerIntentContext = {
 export type EmployerIntentOptions = {
   context?: EmployerIntentContext;
   /**
-   * The launch promotion (PLAN-GROWTH.md §4 Batch P) changes the `publicar`
-   * and `destacado` messages while it is active. Decided in one place so the
+   * The launch promotion (PLAN-GROWTH.md §4 Batch P) changes the `destacado`
+   * message while it is active. Decided in one place so the
    * quota logic never leaks into a page component.
    */
   promoActive?: boolean;
@@ -80,19 +86,15 @@ function contextSuffix(context: EmployerIntentContext | undefined): string {
 function employerIntentMessage(intent: EmployerIntent, options: EmployerIntentOptions = {}): string {
   const { context, promoActive = false } = options;
   switch (intent) {
-    case 'publicar':
-      return promoActive
-        ? 'Hola, quiero publicar un empleo con la promoción de lanzamiento (Destacado 90 días gratis).'
-        : `Hola, quiero publicar un empleo en trabajo.com.py.${contextSuffix(context)}`;
     case 'destacado':
-      // Kept identical to the /planes message shipped in PR #78; only the
-      // promo suffix is new. The context suffix is empty for /planes (it
+      // No "¿Cuánto sale?" since /planes prints the price (lib/plans.ts,
+      // 2026-09-27). The context suffix is empty for /planes (it
       // passes none) and names the listing when the weekly summary
       // (lib/emails/employer.ts) offers Destacado for one specific aviso, so
       // the team knows which one the chat is about.
       return promoActive
-        ? `Hola, quiero destacar un empleo en trabajo.com.py. ¿Cuánto sale? (promoción de lanzamiento)${contextSuffix(context)}`
-        : `Hola, quiero destacar un empleo en trabajo.com.py. ¿Cuánto sale?${contextSuffix(context)}`;
+        ? `Hola, quiero destacar un empleo en trabajo.com.py (promoción de lanzamiento).${contextSuffix(context)}`
+        : `Hola, quiero destacar un empleo en trabajo.com.py.${contextSuffix(context)}`;
     case 'empresa':
       return 'Hola, quiero consultar por el plan Empresa (varios avisos por mes) en trabajo.com.py.';
     case 'contacto':
@@ -101,6 +103,8 @@ function employerIntentMessage(intent: EmployerIntent, options: EmployerIntentOp
       return context?.companyName
         ? `Hola, soy de ${context.companyName} y quiero renovar el plan Destacado.`
         : 'Hola, quiero renovar el plan Destacado.';
+    case 'promocion':
+      return 'Hola, quiero enterarme de la próxima promoción para publicar empleos gratis en trabajo.com.py.';
     case 'renovar_aviso':
       return `Hola, quiero renovar mi aviso en trabajo.com.py.${contextSuffix(context)}`;
   }

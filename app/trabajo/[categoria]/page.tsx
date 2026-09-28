@@ -203,7 +203,7 @@ export default async function CategoriaPage({
         {jobAlertsEnabled() && (
           <JobAlertForm categorySlug={category.slug} categoryName={category.name} />
         )}
-        {/* "Puestos más buscados" (PLAN-SEO.md §1 Q6): the role names the
+        {/* "Puestos más buscados" (PLAN-SEO.md §0): the role names the
             keyword data shows people search for, each explained plainly. */}
         {copy && page === 1 && (
           <section className="mt-12 pt-8 border-t border-border max-w-3xl" aria-labelledby="puestos">

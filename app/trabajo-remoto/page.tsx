@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { canonicalFor } from '@/lib/seo';
+import { canonicalFor, jobTypeRobots } from '@/lib/seo';
 import { INTENT_LANDINGS } from '@/lib/seo/intent-landings';
 import { GUIDES } from '@/lib/guides';
-import IntentLanding, { pageFromSearchParams, type SearchParams } from '@/components/IntentLanding';
+import IntentLanding, { intentLandingTotal, pageFromSearchParams, type SearchParams } from '@/components/IntentLanding';
 import type { FaqItem } from '@/components/guide/GuidePage';
 
-// Keyword groups (PLAN-SEO.md §1): "trabajo remoto paraguay", "trabajos
+// Keyword groups (PLAN-SEO.md §0): "trabajo remoto paraguay", "trabajos
 // remotos", "trabajo online paraguay", "trabajo desde casa paraguay",
 // "trabajos online desde casa", "tele trabajo", "trabajo remotos sin
 // experiencia", "trabajos freelance paraguay".
@@ -22,7 +22,7 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
     title: `Trabajo remoto en Paraguay: empleos online y desde casa${suffix}`,
     description:
       'Ofertas de trabajo remoto y empleos desde casa publicados por empresas de Paraguay. Cómo conseguir un trabajo online, también sin experiencia, y cómo evitar estafas.',
-    robots: { index: true, follow: true },
+    robots: jobTypeRobots(await intentLandingTotal('remoto')),
     alternates: { canonical: canonicalFor(page > 1 ? `${PATH}?page=${page}` : PATH) },
   };
 }

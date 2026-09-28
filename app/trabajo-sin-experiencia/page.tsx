@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { canonicalFor } from '@/lib/seo';
+import { canonicalFor, jobTypeRobots } from '@/lib/seo';
 import { INTENT_LANDINGS } from '@/lib/seo/intent-landings';
 import { GUIDES } from '@/lib/guides';
-import IntentLanding, { pageFromSearchParams, type SearchParams } from '@/components/IntentLanding';
+import IntentLanding, { intentLandingTotal, pageFromSearchParams, type SearchParams } from '@/components/IntentLanding';
 import type { FaqItem } from '@/components/guide/GuidePage';
 
-// Keyword groups (PLAN-SEO.md §1): "trabajo en paraguay sin experiencia",
+// Keyword groups (PLAN-SEO.md §0): "trabajo en paraguay sin experiencia",
 // "trabajo sin experiencia", "trabajo para jovenes sin experiencia",
 // "trabajos paraguay para jóvenes", "primer empleo", "ayudante de cocina sin
 // experiencia", "trabajo en supermercados sin experiencia", "busco trabajo de
@@ -24,7 +24,7 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
     title: `Trabajo sin experiencia en Paraguay: primer empleo y jóvenes${suffix}`,
     description:
       'Ofertas de trabajo sin experiencia en Paraguay para jóvenes y primer empleo: cajeros, ventas, gastronomía, depósito y más. Postulate gratis por WhatsApp.',
-    robots: { index: true, follow: true },
+    robots: jobTypeRobots(await intentLandingTotal('sinExperiencia')),
     alternates: { canonical: canonicalFor(page > 1 ? `${PATH}?page=${page}` : PATH) },
   };
 }

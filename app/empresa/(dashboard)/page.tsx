@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { requireCompanyScope } from '@/lib/auth';
 import { getEmployerCompany, getEmployerDashboardStats, getEmployerPlanSummary } from '@/lib/db/employer';
 import PlanCard from '@/components/empresa/PlanCard';
+import { getPlanPricing } from '@/lib/pricing';
+import { activePromo } from '@/lib/plans';
 
 export const metadata: Metadata = {
   title: 'Panel — Empresas',
@@ -11,11 +13,13 @@ export const metadata: Metadata = {
 
 export default async function EmpresaDashboardPage() {
   const { companyId } = await requireCompanyScope();
-  const [stats, plan, company] = await Promise.all([
+  const [stats, plan, company, pricing] = await Promise.all([
     getEmployerDashboardStats(companyId),
     getEmployerPlanSummary(companyId),
     getEmployerCompany(companyId),
+    getPlanPricing(),
   ]);
+  const freePromo = activePromo(pricing.basico);
 
   return (
     <div className="space-y-8">
@@ -55,6 +59,7 @@ export default async function EmpresaDashboardPage() {
       </div>
 
       <PlanCard
+        freePublishingUntil={freePromo?.priceGs === 0 ? freePromo.endsAt : null}
         activeFeaturedCount={plan.activeFeaturedCount}
         featuredUntil={plan.featuredUntil}
         lastFeaturedUntil={plan.lastFeaturedUntil}

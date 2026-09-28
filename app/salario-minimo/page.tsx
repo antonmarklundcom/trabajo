@@ -13,7 +13,7 @@ import {
   salarioMinimoDerivado,
 } from '@/lib/labor-law';
 
-// Keyword groups (PLAN-SEO.md §1): "salario minimo paraguay 2026", "jornal
+// Keyword groups (PLAN-SEO.md §0): "salario minimo paraguay 2026", "jornal
 // minimo paraguay", "sueldo promedio paraguay", "horas extras paraguay".
 // Every amount on this page comes from lib/labor-law.ts — update the decree
 // figures there, never here.
@@ -195,7 +195,7 @@ export default function SalarioMinimoPage() {
         más el 16,5 % de aporte patronal al IPS: {gs(sm.mensual + d.ipsEmpleador)}, sin contar el
         aguinaldo ni las vacaciones. Si estás por sumar personal, revisá el{' '}
         <Link href={GUIDES.contrato.href}>modelo de contrato de trabajo</Link> y{' '}
-        <Link href="/publicar">publicá tu oferta de empleo gratis</Link>.
+        <Link href="/publicar">publicá tu oferta de empleo</Link>.
       </p>
     </GuidePage>
   );

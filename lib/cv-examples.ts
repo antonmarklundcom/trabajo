@@ -1,4 +1,4 @@
-// Example CVs rendered as page content on the CV guides (PLAN-SEO.md §1,
+// Example CVs rendered as page content on the CV guides (PLAN-SEO.md §0,
 // "curriculum vitae ejemplos" / "ejemplo de cv" / "modelo de curriculum").
 // Invented people with placeholder contact data — never a real candidate.
 

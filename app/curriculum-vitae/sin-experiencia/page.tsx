@@ -7,7 +7,7 @@ import CvTemplateDownloads from '@/components/guide/CvTemplateDownloads';
 import { CV_EXAMPLES } from '@/lib/cv-examples';
 import { GUIDES } from '@/lib/guides';
 
-// Keyword groups served here (PLAN-SEO.md §1): "curriculum vitae ejemplos sin
+// Keyword groups served here (PLAN-SEO.md §0): "curriculum vitae ejemplos sin
 // experiencia laboral", "como hacer un curriculum si no tienes experiencia
 // laboral", "ejemplos de cv sin experiencia", "como hacer un currículum para
 // mi primer trabajo". Copy adapted from content/blog-drafts/cv-sin-experiencia-paraguay.md,

@@ -5,7 +5,7 @@ import GuidePage, { type FaqItem } from '@/components/guide/GuidePage';
 import CvTemplateDownloads from '@/components/guide/CvTemplateDownloads';
 import { GUIDES } from '@/lib/guides';
 
-// Keyword groups served here (PLAN-SEO.md §1) — the download intent:
+// Keyword groups served here (PLAN-SEO.md §0) — the download intent:
 // "curriculum vitae gratis", "curriculum vitae en pdf gratis", "plantilla de
 // curriculum vitae", "plantilla para cv", "plantillas de cv creativos gratis
 // word", "plantillas para curriculum gratis", "modelo de currículum vitae en

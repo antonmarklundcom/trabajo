@@ -6,7 +6,7 @@ import AguinaldoCalculator from '@/components/guide/AguinaldoCalculator';
 import { aguinaldoSueldoFijo, gs, SALARIO_MINIMO } from '@/lib/labor-law';
 import { GUIDES } from '@/lib/guides';
 
-// Keyword groups served here (PLAN-SEO.md §1): "como se calcula el aguinaldo",
+// Keyword groups served here (PLAN-SEO.md §0): "como se calcula el aguinaldo",
 // "calculo de aguinaldo", "cada cuanto se cobra el aguinaldo", "como sacar
 // aguinaldo", "1 año de trabajo aguinaldo", "aguinaldo cuándo se cobra",
 // "a los cuantos meses me corresponde aguinaldo", "aguinaldo proporcional",
@@ -223,7 +223,7 @@ export default function AguinaldoPage() {
         El cálculo en planilla es el mismo: la suma de las remuneraciones pagadas a cada trabajador en
         el año, dividida entre 12, con pago hasta el 31 de diciembre o al terminar la relación laboral.
         Si estás por sumar personal, podés{' '}
-        <Link href="/publicar">publicar tu oferta de empleo gratis</Link> y revisar el{' '}
+        <Link href="/publicar">publicar tu oferta de empleo</Link> y revisar el{' '}
         <Link href={GUIDES.contrato.href}>modelo de contrato de trabajo</Link>.
       </p>
     </GuidePage>

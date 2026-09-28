@@ -32,7 +32,7 @@ export function cityCopyFor(slug: string): string | null {
 
 /**
  * How people abbreviate a city when they search for work there — "trabajo
- * cde", "empleo cde" (PLAN-SEO.md §1 Q4). Shown next to the full name in the
+ * cde", "empleo cde" (PLAN-SEO.md §0). Shown next to the full name in the
  * landing's title and h1; never used as a slug.
  */
 const CITY_ALIAS: Record<string, string> = {

@@ -144,6 +144,11 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/buscar-personal" className="text-sm text-ink-secondary hover:text-brand transition-colors">
+                  Buscar personal
+                </Link>
+              </li>
+              <li>
                 <Link href="/planes" className="text-sm text-ink-secondary hover:text-brand transition-colors">
                   Planes y precios
                 </Link>

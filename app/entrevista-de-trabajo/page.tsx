@@ -4,7 +4,7 @@ import { canonicalFor } from '@/lib/seo';
 import GuidePage, { type FaqItem } from '@/components/guide/GuidePage';
 import { GUIDES } from '@/lib/guides';
 
-// Keyword groups (PLAN-SEO.md §1): "preguntas de entrevista de trabajo",
+// Keyword groups (PLAN-SEO.md §0): "preguntas de entrevista de trabajo",
 // "entrevista en ingles", "10 consejos para una entrevista de trabajo",
 // "5 fortalezas y 5 debilidades en una entrevista ejemplos", and the
 // "porque quieres trabajar con nosotros como responder" tail of the

@@ -47,7 +47,8 @@
     "digest:verify": "tsx --conditions=react-server scripts/verify-digest.ts",
     "sentry:verify": "tsx scripts/verify-sentry-scrub.ts",
     "accounts:verify": "tsx scripts/verify-accounts.ts",
-    "alerts:verify": "tsx --conditions=react-server scripts/verify-alerts.ts"
+    "alerts:verify": "tsx --conditions=react-server scripts/verify-alerts.ts",
+    "pricing:verify": "tsx scripts/verify-pricing.ts"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.70.0",

@@ -872,6 +872,33 @@ export const opsState = mysqlTable('ops_state', {
   updatedAt: datetime('updated_at').notNull(),
 });
 
+// ---------------------------------------------------------------------------
+// plan_prices
+//
+// What the three employer packages cost, edited in /admin/precios (owner
+// decision 2026-09-27). One row per package key; a missing row means "use
+// DEFAULT_PLAN_PRICING in lib/plans.ts", so an empty table is a valid state and
+// the migration needs no data. Read publicly only through lib/pricing.ts.
+//
+// A promotion is a price plus an END DATE, never a boolean: "Gratis hasta el
+// 31 de octubre" ends by itself when the date passes (activePromo()), so the
+// deadline the site advertises is a real one. Who changed what is recorded in
+// activity_log, which is why there is no updated_by column — this table
+// references no other row and is registered as STANDALONE in
+// scripts/verify-cascades.ts.
+// ---------------------------------------------------------------------------
+
+export const planPrices = mysqlTable(
+  'plan_prices',
+  {
+    planKey: varchar('plan_key', { length: 32 }).primaryKey(),
+    priceGs: int('price_gs').notNull(),
+    promoPriceGs: int('promo_price_gs'),
+    promoEndsAt: datetime('promo_ends_at'),
+    updatedAt: datetime('updated_at').notNull(),
+  },
+);
+
 // ===========================================================================
 // PagoPar checkout — the self-serve Destacado (PLAN-PAGOPAR.md §3)
 //

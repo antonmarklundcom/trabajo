@@ -16,7 +16,7 @@ export type CategoryCopy = {
   related: string[];
   /**
    * The role names people actually search for in this field ("cajeras",
-   * "empleos de chofer", "auxiliar administrativo" — PLAN-SEO.md §1 Q6),
+   * "empleos de chofer", "auxiliar administrativo" — PLAN-SEO.md §0),
    * appended to the landing's <title> after a colon. Short: the title
    * already carries the category name and the brand.
    */

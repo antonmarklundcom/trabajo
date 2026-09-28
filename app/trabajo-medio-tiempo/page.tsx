@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { canonicalFor } from '@/lib/seo';
+import { canonicalFor, jobTypeRobots } from '@/lib/seo';
 import { INTENT_LANDINGS } from '@/lib/seo/intent-landings';
 import { GUIDES } from '@/lib/guides';
-import IntentLanding, { pageFromSearchParams, type SearchParams } from '@/components/IntentLanding';
+import IntentLanding, { intentLandingTotal, pageFromSearchParams, type SearchParams } from '@/components/IntentLanding';
 import type { FaqItem } from '@/components/guide/GuidePage';
 
-// Keyword groups (PLAN-SEO.md §1): "trabajo medio tiempo paraguay",
+// Keyword groups (PLAN-SEO.md §0): "trabajo medio tiempo paraguay",
 // "trabajo a tiempo parcial", "empleo medio tiempo paraguay", "trabajos de
 // medio tiempo para estudiantes paraguay", "bolsa de trabajo paraguay medio
 // tiempo", "pasantias paraguay". Copy adapted from
@@ -23,7 +23,7 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
     title: `Trabajo de medio tiempo en Paraguay, también para estudiantes${suffix}`,
     description:
       'Empleos de medio tiempo y tiempo parcial en Paraguay: turnos de mañana, tarde o fin de semana, ideales para estudiantes. Qué preguntar y cómo postularte gratis.',
-    robots: { index: true, follow: true },
+    robots: jobTypeRobots(await intentLandingTotal('medioTiempo')),
     alternates: { canonical: canonicalFor(page > 1 ? `${PATH}?page=${page}` : PATH) },
   };
 }

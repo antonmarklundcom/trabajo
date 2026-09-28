@@ -5,7 +5,7 @@ import { canonicalFor } from '@/lib/seo';
 import GuidePage, { type FaqItem } from '@/components/guide/GuidePage';
 import { GUIDES } from '@/lib/guides';
 
-// Keyword groups (PLAN-SEO.md §1): "carta de presentacion", "carta de
+// Keyword groups (PLAN-SEO.md §0): "carta de presentacion", "carta de
 // presentacion ejemplo", "carta de presentacion laboral", "cartas de
 // presentacion de cv", "carta de motivacion", "carta de presentación ejemplos
 // cortos sin experiencia", "escrito de presentacion", "carta de presentacion
@@ -160,7 +160,7 @@ export default function CartaPresentacionPage() {
         Cuando la que se presenta es una empresa —para ofrecer servicios a un posible cliente—, la
         lógica es la misma: quiénes son, qué problema resuelven y un siguiente paso concreto (una
         reunión, un presupuesto). Media página, con datos de contacto claros. Y si lo que tu empresa
-        necesita es sumar gente, podés <Link href="/publicar">publicar una oferta de empleo gratis</Link>.
+        necesita es sumar gente, podés <Link href="/publicar">publicar una oferta de empleo</Link>.
       </p>
 
       <h2 id="errores">Lo que no conviene poner</h2>

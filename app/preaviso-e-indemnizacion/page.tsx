@@ -6,7 +6,7 @@ import PreavisoCalculator from '@/components/guide/PreavisoCalculator';
 import { GUIDES } from '@/lib/guides';
 import { diasDePreaviso, gs, jornalesDeIndemnizacion } from '@/lib/labor-law';
 
-// Keyword groups (PLAN-SEO.md §1): "preaviso paraguay", "despido
+// Keyword groups (PLAN-SEO.md §0): "preaviso paraguay", "despido
 // injustificado paraguay", "despido justificado paraguay", "indemnización por
 // despido injustificado paraguay", "calculo de liquidacion por despido
 // injustificado paraguay", "indemnizacion paraguay". Copy adapted from

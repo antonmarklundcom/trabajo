@@ -2,11 +2,12 @@ import type { Metadata } from 'next';
 import { getFeaturedJobs, getRecentJobs, getCategories, getCities } from '@/lib/data';
 import { canonicalFor, siteUrl } from '@/lib/seo';
 import { getLaunchPromoStatus } from '@/lib/promo';
+import { getPlanPricing } from '@/lib/pricing';
+import { activePromo, formatGs, formatPrice, formatPromoEnd } from '@/lib/plans';
 import { WHATSAPP_HOURS_COPY, siteWhatsAppNumber } from '@/lib/whatsapp';
 import SearchHero from '@/components/SearchHero';
 import CategoryGrid from '@/components/CategoryGrid';
 import JobCard from '@/components/JobCard';
-import WhatsAppCta from '@/components/WhatsAppCta';
 import FloatingWhatsApp from '@/components/FloatingWhatsApp';
 import Link from 'next/link';
 import { NandutiMotif } from '@/components/Logo';
@@ -25,26 +26,28 @@ export const revalidate = 300;
 // `/` is the one URL a site is most likely to be reached at under a second
 // address (a preview host, a trailing-slash variant, a tracking parameter).
 export const metadata: Metadata = {
-  // `absolute` is belt and braces: the layout's template does not apply to a
-  // page in its own segment, but the brand is in this string on purpose.
-  // "bolsa de trabajo" is the second-largest query family the site serves
-  // (PLAN-SEO.md §1 Q1) and appeared nowhere on the page.
-  title: { absolute: 'Empleos en Paraguay — bolsa de trabajo | trabajo.com.py' },
+  // "empleos py" (14.800/mes) and "bolsa de trabajo paraguay" (8.100/mes) are
+  // the two biggest searches in docs/seo/keywords-2026-09-27.csv; the title
+  // carries both verbatim. Absolute rather than templated: this page sits in
+  // the root segment, where the layout's "%s | trabajo.com.py" does not apply.
+  title: 'Empleos PY — Bolsa de trabajo en Paraguay | trabajo.com.py',
   description:
-    'La bolsa de trabajo de Paraguay: ofertas de empleo en Asunción, Ciudad del Este, Encarnación y todo el país. Postulate gratis por WhatsApp. ¿Buscás personal? Publicá gratis.',
+    'Bolsa de trabajo en Paraguay: ofertas laborales en Asunción, Ciudad del Este, Encarnación y todo el país. Buscá por categoría y ciudad, y postulate gratis por WhatsApp.',
   alternates: { canonical: canonicalFor('/') },
 };
 
 export default async function HomePage() {
-  const [featured, recent, categories, cities, promo, latestPosts] = await Promise.all([
+  const [featured, recent, categories, cities, promo, pricing, latestPosts] = await Promise.all([
     getFeaturedJobs(6),
     getRecentJobs(6),
     getCategories(),
     getCities(),
     getLaunchPromoStatus(),
+    getPlanPricing(),
     getLatestBlogPosts(3),
   ]);
   const promoActive = promo.enabled && promo.remaining > 0;
+  const basicoPromo = activePromo(pricing.basico);
   // Every live listing has exactly one category, so the category counts
   // already sum to the catalogue size — no extra query for the trust line.
   const activeJobCount = categories.reduce((n, c) => n + (c.jobCount ?? 0), 0);
@@ -144,6 +147,47 @@ export default async function HomePage() {
         </section>
       )}
 
+      {/* The one block of plain text on the homepage, for the searches it
+          targets (docs/seo/KEYWORDS.md): "bolsa de trabajo paraguay", "empleos
+          py", "ofertas laborales en paraguay", and one internal link per city
+          landing with "bolsa de trabajo en {ciudad}" as its anchor. */}
+      <section className="pb-10 sm:pb-12 px-4" aria-labelledby="bolsa">
+        <div className="max-w-7xl mx-auto">
+          <h2 id="bolsa" className="text-xl sm:text-2xl font-bold text-ink">
+            Bolsa de trabajo en Paraguay
+          </h2>
+          <p className="mt-3 text-sm sm:text-base text-ink-secondary max-w-3xl leading-relaxed">
+            trabajo.com.py es la bolsa de trabajo de Paraguay hecha para el celular: ofertas
+            laborales en Asunción, Ciudad del Este, Encarnación y todo el país, ordenadas por
+            categoría y ciudad. Buscá, filtrá y postulate gratis, directo al WhatsApp de la empresa.
+            Cada aviso lo revisa nuestro equipo antes de publicarse.
+          </p>
+          {cities.length > 0 && (
+            <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm">
+              {cities
+                .filter((c) => (c.jobCount ?? 0) > 0)
+                .map((city) => (
+                  <li key={city.slug}>
+                    <Link href={`/trabajo-en/${city.slug}`} className="text-brand hover:underline">
+                      Bolsa de trabajo en {city.name}
+                    </Link>
+                  </li>
+                ))}
+              <li>
+                <Link href="/empleos" className="text-brand hover:underline">
+                  Todas las ofertas laborales
+                </Link>
+              </li>
+              <li>
+                <Link href="/buscar-personal" className="text-brand hover:underline">
+                  ¿Buscás personal?
+                </Link>
+              </li>
+            </ul>
+          )}
+        </div>
+      </section>
+
       {/* Featured jobs — a paid slot, so below what the seeker came for
           (§7 D10), and still on the homepage, as /planes promises
           ("Posición destacada en resultados y portada"). */}
@@ -184,53 +228,33 @@ export default async function HomePage() {
         </div>
       )}
 
-      {/* The page's editorial block (PLAN-SEO.md §1 Q1): what the site is,
-          in the words people search it with, and the resource guides. Below
-          the listings — the jobs are what a visitor came for. */}
-      <section className="py-10 sm:py-12 px-4 border-t border-border" aria-labelledby="bolsa-de-trabajo">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
-          <div>
-            <h2 id="bolsa-de-trabajo" className="text-xl sm:text-2xl font-bold text-ink">
-              La bolsa de trabajo de Paraguay
-            </h2>
-            <div className="mt-3 space-y-3 text-ink-secondary leading-relaxed">
-              <p>
-                trabajo.com.py reúne ofertas de empleo de empresas de todo el país: desde{' '}
-                <Link href="/trabajo-en/asuncion" className="text-brand hover:underline">trabajo en Asunción</Link>{' '}
-                y Gran Asunción hasta{' '}
-                <Link href="/trabajo-en/ciudad-del-este" className="text-brand hover:underline">Ciudad del Este</Link>{' '}
-                y{' '}
-                <Link href="/trabajo-en/encarnacion" className="text-brand hover:underline">Encarnación</Link>.
-                Cada aviso lo revisa nuestro equipo antes de publicarse, y te postulás gratis, sin crear cuenta,
-                escribiéndole a la empresa por WhatsApp.
-              </p>
-              <p>
-                Si estás buscando tu primer empleo, mirá los{' '}
-                <Link href="/trabajo-sin-experiencia" className="text-brand hover:underline">trabajos sin experiencia</Link>,
-                los de{' '}
-                <Link href="/trabajo-medio-tiempo" className="text-brand hover:underline">medio tiempo</Link>{' '}
-                o el{' '}
-                <Link href="/trabajo-remoto" className="text-brand hover:underline">trabajo remoto</Link>.
-                Y si tenés una empresa, publicar tu oferta de trabajo también es gratis.
-              </p>
-            </div>
-          </div>
-          <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-ink">Recursos para tu búsqueda</h2>
-            <ul className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {(['curriculum', 'curriculumPlantillas', 'cartaPresentacion', 'entrevista', 'aguinaldo', 'salarioMinimo'] as const).map((key) => (
-                <li key={key}>
-                  <Link
-                    href={GUIDES[key].href}
-                    className="block h-full rounded-card border border-border bg-surface p-4 hover:border-brand transition-colors"
-                  >
-                    <span className="block font-semibold text-ink">{GUIDES[key].label}</span>
-                    <span className="mt-1 block text-sm text-ink-secondary">{GUIDES[key].blurb}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
+      {/* Resource guides and type-of-work landings (PLAN-SEO.md §0). The
+          "bolsa de trabajo" copy lives in the block above; this one only
+          routes seekers to the guides. */}
+      <section className="py-10 sm:py-12 px-4 border-t border-border" aria-labelledby="recursos">
+        <div className="max-w-7xl mx-auto">
+          <h2 id="recursos" className="text-xl sm:text-2xl font-bold text-ink">Recursos para tu búsqueda</h2>
+          <p className="mt-2 text-sm sm:text-base text-ink-secondary">
+            ¿Primer empleo? Mirá los{' '}
+            <Link href="/trabajo-sin-experiencia" className="text-brand hover:underline">trabajos sin experiencia</Link>,
+            los de{' '}
+            <Link href="/trabajo-medio-tiempo" className="text-brand hover:underline">medio tiempo</Link>{' '}
+            o el{' '}
+            <Link href="/trabajo-remoto" className="text-brand hover:underline">trabajo remoto</Link>.
+          </p>
+          <ul className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {(['curriculum', 'curriculumPlantillas', 'cartaPresentacion', 'entrevista', 'aguinaldo', 'salarioMinimo'] as const).map((key) => (
+              <li key={key}>
+                <Link
+                  href={GUIDES[key].href}
+                  className="block h-full rounded-card border border-border bg-surface p-4 hover:border-brand transition-colors"
+                >
+                  <span className="block font-semibold text-ink">{GUIDES[key].label}</span>
+                  <span className="mt-1 block text-sm text-ink-secondary">{GUIDES[key].blurb}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
 
@@ -242,8 +266,17 @@ export default async function HomePage() {
             ¿Necesitás contratar?
           </h2>
           <p className="mt-3 text-white/70 text-base">
-            Publicá tu empleo gratis. Los postulantes te escriben directo a tu WhatsApp.
+            {basicoPromo?.priceGs === 0
+              ? 'Publicá tu empleo gratis. Los postulantes te escriben directo a tu WhatsApp.'
+              : 'Publicá tu empleo. Los postulantes te escriben directo a tu WhatsApp.'}
           </p>
+          {basicoPromo && (
+            <p className="mt-2 text-white text-sm font-semibold">
+              Promoción por tiempo limitado: {formatPrice(basicoPromo.priceGs).toLowerCase()} hasta
+              el {formatPromoEnd(basicoPromo.endsAt)}. Después, {formatGs(pricing.basico.priceGs)} por
+              aviso.
+            </p>
+          )}
           {promoActive && (
             <p className="mt-2 text-[#E6B25A] text-sm font-semibold">
               Promoción de lanzamiento: los primeros 100 avisos salen destacados 90 días, gratis.
@@ -251,17 +284,11 @@ export default async function HomePage() {
             </p>
           )}
           <div className="mt-7 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <WhatsAppCta
-              intent="publicar"
-              promoActive={promoActive}
-              sourcePage="/"
-              className="sm:w-auto sm:px-8"
-            />
             <Link
-              href="/publicar"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-[12px] border-2 border-white/30 text-white font-semibold text-base hover:bg-white/10 transition-colors"
+              href={basicoPromo ? '/publicar-gratis' : '/publicar'}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-[12px] bg-[#E6B25A] text-ink font-bold text-base hover:bg-[#d8a548] transition-colors"
             >
-              Publicar con el formulario
+              {basicoPromo?.priceGs === 0 ? 'Publicá gratis ahora' : 'Publicá tu empleo'}
             </Link>
           </div>
           <p className="mt-4">

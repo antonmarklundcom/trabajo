@@ -19,8 +19,8 @@ Read before writing code:
 | `PLAN-IMAGES.md` | The shared public image pipeline: backend decision, validation rules, key scheme, what PR 19–21 inherit |
 | `PLAN-NEXT.md` | The current build program (2026-08-19): audit fixes B1–B7 + email core + notifications + ops hardening + public UX, as two ordered PR batches with owner ops checklist |
 | `PLAN-PAGOPAR.md` | Not started, on purpose: the self-serve Destacado checkout — processor decision, webhook rules, schema, and a copy-paste prompt (§9) for the session that builds it. Read §1 before touching `featured_until`. |
-| `PLAN-GROWTH.md` | In progress (2026-09-08; Opus PRs #85–#87 merged, §12 records their hand-offs): employer WhatsApp conversion (Batch W), the 100-listing launch promotion (Batch P), SEO structural fixes (Batch S), blog content architecture (Batch C), redesign direction (Batch D) — all owner decisions recorded (§7), one prompt per build session (§10), job-supply playbook (§11). |
-| `PLAN-SEO.md` | Keyword-driven SEO program (2026-09-28): the resource guides (`lib/guides.ts`), type-of-work landings, labour-law figures (`lib/labor-law.ts` — update every July), owner to-dos and what comes next |
+| `PLAN-GROWTH.md` | In progress (2026-09-08; Opus PRs #85–#87 merged, §12 records their hand-offs): employer WhatsApp conversion (Batch W), the 100-listing launch promotion (Batch P), SEO structural fixes (Batch S), blog content architecture (Batch C), redesign direction (Batch D) — all owner decisions recorded (§7), one prompt per build session (§10), job-supply playbook (§11), and §14: no WhatsApp publish path, §15: three paid packages + dated promotions, §16/§18: the /publicar-gratis promotion page (permanent), §17: SEO targets from Keyword Planner — data in `docs/seo/` (2026-09-27). |
+| `PLAN-SEO.md` | Programmatic SEO from Keyword Planner data (2026-09-27/28). §0 records what shipped: resource guides (`lib/guides.ts`), calculators, CV templates, type-of-work landings, labour-law figures (`lib/labor-law.ts` — update every July). §2 is the remaining PR list (company pages, cities, job titles, salaries, schedule field, CV builder, Indexing API) with one prompt per session (§4); keyword data in `docs/seo/`. |
 | `ARCHITECTURE.md` | Target backend design: the data seam, DB schema, auth, job lifecycle, caching |
 | `MIGRATION.md` | WordPress → MySQL cutover runbook and rollback |
 | `DEPLOY.md` | Hostinger + MySQL operations and their known traps |
@@ -127,6 +127,12 @@ Non-negotiables:
   A future checkout buys placement, never approval: `PLAN-PAGOPAR.md` §7. The
   admin grant path (`grantJobFeature()`, `components/admin/FeaturePanel.tsx`,
   and the raw field on `JobForm`) is the manual fallback and is never removed.
+- **Employer prices are read through `lib/pricing.ts` and edited only in
+  `/admin/precios`.** No page carries a price literal, a regular price is never
+  0, and "gratis" for employers exists only as a promotion with an end date
+  that really ends (`activePromo()` in `lib/plans.ts`). A price never publishes
+  or approves a listing. `npm run pricing:verify` asserts it
+  (`PLAN-GROWTH.md` §15).
 - **Consent is append-only.** Withdrawal is a new row, never an UPDATE on
   `consents`.
 - **Deletion of candidate data is a hard DELETE.** `candidateCvs.deletedAt` is

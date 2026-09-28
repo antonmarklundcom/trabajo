@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { Wordmark, NandutiMotif } from './Logo';
-import WhatsAppCta from './WhatsAppCta';
 
 // Desktop keeps "Publicá tu empleo" out of the text links: the gold
 // "Publicar empleo" button beside them goes to the same page, and two links to
@@ -12,7 +11,7 @@ import WhatsAppCta from './WhatsAppCta';
 // because there the buttons sit at the bottom of a long screen.
 const seekerLinks = [
   { href: '/empleos', label: 'Empleos' },
-  // The largest query family the site targets (PLAN-SEO.md §1): a header link
+  // The largest query family the site targets (PLAN-SEO.md §0): a header link
   // from every page is the strongest internal link the CV hub can get.
   { href: '/curriculum-vitae', label: 'Curriculum' },
   { href: '/blog', label: 'Consejos' },
@@ -191,12 +190,6 @@ export default function NavMenu({ employerLogin }: Props) {
             ))}
 
             <div className="mt-auto pt-6 flex flex-col gap-3">
-              <WhatsAppCta
-                intent="publicar"
-                label="Publicá por WhatsApp"
-                sourcePage={pathname}
-                onNavigate={() => setOpen(false)}
-              />
               <Link
                 href="/publicar"
                 onClick={() => setOpen(false)}

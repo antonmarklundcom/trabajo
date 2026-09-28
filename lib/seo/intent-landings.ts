@@ -1,5 +1,5 @@
 // The "type of work" landings: /trabajo-remoto, /trabajo-sin-experiencia,
-// /trabajo-medio-tiempo (PLAN-SEO.md §1).
+// /trabajo-medio-tiempo (PLAN-SEO.md §0).
 //
 // Each one is a real, indexable URL for a slice of the catalogue the job row
 // already records (modality, seniority, contract type) — the same idea as the
@@ -51,4 +51,15 @@ export function intentLandingFor(param: string, value: string): IntentLanding | 
   return Object.values(INTENT_LANDINGS).find(
     (l) => l.filter.param === param && l.filter.value === value,
   );
+}
+
+/** Whether a job belongs to a landing's slice — the sitemap counts with this. */
+export function jobMatchesIntent(
+  job: { modality: string; seniority: string; contractType: string },
+  key: IntentLandingKey,
+): boolean {
+  const { filter } = INTENT_LANDINGS[key];
+  if (filter.param === 'modalidad') return job.modality === filter.value;
+  if (filter.param === 'nivel') return job.seniority === filter.value;
+  return job.contractType === filter.value;
 }

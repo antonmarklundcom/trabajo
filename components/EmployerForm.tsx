@@ -9,7 +9,6 @@ import { WHATSAPP_HOURS_COPY } from '@/lib/whatsapp';
 import { validateEmail, validateMinLength } from '@/lib/form-validation';
 import HoneypotField from '@/components/HoneypotField';
 import FormField from '@/components/FormField';
-import WhatsAppCta from '@/components/WhatsAppCta';
 import type { Category, City } from '@/lib/types';
 
 function validate(values: {
@@ -124,15 +123,7 @@ export default function EmployerForm({ categories, cities }: Props) {
         <p className="text-ink-secondary">
           Te contactamos por WhatsApp al {values.contactWhatsapp}. {WHATSAPP_HOURS_COPY}
         </p>
-        <div className="mt-6 max-w-xs mx-auto">
-          <WhatsAppCta
-            intent="publicar"
-            context={{ jobTitle: values.jobTitle, companyName: values.companyName }}
-            label="¿Querés acelerarlo? Escribinos ahora"
-            sourcePage="/publicar"
-          />
-        </div>
-        <p className="mt-4 text-sm text-ink-secondary">
+        <p className="mt-6 text-sm text-ink-secondary">
           Mientras tanto:{' '}
           <Link href="/planes" className="text-brand hover:underline font-medium">
             mirá cómo destacar tu aviso

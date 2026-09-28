@@ -234,10 +234,10 @@ function GuideCta({ variant }: { variant: 'postulantes' | 'empresas' | 'ambos' }
     <div className="rounded-card border border-border bg-gold-tint p-6">
       <p className="text-lg font-bold text-ink">¿Necesitás contratar personal?</p>
       <p className="mt-1 text-ink-secondary text-sm">
-        Publicá tu oferta de empleo gratis en trabajo.com.py y recibí postulantes en tu WhatsApp.
+        Publicá tu oferta de empleo en trabajo.com.py: nuestro equipo la revisa y los postulantes te escriben directo a tu WhatsApp.
       </p>
       <Link href="/publicar" className="mt-4 inline-flex items-center min-h-11 px-5 rounded-[12px] bg-ink text-white font-semibold hover:bg-ink/90">
-        Publicar un empleo gratis
+        Publicar un empleo
       </Link>
     </div>
   );

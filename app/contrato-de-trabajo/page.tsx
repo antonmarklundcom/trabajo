@@ -5,7 +5,7 @@ import GuidePage, { type FaqItem } from '@/components/guide/GuidePage';
 import { GUIDES } from '@/lib/guides';
 import { gs, SALARIO_MINIMO } from '@/lib/labor-law';
 
-// Keyword groups (PLAN-SEO.md §1): "contrato de trabajo paraguay modelo",
+// Keyword groups (PLAN-SEO.md §0): "contrato de trabajo paraguay modelo",
 // "modelo de contrato de trabajo en word paraguay", "contrato de trabajo
 // paraguay", "contrato individual de trabajo paraguay", "contrato laboral
 // paraguay", "contrato de trabajo paraguay pdf". The page most aimed at
@@ -171,7 +171,7 @@ export default function ContratoPage() {
       </div>
       <p>
         ¿Ya tenés el contrato y te falta la persona? <Link href="/publicar">Publicá tu oferta de
-        empleo gratis</Link> y recibí postulantes en tu WhatsApp.
+        empleo</Link> y recibí postulantes en tu WhatsApp.
       </p>
     </GuidePage>
   );

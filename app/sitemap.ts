@@ -1,9 +1,9 @@
 import type { MetadataRoute } from 'next';
 import { getAllPublishedJobSummaries, getCategories, getCities } from '@/lib/data';
 import { blogCategoryPath, getBlogCategoryCounts, getBlogPosts } from '@/lib/blog';
-import { blogArchivesForSitemap, companiesWithPublicJobs } from '@/lib/seo';
+import { blogArchivesForSitemap, companiesWithPublicJobs, jobTypeRobots } from '@/lib/seo';
 import { GUIDES, GUIDE_ORDER } from '@/lib/guides';
-import { INTENT_LANDINGS, INTENT_LANDING_ORDER } from '@/lib/seo/intent-landings';
+import { INTENT_LANDINGS, INTENT_LANDING_ORDER, jobMatchesIntent } from '@/lib/seo/intent-landings';
 
 // Left at an hour on purpose: a new listing reaches the sitemap immediately
 // because every admin mutation revalidates '/sitemap.xml' (lib/cache.ts), so
@@ -60,6 +60,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: siteUrl, lastModified: new Date(), changeFrequency: 'daily', priority: 1.0 },
     { url: `${siteUrl}/empleos`, lastModified: new Date(), changeFrequency: 'hourly', priority: 0.9 },
     { url: `${siteUrl}/publicar`, changeFrequency: 'monthly', priority: 0.7 },
+    { url: `${siteUrl}/buscar-personal`, changeFrequency: 'monthly', priority: 0.7 },
+    { url: `${siteUrl}/publicar-gratis`, changeFrequency: 'weekly', priority: 0.6 },
     { url: `${siteUrl}/planes`, changeFrequency: 'monthly', priority: 0.6 },
     { url: `${siteUrl}/contacto`, changeFrequency: 'monthly', priority: 0.5 },
     { url: `${siteUrl}/blog`, changeFrequency: 'weekly', priority: 0.6 },
@@ -76,9 +78,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
-  // Type-of-work landings (lib/seo/intent-landings.ts). Always listed: each
-  // carries its own editorial copy and stays indexable with an empty list.
-  const intentPages: MetadataRoute.Sitemap = INTENT_LANDING_ORDER.map((key) => ({
+  // Type-of-work landings (lib/seo/intent-landings.ts) — only the ones
+  // jobTypeRobots() lets Google index, counted from the same walk.
+  const intentPages: MetadataRoute.Sitemap = INTENT_LANDING_ORDER.filter(
+    (key) => jobTypeRobots(jobs.filter((job) => jobMatchesIntent(job, key)).length).index,
+  ).map((key) => ({
     url: `${siteUrl}${INTENT_LANDINGS[key].path}`,
     changeFrequency: 'daily' as const,
     priority: 0.7,
