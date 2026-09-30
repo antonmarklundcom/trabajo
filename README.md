@@ -102,7 +102,7 @@ Copiá `.env.example` a `.env.local` para desarrollo local.
 
 ```env
 NEXT_PUBLIC_SITE_URL=https://trabajo.com.py
-NEXT_PUBLIC_WHATSAPP_LEADS=595XXXXXXXXX
+# NEXT_PUBLIC_WHATSAPP_LEADS is no longer read (number is fixed in lib/whatsapp.ts)
 DATA_SOURCE=seed
 ```
 

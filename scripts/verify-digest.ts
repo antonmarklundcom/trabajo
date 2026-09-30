@@ -316,19 +316,10 @@ check(
   'AGENTS.md: every wa.me link is built by lib/whatsapp.ts.',
 );
 
-{
-  const saved = process.env.NEXT_PUBLIC_WHATSAPP_LEADS;
-  delete process.env.NEXT_PUBLIC_WHATSAPP_LEADS;
-  const unconfigured = employerWeeklyDigestMessage('rrhh@example.com', 'Ana', digest).text;
-  process.env.NEXT_PUBLIC_WHATSAPP_LEADS = saved;
-  check(
-    'with no WhatsApp number configured the email has no wa.me link and still offers both actions',
-    !unconfigured.includes('wa.me') &&
-      unconfigured.split(PITCH).length - 1 === 3 &&
-      unconfigured.includes('Para renovarlo, respondé a este correo.'),
-    'A link to https://wa.me/?text=… with no number opens a chat with nobody.',
-  );
-}
+check(
+  'every wa.me link in the email goes to the fixed site number',
+  links.every((l) => l.startsWith('https://wa.me/595992279599?')),
+);
 
 // ---------------------------------------------------------------------------
 // 4. The rest of the copy contract.

@@ -21,7 +21,7 @@ Managed GitHub integration — no SSH, PM2 or Nginx.
 | Var | Purpose |
 |---|---|
 | `NEXT_PUBLIC_SITE_URL` | Absolute URLs, canonicals, sitemap |
-| `NEXT_PUBLIC_WHATSAPP_LEADS` | WhatsApp destination for every `lib/whatsapp.ts` CTA |
+| `NEXT_PUBLIC_WHATSAPP_LEADS` | No longer read — the site number is `SITE_WHATSAPP_NUMBER` in `lib/whatsapp.ts` |
 | `NEXT_PUBLIC_SHOW_PLANS` | `"false"` hides the `/planes` pricing grid; anything else shows it |
 | `DATA_SOURCE` | `seed` \| `db` — the source switch |
 | `DATABASE_URL` | `mysql://user:pass@localhost:3306/dbname` on the live app |

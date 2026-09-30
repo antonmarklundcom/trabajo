@@ -18,10 +18,16 @@
 export const WHATSAPP_HOURS_COPY =
   'Te respondemos el mismo día hábil (lunes a viernes, 8 a 18).';
 
-/** `NEXT_PUBLIC_WHATSAPP_LEADS`, or null when unset/blank. */
-export function siteWhatsAppNumber(): string | null {
-  const number = process.env.NEXT_PUBLIC_WHATSAPP_LEADS?.trim();
-  return number ? number : null;
+/**
+ * The portal team's WhatsApp, +595 992 279599. Owner decision (2026-09-30): one
+ * number for every site-level link, fixed here on purpose so a stale
+ * `NEXT_PUBLIC_WHATSAPP_LEADS` on the host can no longer send chats elsewhere.
+ * That env var is now ignored.
+ */
+export const SITE_WHATSAPP_NUMBER = '595992279599';
+
+export function siteWhatsAppNumber(): string {
+  return SITE_WHATSAPP_NUMBER;
 }
 
 /**
@@ -110,13 +116,12 @@ function employerIntentMessage(intent: EmployerIntent, options: EmployerIntentOp
   }
 }
 
-/** `null` when `NEXT_PUBLIC_WHATSAPP_LEADS` is unset — callers decide the fallback. */
+/** Always a link now that the site number is fixed; `string | null` kept so callers stay unchanged. */
 export function employerWhatsAppHref(
   intent: EmployerIntent,
   options?: EmployerIntentOptions,
 ): string | null {
-  const number = siteWhatsAppNumber();
-  return number ? waHref(number, employerIntentMessage(intent, options)) : null;
+  return waHref(siteWhatsAppNumber(), employerIntentMessage(intent, options));
 }
 
 /**

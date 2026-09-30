@@ -32,11 +32,6 @@ export function getOpsConfig(): { items: OpsConfigItem[]; contactLeadsLost: bool
 
   const items: OpsConfigItem[] = [
     {
-      label: 'WhatsApp del sitio (NEXT_PUBLIC_WHATSAPP_LEADS)',
-      ok: set('NEXT_PUBLIC_WHATSAPP_LEADS'),
-      whenOff: 'Todos los botones de WhatsApp para empresas desaparecen.',
-    },
-    {
       label: 'Google Analytics (NEXT_PUBLIC_GA_ID)',
       ok: set('NEXT_PUBLIC_GA_ID'),
       whenOff: 'No se mide ninguna visita, clic de WhatsApp ni formulario enviado.',

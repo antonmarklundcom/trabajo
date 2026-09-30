@@ -154,8 +154,9 @@ check('every track() call uses whatsapp_click or lead_submit', !untypedCallFound
 // ---------------------------------------------------------------------------
 
 check(
-  '.env.example documents NEXT_PUBLIC_WHATSAPP_LEADS',
-  read('.env.example').includes('NEXT_PUBLIC_WHATSAPP_LEADS'),
+  'the site number is the fixed constant 595992279599, not an env var',
+  /SITE_WHATSAPP_NUMBER\s*=\s*'595992279599'/.test(code(read('lib/whatsapp.ts'))) &&
+    !code(read('lib/whatsapp.ts')).includes('process.env'),
 );
 
 // ---------------------------------------------------------------------------

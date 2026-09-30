@@ -142,10 +142,11 @@ Non-negotiables:
 - **No search, ranking, scoring, matching or bulk export of candidates.**
   Phase 4, gated on legal review (`PLAN-PHASE2.md` §6 "Phase 4 — NOT NOW").
 - **Every `wa.me` link on the site is built by `lib/whatsapp.ts`.** No
-  component or page concatenates `https://wa.me/` itself. The number comes
-  from `NEXT_PUBLIC_WHATSAPP_LEADS` (site) or from the job row (seeker →
-  employer), never from a literal. `npm run whatsapp:verify` asserts it from
-  source.
+  component or page concatenates `https://wa.me/` itself. The site number is
+  the `SITE_WHATSAPP_NUMBER` constant in that file (owner decision 2026-09-30;
+  `NEXT_PUBLIC_WHATSAPP_LEADS` is no longer read); the seeker → employer number
+  comes from the job row. No other literal number. `npm run whatsapp:verify`
+  asserts it from source.
 - **One analytics vocabulary.** `lead_submit` and `whatsapp_click` are the
   only two event names; their parameters are typed in `lib/analytics.ts`. A
   new CTA reuses them, it does not invent a third.
